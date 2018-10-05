@@ -5,13 +5,12 @@ import (
   "flag"
 )
 
-
 func main () {
 
   // Define Flags
 
   uiPort := flag.String("UIPort", "8080", "port for the UI client")
-  message := flag.String("msg", "127.0.0.1:5000", "message to be sent")
+  message := flag.String("msg", "Test message", "message to be sent")
 
   flag.Parse()
 
