@@ -5,6 +5,7 @@ import (
     //"os"
     "flag"
     "net"
+    "strings"
 )
 
 type SimpleMessage struct {
@@ -46,7 +47,7 @@ func main () {
 
   // Creates Gossiper
 
-  gossiper := NewGossiper(*gossipAddr, *name)
+  gossiper := NewGossiper(*gossipAddr, *name, *peers)
   message := SimpleMessage { "nodeB", "127.0.0.1:5002", "Bonjour" }
   gossiper.logClientMessage(&message)
   gossiper.logPeerMessage(&message)
@@ -54,9 +55,7 @@ func main () {
 
 
 
-
-
-func NewGossiper(address, name string) *Gossiper {
+func NewGossiper(address, name string, peersList string) *Gossiper {
 
   udpAddr, _ := net.ResolveUDPAddr("udp4", address)
   udpConn, _ := net.ListenUDP("udp4", udpAddr)
@@ -65,7 +64,7 @@ func NewGossiper(address, name string) *Gossiper {
     address:  udpAddr,
     conn:     udpConn,
     Name:     name,
-    peers:    make([]string, 10),
+    peers:    strings.Split(peersList, ","),
   }
 }
 
