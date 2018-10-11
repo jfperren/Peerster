@@ -10,16 +10,6 @@ import (
     "sync"
 )
 
-type SimpleMessage struct {
-  OriginalName string
-  RelayPeerAddr string
-  Contents string
-}
-
-type GossipPacket struct {
-  Simple *SimpleMessage
-}
-
 type Gossiper struct {
   gossipAddress *net.UDPAddr
   gossipConn *net.UDPConn
