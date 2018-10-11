@@ -19,14 +19,14 @@ func NewUDPSocket(address string) *UDPSocket {
     return &UDPSocket{udpConn}
 }
 
-func (socket *UDPSocket) Receive() []byte {
+func (socket *UDPSocket) Receive() ([]byte, string) {
 
   buffer := make([]byte, 1024)
 
-  n, _, err := socket.connection.ReadFromUDP(buffer)
+  n, peer, err := socket.connection.ReadFromUDP(buffer)
   if err != nil { panic(err) }
 
-  return buffer[:n]
+  return buffer[:n], peer.String()
 }
 
 func (socket *UDPSocket) Send(bytes []byte, address string) {

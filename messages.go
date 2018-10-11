@@ -14,7 +14,7 @@ type RumorMessage struct {
 
 type PeerStatus struct {
   Identifier    string
-  NextID        string
+  NextID        uint32
 }
 
 type StatusPacket struct {

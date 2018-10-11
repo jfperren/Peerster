@@ -1,26 +1,34 @@
 package main
 
 import (
-    "fmt"
+    // "fmt"
     //"os"
     "flag"
     "strings"
     "github.com/dedis/protobuf"
     "sync"
+    "time"
+    //"sort"
 )
 
+const ACK_TIMEOUT = 1
+
 type Gossiper struct {
+  simple          bool
   gossipSocket    *UDPSocket
   clientSocket    *UDPSocket
   gossipAddress   string
   clientAddress   string
   peers           []string
   Name            string
+
+  // Registered handlers for status messages
+  handlers        map[string]chan*StatusPacket
+  rumors          *RumorMessages
+
+  statusPacket    *StatusPacket
 }
 
-type Message struct {
-  Text string
-}
 
 func main () {
 
@@ -30,7 +38,7 @@ func main () {
   gossipAddr := flag.String("gossipAddr", "127.0.0.1:5000", "port for the gossiper")
   name := flag.String("name", "REQUIRED", "name of the gossiper")
   peers := flag.String("peers", "REQUIRED", "comma separated list of peers of the form ip:port")
-  _ = flag.Bool("simple", false, "runs gossiper in simple broadcast mode")
+  simple := flag.Bool("simple", false, "runs gossiper in simple broadcast mode")
 
   flag.Parse()
 
@@ -44,47 +52,62 @@ func main () {
 
   // Creates Gossiper
 
-  Gossiper := NewGossiper(*gossipAddr, *uiPort,  *name, *peers)
+  Gossiper := NewGossiper(*gossipAddr, *uiPort,  *name, *peers, *simple)
 
   Gossiper.start()
 }
 
 
-func NewGossiper(gossipAddress, clientPort, name string, peersList string) *Gossiper {
+func NewGossiper(gossipAddress, clientPort, name string, peers string, simple bool) *Gossiper {
+
+  clientAddress := ":" + clientPort
+
+  gossipSocket := NewUDPSocket(gossipAddress)
+  clientSocket := NewUDPSocket(clientAddress)
+
+  statusPacket := &StatusPacket{make([]PeerStatus, 5)}
 
   return &Gossiper{
-    gossipSocket:   NewUDPSocket(gossipAddress),
-    clientSocket:   NewUDPSocket(":" + clientPort),
+    simple:         simple,
+    gossipSocket:   gossipSocket,
+    clientSocket:   clientSocket,
     gossipAddress:  gossipAddress,
-    clientAddress:  ":" + clientPort,
+    clientAddress:  clientAddress,
     Name:           name,
-    peers:          strings.Split(peersList, ","),
+    peers:          strings.Split(peers, ","),
+    handlers:       make(map[string]chan*StatusPacket),
+    rumors:         makeRumors(),
+    statusPacket:   statusPacket,
   }
 }
 
 func (gossiper *Gossiper) start() {
 
-  go gossiper.listenClient()
-  go gossiper.listenGossip()
+  go func() {
+    var packet GossipPacket
+    for {
+      bytes, _ := gossiper.clientSocket.Receive()
+      protobuf.Decode(bytes, &packet)
+      gossiper.handleClient(&packet)
+    }
+  }()
+
+  go func() {
+    var packet GossipPacket
+    for {
+      bytes, source := gossiper.gossipSocket.Receive()
+      protobuf.Decode(bytes, &packet)
+      gossiper.handleGossip(&packet, source)
+    }
+  }()
 
   wg := new(sync.WaitGroup)
   wg.Add(2)
   wg.Wait()
 }
 
-func (gossiper *Gossiper) listenClient() {
-
-  var message Message
-
-  for {
-    bytes := gossiper.clientSocket.Receive()
-    protobuf.Decode(bytes, &message)
-    gossiper.receiveClient(message)
-  }
-}
-
 /// Sends to one peer
-func (gossiper *Gossiper) send(peerAddress string, packet *GossipPacket) {
+func (gossiper *Gossiper) sendTo(peerAddress string, packet interface{}) {
 
   bytes, err := protobuf.Encode(packet)
   if err != nil { panic(err) }
@@ -93,81 +116,202 @@ func (gossiper *Gossiper) send(peerAddress string, packet *GossipPacket) {
 }
 
 /// Sends to every peer
-func (gossiper *Gossiper) relay(packet *GossipPacket) {
+func (gossiper *Gossiper) relay(packet *GossipPacket, setName bool) {
+
+  // TODO: Test type of message, panic if not Simple
+
+  packet.Simple.RelayPeerAddr = gossiper.gossipAddress
+  if setName { packet.Simple.OriginalName = gossiper.Name }
 
   for i := 0; i < len(gossiper.peers); i++ {
     if gossiper.peers[i] != packet.Simple.RelayPeerAddr {
-      gossiper.send(gossiper.peers[i], packet)
+      gossiper.sendTo(gossiper.peers[i], packet)
     }
   }
 }
 
-func (gossiper *Gossiper) listenGossip() {
 
-  var packet GossipPacket
+func (gossiper *Gossiper) handleClient(packet *GossipPacket) {
 
-  for {
-    bytes := gossiper.gossipSocket.Receive()
-    protobuf.Decode(bytes, &packet)
-    gossiper.receiveGossip(packet)
+  // gossiper.logClientMessage(message)
+
+  if gossiper.simple {
+    go gossiper.relay(packet, true)
+  } else {
+    go gossiper.rumors.put(packet.Rumor)
+    go gossiper.rumormonger(packet.Rumor, nil)
   }
 }
 
-func (gossiper *Gossiper) receiveGossip(packet GossipPacket) {
+func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
 
-  if !contains(gossiper.peers, packet.Simple.RelayPeerAddr) {
-    gossiper.peers = append(gossiper.peers, packet.Simple.RelayPeerAddr)
+  gossiper.addPeerIfNeeded(source)
+
+  switch {
+
+  case packet.Simple != nil:
+
+    // gossiper.logPeerMessage(packet.Simple)
+    // packet.Simple = gossiper.processPeerMessage(packet.Simple)
+    go gossiper.relay(packet, false)
+
+  case packet.Rumor != nil:
+
+    if !gossiper.rumors.contains(packet.Rumor) {
+      go gossiper.rumors.put(packet.Rumor)
+      go gossiper.rumormonger(packet.Rumor, nil)
+    }
+
+    go gossiper.sendTo(source, gossiper.generateStatusPacket())
+
+  case packet.Status != nil:
+
+    expected := gossiper.dispatchStatusPacket(source, packet.Status)
+    if !expected {
+      rumor, _ := gossiper.compareStatus(packet.Status)
+      go gossiper.rumormonger(rumor, &source)
+    }
+  }
+}
+
+// func (gossiper *Gossiper) logClientMessage(message Message) {
+//   fmt.Printf("CLIENT MESSAGE %v\n", message.Text)
+// }
+//
+// func (gossiper *Gossiper) logPeerMessage(message *SimpleMessage) {
+//   fmt.Printf("SIMPLE MESSAGE origin %v from %v contents %v\n",
+//     message.OriginalName, message.RelayPeerAddr, message.Contents)
+//   fmt.Printf("%v\n", strings.Join(gossiper.peers, ","))
+// }
+
+func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
+
+  if peer == nil {
+    index := selectRandom(gossiper.peers)
+    peer = &index
   }
 
-  gossiper.logPeerMessage(packet.Simple)
+  // Send rumor to neighbor
+  gossiper.sendTo(*peer, &GossipPacket{nil, rumor, nil})
 
-  packet.Simple = gossiper.processPeerMessage(packet.Simple)
+  var shouldContinue bool
 
-  gossiper.relay(&packet)
-}
+  ticker := time.NewTicker(ACK_TIMEOUT * time.Second)
+  defer ticker.Stop()
 
-func (gossiper *Gossiper) receiveClient(message Message) {
+  go gossiper.sendTo(*peer, rumor)
 
-  gossiper.logClientMessage(message)
-  gossipPacket := gossiper.wrapClientMessage(message)
-  gossiper.relay(gossipPacket)
+  select {
+  case statusPacket := <- gossiper.awaitStatusPacket(*peer): // Received ACK
 
-}
+    // Compare status from peer with own messages
+    otherRumor, status := gossiper.compareStatus(statusPacket)
 
-func (gossiper *Gossiper) wrapClientMessage(message Message) *GossipPacket {
+    switch  {
+    case status != nil: // Peer has unseen messages
 
-  simpleMessage := SimpleMessage {
-    OriginalName:   gossiper.Name,
-    RelayPeerAddr:  gossiper.gossipAddress,
-    Contents:       message.Text,
+      go gossiper.sendTo(*peer, status)
+      shouldContinue = true
+
+    case otherRumor != nil: // Peer is missing messages
+
+      go gossiper.rumormonger(otherRumor, peer)
+      shouldContinue = true
+
+    default:
+      shouldContinue = flipCoin()
+    }
+
+  case <- ticker.C: // Timeout
+    shouldContinue = flipCoin()
   }
 
-  return &GossipPacket { &simpleMessage, nil, nil }
+  if shouldContinue {
+    go gossiper.rumormonger(rumor, nil)
+  }
 }
 
-func (gossiper *Gossiper) processPeerMessage(message *SimpleMessage) *SimpleMessage {
-  // message.RelayPeerAddr = gossiper.gossipAddress.IP.String() + ":" + fmt.Sprint(gossiper.gossipAddress.Port)
-
-  message.RelayPeerAddr = gossiper.gossipAddress
-
-  return message
+/*
+ * Sends a status packet to potential handlers.
+ * @return `True` if the packet was consumed.
+ */
+func (gossiper *Gossiper) dispatchStatusPacket(source string, statusPacket *StatusPacket) bool {
+  channel, found := gossiper.handlers[source]
+  if found {
+    channel <- statusPacket
+  }
+  return found
 }
 
-func (gossiper *Gossiper) logClientMessage(message Message) {
-  fmt.Printf("CLIENT MESSAGE %v\n", message.Text)
+func (gossiper *Gossiper) awaitStatusPacket(peer string) chan *StatusPacket {
+  channel := make(chan *StatusPacket)
+  gossiper.handlers[peer] = channel
+  return channel
 }
 
-func (gossiper *Gossiper) logPeerMessage(message *SimpleMessage) {
-  fmt.Printf("SIMPLE MESSAGE origin %v from %v contents %v\n",
-    message.OriginalName, message.RelayPeerAddr, message.Contents)
-  fmt.Printf("%v\n", strings.Join(gossiper.peers, ","))
+func (gossiper *Gossiper) stopWaitForStatusPacket(peer string) {
+  gossiper.handlers[peer] = nil
 }
 
-func contains(array []string, element string) bool {
-	for _, o := range array {
-		if o == element {
-			return true
-		}
-	}
-	return false
+func (gossiper *Gossiper) compareStatus(statusPacket *StatusPacket) (*RumorMessage, *StatusPacket) {
+
+  thisStatuses := make(map[string]uint32)
+  thisStatusPacket := gossiper.generateStatusPacket()
+
+  gossiperIsMissingMessages := false
+
+  for i := 0; i < len(thisStatusPacket.Want); i++ {
+    status := thisStatusPacket.Want[i]
+    thisStatuses[status.Identifier] = status.NextID
+  }
+
+  for i := 0; i < len(statusPacket.Want); i++ {
+
+    peerStatus := statusPacket.Want[i]
+    peerNextID := peerStatus.NextID
+    thisNextID, found := thisStatuses[peerStatus.Identifier]
+
+    switch {
+
+    case !found: // They know about a node we don't know
+      gossiperIsMissingMessages = true
+
+    case thisNextID == peerNextID: // In sync, continue to next
+
+    case thisNextID < peerNextID:
+      gossiperIsMissingMessages = true
+
+    case thisNextID > peerNextID:
+      return gossiper.rumors.get(peerStatus.Identifier, peerNextID), nil
+    }
+
+    delete(thisStatuses, peerStatus.Identifier)
+  }
+
+  for identifier, nextID := range thisStatuses { // We know about a node they don't know
+    return gossiper.rumors.get(identifier, nextID), nil
+  }
+
+  if gossiperIsMissingMessages {
+    return nil,  thisStatusPacket
+  }
+
+  return nil, nil
+}
+
+func (gossiper *Gossiper) addPeerIfNeeded(peer string) {
+  if !containsString(gossiper.peers, peer) {
+    gossiper.peers = append(gossiper.peers, peer)
+  }
+}
+
+func (gossiper *Gossiper) generateStatusPacket() *StatusPacket {
+
+  peerStatuses := make([]PeerStatus, 5)
+
+  for _, origin := range gossiper.rumors.allOrigins() {
+    peerStatuses = append(peerStatuses, PeerStatus{origin, gossiper.rumors.nextIDFor(origin)})
+  }
+
+  return &StatusPacket{peerStatuses}
 }
