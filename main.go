@@ -144,10 +144,10 @@ func (gossiper *Gossiper) listenGossip() {
   var packet GossipPacket
 
   for {
-    _, _, err := gossiper.gossipConn.ReadFromUDP(buffer)
-    if err != nil { fmt.Println(err) }
+    n, _, err := gossiper.gossipConn.ReadFromUDP(buffer)
+    if err != nil { panic(err) }
 
-    protobuf.Decode(buffer, packet)
+    protobuf.Decode(buffer[:n], &packet)
     gossiper.receiveGossip(packet)
   }
 }

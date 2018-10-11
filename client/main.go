@@ -25,7 +25,7 @@ func main () {
   // fmt.Printf("port = %v\n", *uiPort)
   // fmt.Printf("message = %v\n", *message)
 
-  fmt.Println("Sending message '%v' to port %v", *message, *uiPort)
+  fmt.Printf("Sending message '%v' to port %v\n", *message, *uiPort)
 
   // Simply sends message via UDP. Note that we need to use a port different
   // from UIPort otherwise there will be some errors.
