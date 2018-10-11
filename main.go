@@ -132,9 +132,7 @@ func (gossiper *Gossiper) relay(packet *GossipPacket, setName bool) {
 
 
 func (gossiper *Gossiper) handleClient(packet *GossipPacket) {
-
-  // gossiper.logClientMessage(message)
-
+  
   if gossiper.simple {
     go gossiper.relay(packet, true)
   } else {
@@ -151,8 +149,6 @@ func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
 
   case packet.Simple != nil:
 
-    // gossiper.logPeerMessage(packet.Simple)
-    // packet.Simple = gossiper.processPeerMessage(packet.Simple)
     go gossiper.relay(packet, false)
 
   case packet.Rumor != nil:
@@ -174,15 +170,7 @@ func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
   }
 }
 
-// func (gossiper *Gossiper) logClientMessage(message Message) {
-//   fmt.Printf("CLIENT MESSAGE %v\n", message.Text)
-// }
-//
-// func (gossiper *Gossiper) logPeerMessage(message *SimpleMessage) {
-//   fmt.Printf("SIMPLE MESSAGE origin %v from %v contents %v\n",
-//     message.OriginalName, message.RelayPeerAddr, message.Contents)
-//   fmt.Printf("%v\n", strings.Join(gossiper.peers, ","))
-// }
+
 
 func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
 
