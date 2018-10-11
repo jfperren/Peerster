@@ -1,28 +1,28 @@
 package main
 
 type SimpleMessage struct {
-  OriginalName  string
-  RelayPeerAddr string
-  Contents      string
+    OriginalName  string
+    RelayPeerAddr string
+    Contents      string
 }
 
 type RumorMessage struct {
-  Origin        string
-  ID            uint32
-  Text          string
+    Origin        string
+    ID            uint32
+    Text          string
 }
 
 type PeerStatus struct {
-  Identifier    string
-  NextID        uint32
+    Identifier    string
+    NextID        uint32
 }
 
 type StatusPacket struct {
-  Want          []PeerStatus
+    Want          []PeerStatus
 }
 
 type GossipPacket struct {
-  Simple        *SimpleMessage
-  Rumor         *RumorMessage
-  Status        *StatusPacket
+    Simple        *SimpleMessage
+    Rumor         *RumorMessage
+    Status        *StatusPacket
 }

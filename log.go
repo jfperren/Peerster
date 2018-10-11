@@ -6,12 +6,12 @@ import (
 )
 
 func logClientMessage(message *SimpleMessage) {
-  fmt.Printf("CLIENT MESSAGE %v\n", message.Contents)
+	fmt.Printf("CLIENT MESSAGE %v\n", message.Contents)
 }
 
-func logSimpleMessage(message *SimpleMessage, peers []string) {
-  fmt.Printf("SIMPLE MESSAGE origin %v from %v contents %v\n",
-    message.OriginalName, message.RelayPeerAddr, message.Contents)
+func logSimpleMessage(message *SimpleMessage) {
+	fmt.Printf("SIMPLE MESSAGE origin %v from %v contents %v\n",
+		message.OriginalName, message.RelayPeerAddr, message.Contents)
 }
 
 func logRumor(rumor *RumorMessage, relayAddress string) {

@@ -6,11 +6,11 @@ import (
 
 
 func selectRandom(list []string) string {
-  return list[rand.Int() % (len(list) - 1)]
+  	return list[rand.Int() % (len(list) - 1)]
 }
 
 func flipCoin() bool {
-  return rand.Int() % 2 == 0
+  	return rand.Int() % 2 == 0
 }
 
 func containsString(array []string, element string) bool {
