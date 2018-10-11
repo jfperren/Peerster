@@ -174,7 +174,7 @@ func (gossiper *Gossiper) wrapClientMessage(message Message) *GossipPacket {
     Contents:       message.Text,
   }
 
-  return &GossipPacket { &simpleMessage }
+  return &GossipPacket { &simpleMessage, nil, nil }
 }
 
 func (gossiper *Gossiper) processPeerMessage(message *SimpleMessage) *SimpleMessage {
