@@ -42,17 +42,17 @@ func main () {
   gossipAddr := flag.String("gossipAddr", "127.0.0.1:5000", "port for the gossiper")
   name := flag.String("name", "REQUIRED", "name of the gossiper")
   peers := flag.String("peers", "REQUIRED", "comma separated list of peers of the form ip:port")
-  simple := flag.Bool("simple", false, "runs gossiper in simple broadcast mode")
+  _ = flag.Bool("simple", false, "runs gossiper in simple broadcast mode")
 
   flag.Parse()
 
   // Print Flags
 
-  fmt.Printf("port = %v\n", *uiPort)
-  fmt.Printf("gossipAddr = %v\n", *gossipAddr)
-  fmt.Printf("name = %v\n", *name)
-  fmt.Printf("peers = %v\n", *peers)
-  fmt.Printf("simple = %v\n", *simple)
+  // fmt.Printf("port = %v\n", *uiPort)
+  // fmt.Printf("gossipAddr = %v\n", *gossipAddr)
+  // fmt.Printf("name = %v\n", *name)
+  // fmt.Printf("peers = %v\n", *peers)
+  // fmt.Printf("simple = %v\n", *simple)
 
   // Creates Gossiper
 
@@ -133,8 +133,11 @@ func (gossiper *Gossiper) send(peerAddress string, packet *GossipPacket) {
 
 /// Sends to every peer
 func (gossiper *Gossiper) relay(packet *GossipPacket) {
+
   for i := 0; i < len(gossiper.peers); i++ {
-    gossiper.send(gossiper.peers[i], packet)
+    if gossiper.peers[i] != packet.Simple.RelayPeerAddr {
+      gossiper.send(gossiper.peers[i], packet)
+    }
   }
 }
 
@@ -153,7 +156,16 @@ func (gossiper *Gossiper) listenGossip() {
 }
 
 func (gossiper *Gossiper) receiveGossip(packet GossipPacket) {
+
+  if !contains(gossiper.peers, packet.Simple.RelayPeerAddr) {
+    gossiper.peers = append(gossiper.peers, packet.Simple.RelayPeerAddr)
+  }
+
   gossiper.logPeerMessage(packet.Simple)
+
+  packet.Simple = gossiper.processPeerMessage(packet.Simple)
+
+  gossiper.relay(&packet)
 }
 
 func (gossiper *Gossiper) receiveClient(message Message) {
@@ -168,7 +180,7 @@ func (gossiper *Gossiper) wrapClientMessage(message Message) *GossipPacket {
 
   simpleMessage := SimpleMessage {
     OriginalName:   gossiper.Name,
-    RelayPeerAddr:  gossiper.gossipAddress.IP.String(),
+    RelayPeerAddr:  gossiper.gossipAddress.IP.String() + ":" + fmt.Sprint(gossiper.gossipAddress.Port),
     Contents:       message.Text,
   }
 
@@ -176,10 +188,7 @@ func (gossiper *Gossiper) wrapClientMessage(message Message) *GossipPacket {
 }
 
 func (gossiper *Gossiper) processPeerMessage(message *SimpleMessage) *SimpleMessage {
-  message.OriginalName = gossiper.Name
-  message.RelayPeerAddr = gossiper.gossipAddress.IP.String()
-
-  // Send
+  message.RelayPeerAddr = gossiper.gossipAddress.IP.String() + ":" + fmt.Sprint(gossiper.gossipAddress.Port)
 
   return message
 }
@@ -191,5 +200,14 @@ func (gossiper *Gossiper) logClientMessage(message Message) {
 func (gossiper *Gossiper) logPeerMessage(message *SimpleMessage) {
   fmt.Printf("SIMPLE MESSAGE origin %v from %v contents %v\n",
     message.OriginalName, message.RelayPeerAddr, message.Contents)
-  fmt.Printf("PEERS %v\n", gossiper.peers)
+  fmt.Printf("%v\n", strings.Join(gossiper.peers, ","))
+}
+
+func contains(array []string, element string) bool {
+	for _, o := range array {
+		if o == element {
+			return true
+		}
+	}
+	return false
 }
