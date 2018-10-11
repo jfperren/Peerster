@@ -121,7 +121,7 @@ func (gossiper *Gossiper) send(peerAddress string, packet *GossipPacket) {
 
   // Encodes the message
 
-  bytes, err := protobuf.Encode(&packet)
+  bytes, err := protobuf.Encode(packet)
   if err != nil { panic(err) }
 
   // Sends the message to the peer's UDP address via its Gossip connection
