@@ -80,11 +80,11 @@ func NewGossiper(gossipAddress, clientPort, name string, peersList string) *Goss
 
 func connectUDP(address string) (*net.UDPAddr, *net.UDPConn) {
 
-  udpAddr, addrErr := net.ResolveUDPAddr("udp4", address)
-  if addrErr != nil { panic(addrErr) }
+  udpAddr, err := net.ResolveUDPAddr("udp4", address)
+  if err != nil { panic(err) }
 
-  udpConn, connErr := net.ListenUDP("udp4", udpAddr)
-  if addrErr != nil { panic(connErr) }
+  udpConn, err := net.ListenUDP("udp4", udpAddr)
+  if err != nil { panic(err) }
 
   return udpAddr, udpConn
 }
@@ -105,10 +105,10 @@ func (gossiper *Gossiper) listenClient() {
   var message Message
 
   for {
-    _, _, err := gossiper.clientConn.ReadFromUDP(buffer)
-    if err != nil { fmt.Println(err) }
+    n, _, err := gossiper.clientConn.ReadFromUDP(buffer)
+    if err != nil { panic(err) }
 
-    protobuf.Decode(buffer, &message)
+    protobuf.Decode(buffer[:n], &message)
     gossiper.receiveClient(message)
   }
 }
@@ -127,7 +127,7 @@ func (gossiper *Gossiper) send(peerAddress string, packet *GossipPacket) {
   // Sends the message to the peer's UDP address via its Gossip connection
 
   _, err = gossiper.gossipConn.WriteToUDP(bytes, udpAddr)
-  if err != nil { fmt.Println(err)  }
+  if err != nil { panic(err)  }
 
 }
 

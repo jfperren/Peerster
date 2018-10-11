@@ -52,5 +52,5 @@ func main () {
 
   // Close connection
 
-  conn.Close()
+  // conn.Close()
 }
