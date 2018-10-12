@@ -23,10 +23,10 @@ func logMongering(peerAddress string) {
 }
 
 func logStatus(status *StatusPacket, relayAddress string) {
-	fmt.Printf("STATUS from %v", relayAddress)
+	fmt.Printf("STATUS from %v ", relayAddress)
 
 	for _, peerStatus := range status.Want {
-		fmt.Printf("peer %v nextID %v", peerStatus.Identifier, peerStatus.NextID)
+		fmt.Printf("peer %v nextID %v ", peerStatus.Identifier, peerStatus.NextID)
 	}
 
 	fmt.Printf("\n")
@@ -42,4 +42,26 @@ func logInSyncWith(peerAddress string) {
 
 func logPeers(peers []string) {
 	fmt.Printf("PEERS %v\n", strings.Join(peers, ","))
+}
+
+// --- Debug Messages ---
+// These are optional messages, not required in the assignment
+// that might be used for debugging.
+
+func debugStopMongering(rumor *RumorMessage) {
+	fmt.Printf("STOP MONGERING rumor %v\n", rumor.Text)
+}
+
+func debugTimeout(peer string) {
+	fmt.Printf("TIMEOUT from %v\n", peer)
+}
+
+func debugSendStatus(status *StatusPacket, to string) {
+	fmt.Printf("SEND STATUS to %v ", to)
+
+	for _, peerStatus := range status.Want {
+		fmt.Printf("peer %v nextID %v ", peerStatus.Identifier, peerStatus.NextID)
+	}
+
+	fmt.Printf("\n")
 }

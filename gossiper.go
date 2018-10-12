@@ -138,6 +138,8 @@ func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
 			go gossiper.rumormonger(packet.Rumor, nil)
 		}
 
+		statusPacket := gossiper.generateStatusPacket()
+		debugSendStatus(statusPacket, source)
 		go gossiper.sendTo(source, statusPacket.packed())
 
 	case packet.Status != nil:
@@ -156,6 +158,8 @@ func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
 
 
 func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
+
+	var shouldContinue bool
 
 	if peer == nil {
 		index := selectRandom(gossiper.peers)
@@ -196,6 +200,7 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
 		}
 
 	case <- ticker.C: // Timeout
+		debugTimeout(*peer)
 		shouldContinue = flipCoin()
 	}
 
@@ -205,6 +210,8 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
 
 		logFlippedCoin(*peer)
 		go gossiper.rumormonger(rumor, peer)
+	} else {
+		debugStopMongering(rumor)
 	}
 }
 
