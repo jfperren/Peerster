@@ -200,7 +200,11 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
 	}
 
 	if shouldContinue {
-		go gossiper.rumormonger(rumor, nil)
+		index := selectRandom(gossiper.peers)
+		peer = &index
+
+		logFlippedCoin(*peer)
+		go gossiper.rumormonger(rumor, peer)
 	}
 }
 
