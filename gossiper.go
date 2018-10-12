@@ -292,7 +292,7 @@ func (gossiper *Gossiper) addPeerIfNeeded(peer string) {
 
 func (gossiper *Gossiper) generateStatusPacket() *StatusPacket {
 
-	peerStatuses := make([]PeerStatus, 5)
+	peerStatuses := make([]PeerStatus, 0)
 
 	for _, origin := range gossiper.rumors.allOrigins() {
 		peerStatuses = append(peerStatuses, PeerStatus{origin, gossiper.rumors.nextIDFor(origin)})

@@ -51,7 +51,7 @@ func (r *RumorMessages) put(rumor *RumorMessage) {
     _, found := r.IDs[rumor.Origin]
 
     if !found {
-        r.IDs[rumor.Origin] = make([]uint32, 5)
+        r.IDs[rumor.Origin] = make([]uint32, 0)
         r.rumors[rumor.Origin] = make(map[uint32]*RumorMessage)
     }
 
@@ -84,7 +84,7 @@ func (r *RumorMessages) allOrigins() []string {
 
     r.mutex.Lock()
 
-    res := make([]string, 5)
+    res := make([]string, 0)
 
     for origin, _ := range r.IDs {
         res = append(res, origin)
