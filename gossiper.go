@@ -140,8 +140,8 @@ func (gossiper *Gossiper) relay(packet *GossipPacket, setName bool) {
 
 func (gossiper *Gossiper) handleClient(packet *GossipPacket) {
 
-	if packet.Simple == nil {
-		panic("Client should send SimpleMessage only.")
+	if packet == nil || packet.Simple == nil {
+		return // Fail gracefully
 	}
 
 	logClientMessage(packet.Simple)
@@ -164,6 +164,10 @@ func (gossiper *Gossiper) handleClient(packet *GossipPacket) {
 }
 
 func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
+
+	if packet == nil || !packet.isValid() {
+		return // Fail gracefully
+	}
 
 	gossiper.addPeerIfNeeded(source)
 
@@ -220,9 +224,6 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer string) {
 
 	var shouldContinue bool
 
-	// Prepare channel to receive ack
-	peerStatus := gossiper.awaitStatusPacket(peer)
-
 	// Forward package to peer
 	logMongering(peer)
 	go gossiper.sendTo(peer, rumor.packed())
@@ -232,7 +233,7 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer string) {
 	defer ticker.Stop()
 
 	select {
-	case statusPacket := <- peerStatus:
+	case statusPacket := <- gossiper.statusPacketsFrom(peer):
 
 		// Compare status from peer with own messages
 		otherRumor, status := gossiper.compareStatus(statusPacket)
@@ -285,14 +286,15 @@ func (gossiper *Gossiper) dispatchStatusPacket(source string, statusPacket *Stat
 	return found
 }
 
-func (gossiper *Gossiper) awaitStatusPacket(peer string) chan *StatusPacket {
-	channel := make(chan *StatusPacket)
-	gossiper.handlers[peer] = channel
-	return channel
-}
+func (gossiper *Gossiper) statusPacketsFrom(peer string) chan *StatusPacket {
 
-func (gossiper *Gossiper) stopWaitForStatusPacket(peer string) {
-	gossiper.handlers[peer] = nil
+	_, found := gossiper.handlers[peer]
+
+	if !found {
+		gossiper.handlers[peer] = make(chan *StatusPacket, STATUS_BUFFER_SIZE)
+	}
+
+	return gossiper.handlers[peer]
 }
 
 func (gossiper *Gossiper) compareStatus(statusPacket *StatusPacket) (*RumorMessage, *StatusPacket) {

@@ -14,9 +14,11 @@ import (
     //"sort"
 )
 
+const STATUS_BUFFER_SIZE = 5
 const STATUS_TIMEOUT = 1 * time.Second
 const ANTI_ENTROPY_DT = 1 * time.Second
 const INITIAL_ID = uint32(1)
+
 
 func main () {
 
