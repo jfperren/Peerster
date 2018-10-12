@@ -6,7 +6,11 @@ import (
 
 
 func selectRandom(list []string) string {
-  	return list[rand.Int() % (len(list) - 1)]
+	if len(list) == 0 {
+		panic("Cannot select randomly in an empty list")
+	}
+
+  	return list[rand.Int() % len(list)]
 }
 
 func flipCoin() bool {

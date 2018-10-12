@@ -26,3 +26,15 @@ type GossipPacket struct {
     Rumor         *RumorMessage
     Status        *StatusPacket
 }
+
+func (simple *SimpleMessage) packaged() *GossipPacket {
+    return &GossipPacket{simple,nil,nil}
+}
+
+func (rumor *RumorMessage) packaged() *GossipPacket {
+    return &GossipPacket{nil,rumor,nil}
+}
+
+func (status *StatusPacket) packed() *GossipPacket {
+    return &GossipPacket{nil,nil,status}
+}
