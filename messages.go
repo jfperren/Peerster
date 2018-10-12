@@ -38,3 +38,7 @@ func (rumor *RumorMessage) packed() *GossipPacket {
 func (status *StatusPacket) packed() *GossipPacket {
     return &GossipPacket{nil,nil,status}
 }
+
+func (packet *GossipPacket) isValid() bool {
+    return (packet.Simple == nil && packet.Rumor == nil && packet.Status != nil) || (packet.Simple == nil && packet.Rumor != nil && packet.Status == nil) || (packet.Simple != nil && packet.Rumor == nil && packet.Status == nil)
+}

@@ -15,12 +15,8 @@ type Gossiper struct {
 	clientAddress   string
 	peers           []string
 	Name            string
-
-	// Registered handlers for status messages
 	handlers        map[string]chan*StatusPacket
 	rumors          *RumorMessages
-
-	statusPacket    *StatusPacket
 	NextID			uint32
 }
 
@@ -32,8 +28,6 @@ func NewGossiper(gossipAddress, clientPort, name string, peers string, simple bo
 	gossipSocket := NewUDPSocket(gossipAddress)
 	clientSocket := NewUDPSocket(clientAddress)
 
-	statusPacket := &StatusPacket{make([]PeerStatus, 5)}
-
 	return &Gossiper{
 		simple:         simple,
 		gossipSocket:   gossipSocket,
@@ -44,7 +38,6 @@ func NewGossiper(gossipAddress, clientPort, name string, peers string, simple bo
 		peers:          strings.Split(peers, ","),
 		handlers:       make(map[string]chan*StatusPacket),
 		rumors:         makeRumors(),
-		statusPacket:   statusPacket,
 		NextID:			0,
 	}
 }
@@ -52,25 +45,37 @@ func NewGossiper(gossipAddress, clientPort, name string, peers string, simple bo
 func (gossiper *Gossiper) start() {
 
 	go func() {
-		var packet GossipPacket
+
 		for {
+			var packet GossipPacket
 			bytes, _, alive := gossiper.clientSocket.Receive()
 
 			if !alive { break }
 
 			protobuf.Decode(bytes, &packet)
+
+			if !packet.isValid() {
+				panic("Received invalid packet")
+			}
+
 			gossiper.handleClient(&packet)
 		}
 	}()
 
 	go func() {
-		var packet GossipPacket
-			for {
+
+		for {
+			var packet GossipPacket
 			bytes, source, alive := gossiper.gossipSocket.Receive()
 
 			if !alive { break }
 
 			protobuf.Decode(bytes, &packet)
+
+			if !packet.isValid() {
+				panic("Received invalid packet")
+			}
+
 			gossiper.handleGossip(&packet, source)
 		}
 	}()
@@ -88,6 +93,10 @@ func (gossiper *Gossiper) stop() {
 /// Sends to one peer
 func (gossiper *Gossiper) sendTo(peerAddress string, packet *GossipPacket) {
 
+	if !packet.isValid() {
+		panic("Sending invalid packet")
+	}
+
 	bytes, err := protobuf.Encode(packet)
 	if err != nil { panic(err) }
 
@@ -97,7 +106,9 @@ func (gossiper *Gossiper) sendTo(peerAddress string, packet *GossipPacket) {
 /// Sends to every peer
 func (gossiper *Gossiper) relay(packet *GossipPacket, setName bool) {
 
-	// TODO: Test type of message, panic if not Simple
+	if packet.Simple == nil {
+		panic("Cannot relay GossipPacker that does not contain SimpleMessage.")
+	}
 
 	packet.Simple.RelayPeerAddr = gossiper.gossipAddress
 	if setName { packet.Simple.OriginalName = gossiper.Name }
@@ -111,6 +122,10 @@ func (gossiper *Gossiper) relay(packet *GossipPacket, setName bool) {
 
 
 func (gossiper *Gossiper) handleClient(packet *GossipPacket) {
+
+	if packet.Simple == nil {
+		panic("Client should send SimpleMessage only.")
+	}
 
 	logClientMessage(packet.Simple)
 	logPeers(gossiper.peers)
@@ -145,6 +160,7 @@ func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
 		logPeers(gossiper.peers)
 
 		if !gossiper.rumors.contains(packet.Rumor) {
+			debugForwardRumor(packet.Rumor)
 			gossiper.rumors.put(packet.Rumor)
 			go gossiper.rumormonger(packet.Rumor, nil)
 		}
@@ -165,8 +181,6 @@ func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
 		}
 	}
 }
-
-
 
 func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
 
