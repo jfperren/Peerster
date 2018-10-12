@@ -134,6 +134,7 @@ func (gossiper *Gossiper) relay(packet *GossipPacket, setName bool) {
 func (gossiper *Gossiper) handleClient(packet *GossipPacket) {
 
 	logClientMessage(packet.Simple)
+	logPeers(gossiper.peers)
 
   	if gossiper.simple {
     	go gossiper.relay(packet, true)
@@ -149,28 +150,36 @@ func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
 
   	switch {
 
-  	case packet.Simple != nil:
+	case packet.Simple != nil:
 
-	  	logSimpleMessage(packet.Simple)
-  		go gossiper.relay(packet, false)
+		logSimpleMessage(packet.Simple)
+		logPeers(gossiper.peers)
 
-  	case packet.Rumor != nil:
+		go gossiper.relay(packet, false)
 
-    	if !gossiper.rumors.contains(packet.Rumor) {
-      		go gossiper.rumors.put(packet.Rumor)
-      		go gossiper.rumormonger(packet.Rumor, nil)
-    	}
+	case packet.Rumor != nil:
 
-    	go gossiper.sendTo(source, gossiper.generateStatusPacket())
+		logRumor(packet.Rumor, source)
+		logPeers(gossiper.peers)
 
-  	case packet.Status != nil:
+		if !gossiper.rumors.contains(packet.Rumor) {
+			gossiper.rumors.put(packet.Rumor)
+			go gossiper.rumormonger(packet.Rumor, nil)
+		}
 
-    	expected := gossiper.dispatchStatusPacket(source, packet.Status)
-    	if !expected {
-      		rumor, _ := gossiper.compareStatus(packet.Status)
-      		go gossiper.rumormonger(rumor, &source)
-    	}
-  	}
+		go gossiper.sendTo(source, gossiper.generateStatusPacket())
+
+	case packet.Status != nil:
+
+		logStatus(packet.Status, source)
+		logPeers(gossiper.peers)
+
+		expected := gossiper.dispatchStatusPacket(source, packet.Status)
+		if !expected {
+			rumor, _ := gossiper.compareStatus(packet.Status)
+			go gossiper.rumormonger(rumor, &source)
+		}
+	}
 }
 
 
@@ -184,6 +193,7 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
 
   	// Send rumor to neighbor
   	gossiper.sendTo(*peer, &GossipPacket{nil, rumor, nil})
+  	logMongering(*peer)
 
   	var shouldContinue bool
 

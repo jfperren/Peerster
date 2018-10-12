@@ -7,8 +7,31 @@ import (
   "net"
 )
 
-type Message struct {
-  Text string
+type GossipPacket struct {
+  Simple        *SimpleMessage
+  Rumor         *RumorMessage
+  Status        *StatusPacket
+}
+
+type StatusPacket struct {
+  Want          []PeerStatus
+}
+
+type SimpleMessage struct {
+  OriginalName  string
+  RelayPeerAddr string
+  Contents      string
+}
+
+type RumorMessage struct {
+  Origin        string
+  ID            uint32
+  Text          string
+}
+
+type PeerStatus struct {
+  Identifier    string
+  NextID        uint32
 }
 
 func main () {
@@ -42,8 +65,11 @@ func main () {
   uiAddr, err := net.ResolveUDPAddr("udp4", ":" + *uiPort)
   if err != nil { panic(err) }
 
+  // Creates packet
+  packet := &GossipPacket{&SimpleMessage{"", "", *message},nil,nil}
+
   // Encodes message
-  bytes, err := protobuf.Encode(&Message{ *message })
+  bytes, err := protobuf.Encode(packet)
   if err != nil { panic(err) }
 
   // Sends message bytes to gossiper via UDP
