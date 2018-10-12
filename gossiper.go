@@ -75,7 +75,7 @@ func (gossiper *Gossiper) start() {
 }
 
 /// Sends to one peer
-func (gossiper *Gossiper) sendTo(peerAddress string, packet interface{}) {
+func (gossiper *Gossiper) sendTo(peerAddress string, packet *GossipPacket) {
 
 	bytes, err := protobuf.Encode(packet)
 	if err != nil { panic(err) }
@@ -138,7 +138,7 @@ func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
 			go gossiper.rumormonger(packet.Rumor, nil)
 		}
 
-		go gossiper.sendTo(source, gossiper.generateStatusPacket())
+		go gossiper.sendTo(source, statusPacket.packed())
 
 	case packet.Status != nil:
 
@@ -163,15 +163,13 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
 	}
 
 	// Send rumor to neighbor
-	gossiper.sendTo(*peer, &GossipPacket{nil, rumor, nil})
 	logMongering(*peer)
 
 	var shouldContinue bool
+	go gossiper.sendTo(*peer, rumor.packed())
 
 	ticker := time.NewTicker(ACK_TIMEOUT * time.Second)
 	defer ticker.Stop()
-
-	go gossiper.sendTo(*peer, rumor)
 
 	select {
 	case statusPacket := <- gossiper.awaitStatusPacket(*peer): // Received ACK
@@ -182,7 +180,7 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
 		switch  {
 		case status != nil: // Peer has unseen messages
 
-			go gossiper.sendTo(*peer, status)
+			go gossiper.sendTo(*peer, status.packed())
 			shouldContinue = true
 
 		case otherRumor != nil: // Peer is missing messages
