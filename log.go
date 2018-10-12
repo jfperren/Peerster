@@ -37,7 +37,7 @@ func logFlippedCoin(peerAddress string) {
 }
 
 func logInSyncWith(peerAddress string) {
-	fmt.Printf("IN SUNC WITH %v\n", peerAddress)
+	fmt.Printf("IN SYNC WITH %v\n", peerAddress)
 }
 
 func logPeers(peers []string) {
@@ -64,4 +64,8 @@ func debugSendStatus(status *StatusPacket, to string) {
 	}
 
 	fmt.Printf("\n")
+}
+
+func debugForwardRumor(rumor *RumorMessage) {
+	fmt.Printf("FORWARD rumor %v\n", rumor.Text)
 }
