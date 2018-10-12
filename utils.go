@@ -34,3 +34,30 @@ func containsUInt32(array []uint32, element uint32) bool {
 	}
 	return false
 }
+
+func insertSorted(array []uint32, elem uint32) []uint32 {
+
+	if len(array) == 0 {
+		return append(array, elem)
+	}
+
+	low := 0
+	high := len(array)
+
+	for low != high {
+		mid := (high - low) / 2
+		midElem := array[mid]
+
+		switch {
+		case elem < midElem:
+			high = mid
+			continue
+		case elem > midElem:
+			low = mid
+		case elem == midElem:
+			panic("ID should not already be in the table")
+		}
+	}
+
+	return append(append(array[:low], elem), array[low:]...)
+}

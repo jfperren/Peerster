@@ -56,8 +56,8 @@ func (r *RumorMessages) put(rumor *RumorMessage) {
     }
 
     r.rumors[rumor.Origin][rumor.ID] = rumor
-    r.IDs[rumor.Origin] = append(r.IDs[rumor.Origin], rumor.ID)
     //sort.Sort(r.IDs[rumor.Origin])
+    r.IDs[rumor.Origin] = insertSorted(r.IDs[rumor.Origin], rumor.ID)
 
     r.mutex.Unlock()
 }
