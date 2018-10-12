@@ -38,7 +38,7 @@ func NewGossiper(gossipAddress, clientPort, name string, peers string, simple bo
 		peers:          strings.Split(peers, ","),
 		handlers:       make(map[string]chan*StatusPacket),
 		rumors:         makeRumors(),
-		NextID:			0,
+		NextID:			INITIAL_ID,
 	}
 }
 
@@ -166,9 +166,14 @@ func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
 		logPeers(gossiper.peers)
 
 		if !gossiper.rumors.contains(packet.Rumor) {
-			debugForwardRumor(packet.Rumor)
+
 			gossiper.rumors.put(packet.Rumor)
-			go gossiper.rumormonger(packet.Rumor, nil)
+			peer, found := gossiper.randomPeer()
+
+			if found {
+				//debugForwardRumor(packet.Rumor)
+				go gossiper.rumormonger(packet.Rumor, peer)
+			}
 		}
 
 		statusPacket := gossiper.generateStatusPacket()
@@ -211,7 +216,7 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer string) {
 	defer ticker.Stop()
 
 	select {
-	case statusPacket := <- peerStatus: // Received ACK
+	case statusPacket := <- peerStatus:
 
 		// Compare status from peer with own messages
 		otherRumor, status := gossiper.compareStatus(statusPacket)
@@ -292,23 +297,28 @@ func (gossiper *Gossiper) compareStatus(statusPacket *StatusPacket) (*RumorMessa
 	for _, want := range statusPacket.Want {
 
 		theirNextID := want.NextID
+
+		// In case someone sends something smaller than
+		// possible, we fail gracefully
+		if theirNextID < INITIAL_ID {
+			return nil, nil
+		}
+
 		myNextID, found := myNextIDs[want.Identifier]
-
-
 
 		switch {
 
-		case !found && theirNextID != 0:
+		case !found && theirNextID != INITIAL_ID:
 			// They know about an origin node we don't know.
 			// We make sure that they are not looking for the first message
 			// because in this case they cannot send us anything.
 			rumorsWanted = true
 
-		case myNextID < theirNextID:
+		case found && myNextID < theirNextID:
 			// They have a message we don't
 			rumorsWanted = true
 
-		case myNextID > theirNextID:
+		case found && myNextID > theirNextID:
 			return gossiper.rumors.get(want.Identifier, theirNextID), nil
 		}
 
@@ -325,12 +335,12 @@ func (gossiper *Gossiper) compareStatus(statusPacket *StatusPacket) (*RumorMessa
 
 		// If we are also waiting for the first message,
 		// just skip this one, we cannot send anything.
-		if nextID == 0 {
+		if nextID == INITIAL_ID {
 			continue
 		}
 
 		// Return the first rumor from this node
-		return gossiper.rumors.get(identifier, 0), nil
+		return gossiper.rumors.get(identifier, INITIAL_ID), nil
 	}
 
 	// If we did not return already with a rumor to send, and we want rumors,

@@ -70,11 +70,11 @@ func (r *RumorMessages) nextIDFor(origin string) uint32 {
     //r.mutex.Lock()
     //defer r.mutex.Unlock()
 
-    counter := uint32(0)
+    counter := uint32(INITIAL_ID)
 
-    for _, id := range r.IDs[origin] {
+    for _, rumor := range r.rumors[origin] {
 
-        if id != counter {
+        if rumor.ID != counter {
             return counter
         }
         counter++
