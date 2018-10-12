@@ -162,23 +162,25 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
 		peer = &index
 	}
 
-	// Send rumor to neighbor
-	logMongering(*peer)
+	// Prepare channel to receive ack
+	peerStatus := gossiper.awaitStatusPacket(*peer)
 
-	var shouldContinue bool
+	// Forward package to peer
+	logMongering(*peer)
 	go gossiper.sendTo(*peer, rumor.packed())
 
+	// Start timer
 	ticker := time.NewTicker(ACK_TIMEOUT * time.Second)
 	defer ticker.Stop()
 
 	select {
-	case statusPacket := <- gossiper.awaitStatusPacket(*peer): // Received ACK
+	case statusPacket := <- peerStatus: // Received ACK
 
 		// Compare status from peer with own messages
 		otherRumor, status := gossiper.compareStatus(statusPacket)
 
 		switch  {
-		case status != nil: // Peer has unseen messages
+		case status != nil: // Peer has new messages
 
 			go gossiper.sendTo(*peer, status.packed())
 			shouldContinue = true
@@ -189,7 +191,7 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
 			shouldContinue = true
 
 		default:
-
+			logInSyncWith(*peer)
 			shouldContinue = flipCoin()
 		}
 
