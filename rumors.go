@@ -22,9 +22,6 @@ func makeRumors() *RumorMessages {
 
 func (r *RumorMessages) get(origin string, ID uint32) *RumorMessage {
 
-    r.mutex.Lock()
-    defer r.mutex.Unlock()
-
     rumorByID, found := r.rumors[origin]
 
     if !found {
@@ -36,21 +33,20 @@ func (r *RumorMessages) get(origin string, ID uint32) *RumorMessage {
 
 func (r *RumorMessages) contains(rumor *RumorMessage) bool {
 
-    r.mutex.Lock()
-    defer r.mutex.Unlock()
-
     return r.get(rumor.Origin, rumor.ID) != nil
 }
 
 /// Stores message in list of all messages
 func (r *RumorMessages) put(rumor *RumorMessage) {
 
+    r.mutex.Lock()
+
     if rumor == nil {
         panic("Should not try and store and <nil> rumor.")
     }
 
-    r.mutex.Lock()
-    defer r.mutex.Unlock()
+    //r.mutex.Lock()
+    //defer r.mutex.Unlock()
 
     _, found := r.IDs[rumor.Origin]
 
@@ -62,12 +58,13 @@ func (r *RumorMessages) put(rumor *RumorMessage) {
     r.rumors[rumor.Origin][rumor.ID] = rumor
     r.IDs[rumor.Origin] = append(r.IDs[rumor.Origin], rumor.ID)
     //sort.Sort(r.IDs[rumor.Origin])
+
+    r.mutex.Unlock()
 }
 
 func (r *RumorMessages) nextIDFor(origin string) uint32 {
 
     r.mutex.Lock()
-    defer r.mutex.Unlock()
 
     counter := uint32(0)
 
@@ -78,19 +75,22 @@ func (r *RumorMessages) nextIDFor(origin string) uint32 {
         counter++
     }
 
+    r.mutex.Unlock()
+
     return counter
 }
 
 func (r *RumorMessages) allOrigins() []string {
 
     r.mutex.Lock()
-    defer r.mutex.Unlock()
 
     res := make([]string, 5)
 
     for origin, _ := range r.IDs {
         res = append(res, origin)
     }
+
+    r.mutex.Unlock()
 
     return res
 }
