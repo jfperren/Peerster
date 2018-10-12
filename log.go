@@ -45,6 +45,7 @@ func logPeers(peers []string) {
 }
 
 // --- Debug Messages ---
+//
 // These are optional messages, not required in the assignment
 // that might be used for debugging.
 
@@ -68,4 +69,14 @@ func debugSendStatus(status *StatusPacket, to string) {
 
 func debugForwardRumor(rumor *RumorMessage) {
 	fmt.Printf("FORWARD rumor %v\n", rumor.Text)
+}
+
+func debugAskAndSendStatus(status *StatusPacket, to string) {
+	fmt.Printf("ASK AND SEND STATUS to %v ", to)
+
+	for _, peerStatus := range status.Want {
+		fmt.Printf("peer %v nextID %v ", peerStatus.Identifier, peerStatus.NextID)
+	}
+
+	fmt.Printf("\n")
 }

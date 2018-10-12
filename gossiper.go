@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/dedis/protobuf"
+	"log"
+	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -59,7 +61,7 @@ func (gossiper *Gossiper) start() {
 				panic("Received invalid packet")
 			}
 
-			gossiper.handleClient(&packet)
+			go gossiper.handleClient(&packet)
 		}
 	}()
 
@@ -77,12 +79,26 @@ func (gossiper *Gossiper) start() {
 				panic("Received invalid packet")
 			}
 
-			gossiper.handleGossip(&packet, source)
+			go gossiper.handleGossip(&packet, source)
+		}
+	}()
+
+	go func() {
+		for {
+			peer, found := gossiper.randomPeer()
+
+			if found {
+				packet := gossiper.generateStatusPacket().packed()
+				debugAskAndSendStatus(packet.Status, peer)
+				go gossiper.sendTo(peer, packet)
+			}
+
+			time.Sleep(ANTI_ENTROPY_DT)
 		}
 	}()
 
 	wg := new(sync.WaitGroup)
-	wg.Add(2)
+	wg.Add(3)
 	wg.Wait()
 }
 
@@ -212,7 +228,7 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer string) {
 	go gossiper.sendTo(peer, rumor.packed())
 
 	// Start timer
-	ticker := time.NewTicker(ACK_TIMEOUT * time.Second)
+	ticker := time.NewTicker(STATUS_TIMEOUT)
 	defer ticker.Stop()
 
 	select {

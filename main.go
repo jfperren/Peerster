@@ -5,6 +5,7 @@ import (
     //"os"
     "flag"
 	"fmt"
+	"time"
 
 	//"strings"
     //"github.com/dedis/protobuf"
@@ -13,7 +14,9 @@ import (
     //"sort"
 )
 
-const ACK_TIMEOUT = 1
+const STATUS_TIMEOUT = 1 * time.Second
+const ANTI_ENTROPY_DT = 1 * time.Second
+const INITIAL_ID = uint32(1)
 
 func main () {
 
