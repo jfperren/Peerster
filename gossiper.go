@@ -95,7 +95,7 @@ func (gossiper *Gossiper) stop() {
 func (gossiper *Gossiper) sendTo(peerAddress string, packet *GossipPacket) {
 
 	if !packet.isValid() {
-		panic("Sending invalid packet")
+		log.Panicf("Sending invalid packet: %v", packet)
 	}
 
 	bytes, err := protobuf.Encode(packet)
@@ -137,8 +137,13 @@ func (gossiper *Gossiper) handleClient(packet *GossipPacket) {
 
 		rumor := gossiper.generateRumor(packet.Simple.Contents)
 
-		go gossiper.rumors.put(rumor)
-		go gossiper.rumormonger(rumor, nil)
+		gossiper.rumors.put(rumor)
+
+		peer, found := gossiper.randomPeer()
+
+		if found {
+			go gossiper.rumormonger(rumor, peer)
+		}
 	}
 }
 
@@ -178,28 +183,28 @@ func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
 		expected := gossiper.dispatchStatusPacket(source, packet.Status)
 		if !expected {
 			rumor, _ := gossiper.compareStatus(packet.Status)
-			go gossiper.rumormonger(rumor, &source)
+
+			if rumor != nil {
+				go gossiper.rumormonger(rumor, source)
+			}
 		}
 	}
 }
 
-func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
+func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer string) {
 
-	var shouldContinue bool
-
-	if peer == nil {
-		index := selectRandom(gossiper.peers)
-		peer = &index
+	if rumor == nil {
 		panic("Cannot rumormonger with <nil> rumor!")
 	}
 
 	var shouldContinue bool
 
 	// Prepare channel to receive ack
-	peerStatus := gossiper.awaitStatusPacket(*peer)
+	peerStatus := gossiper.awaitStatusPacket(peer)
 
 	// Forward package to peer
-	go gossiper.sendTo(*peer, rumor.packed())
+	logMongering(peer)
+	go gossiper.sendTo(peer, rumor.packed())
 
 	// Start timer
 	ticker := time.NewTicker(ACK_TIMEOUT * time.Second)
@@ -214,7 +219,7 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
 		switch  {
 		case status != nil: // Peer has new messages
 
-			go gossiper.sendTo(*peer, status.packed())
+			go gossiper.sendTo(peer, status.packed())
 			shouldContinue = true
 
 		case otherRumor != nil: // Peer is missing messages
@@ -223,21 +228,25 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
 			shouldContinue = true
 
 		default:
-			logInSyncWith(*peer)
+			logInSyncWith(peer)
 			shouldContinue = flipCoin()
 		}
 
 	case <- ticker.C: // Timeout
-		debugTimeout(*peer)
+		debugTimeout(peer)
 		shouldContinue = flipCoin()
 	}
 
 	if shouldContinue {
-		index := selectRandom(gossiper.peers)
-		peer = &index
+		newPeer, found := gossiper.randomPeer()
 
-		logFlippedCoin(*peer)
-		go gossiper.rumormonger(rumor, peer)
+		if !found {
+			return
+		}
+
+		logFlippedCoin(newPeer)
+		go gossiper.rumormonger(rumor, newPeer)
+
 	} else {
 		debugStopMongering(rumor)
 	}
@@ -266,8 +275,6 @@ func (gossiper *Gossiper) stopWaitForStatusPacket(peer string) {
 }
 
 func (gossiper *Gossiper) compareStatus(statusPacket *StatusPacket) (*RumorMessage, *StatusPacket) {
-
-	// TODO: Cover case where someone else's status packet contains node that we don't know but NextID is 0
 
 	// First, we generate a statusPacket based on our rumor list
 	myStatusPacket := gossiper.generateStatusPacket()
@@ -365,4 +372,13 @@ func (gossiper *Gossiper) generateRumor(message string) *RumorMessage {
 	gossiper.NextID++
 
 	return rumor
+}
+
+func (gossiper *Gossiper) randomPeer() (string, bool) {
+
+	if len(gossiper.peers) == 0 {
+		return "", false
+	}
+
+	return gossiper.peers[rand.Int() % len(gossiper.peers)], true
 }

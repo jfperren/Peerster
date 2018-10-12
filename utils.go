@@ -6,14 +6,6 @@ import (
 )
 
 
-func selectRandom(list []string) string {
-	if len(list) == 0 {
-		panic("Cannot select randomly in an empty list")
-	}
-
-  	return list[rand.Int() % len(list)]
-}
-
 func flipCoin() bool {
   	return rand.Int() % 2 == 0
 }
