@@ -47,6 +47,7 @@ func (gossiper *Gossiper) start() {
 	go func() {
 
 		for {
+
 			var packet GossipPacket
 			bytes, _, alive := gossiper.clientSocket.Receive()
 
@@ -189,13 +190,15 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer *string) {
 	if peer == nil {
 		index := selectRandom(gossiper.peers)
 		peer = &index
+		panic("Cannot rumormonger with <nil> rumor!")
 	}
+
+	var shouldContinue bool
 
 	// Prepare channel to receive ack
 	peerStatus := gossiper.awaitStatusPacket(*peer)
 
 	// Forward package to peer
-	logMongering(*peer)
 	go gossiper.sendTo(*peer, rumor.packed())
 
 	// Start timer

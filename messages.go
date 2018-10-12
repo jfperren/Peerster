@@ -28,14 +28,29 @@ type GossipPacket struct {
 }
 
 func (simple *SimpleMessage) packed() *GossipPacket {
+
+    if simple == nil {
+        panic("Cannot pack <nil> simple into a GossipPacket")
+    }
+
     return &GossipPacket{simple,nil,nil}
 }
 
 func (rumor *RumorMessage) packed() *GossipPacket {
+
+    if rumor == nil {
+        panic("Cannot pack <nil> rumor into a GossipPacket")
+    }
+
     return &GossipPacket{nil,rumor,nil}
 }
 
 func (status *StatusPacket) packed() *GossipPacket {
+
+    if status == nil {
+        panic("Cannot pack <nil> status into a GossipPacket")
+    }
+
     return &GossipPacket{nil,nil,status}
 }
 
