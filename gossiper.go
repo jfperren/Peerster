@@ -54,7 +54,10 @@ func (gossiper *Gossiper) start() {
 	go func() {
 		var packet GossipPacket
 		for {
-			bytes, _ := gossiper.clientSocket.Receive()
+			bytes, _, alive := gossiper.clientSocket.Receive()
+
+			if !alive { break }
+
 			protobuf.Decode(bytes, &packet)
 			gossiper.handleClient(&packet)
 		}
@@ -63,7 +66,10 @@ func (gossiper *Gossiper) start() {
 	go func() {
 		var packet GossipPacket
 			for {
-			bytes, source := gossiper.gossipSocket.Receive()
+			bytes, source, alive := gossiper.gossipSocket.Receive()
+
+			if !alive { break }
+
 			protobuf.Decode(bytes, &packet)
 			gossiper.handleGossip(&packet, source)
 		}
@@ -72,6 +78,11 @@ func (gossiper *Gossiper) start() {
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
 	wg.Wait()
+}
+
+func (gossiper *Gossiper) stop() {
+	gossiper.clientSocket.Unbind()
+	gossiper.gossipSocket.Unbind()
 }
 
 /// Sends to one peer
