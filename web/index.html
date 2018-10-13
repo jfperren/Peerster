@@ -3,23 +3,25 @@
   <head>
     <meta charset="utf-8">
     <title>Peerster</title>
+    <!-- <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.0/jquery.min.js"></script> -->
+    <script src="jquery-3.3.1.min.js"></script>
+    <script src="peerster.js"></script>
   </head>
   <body>
-    <div id="id">My name here</div>
-    <div id="nodes">
-      <ul>
-        <li>127.0.0.1:5000</li>
-        <li>127.0.0.1:5001</li>
+    <form id="peer-form" onsubmit="return false;">
+      <input id="peer" name="peer", type="text", placeholder="Input address here.."/>
+      <button id="add-peer" class="reset">Add</button>
+    </form>
+    <div>
+      <ul id="peers">
       </ul>
     </div>
-    <form id="message-form">
-      <input name="message", type="text", placeholder="Message"/>
-      <button>Send</button>
+    <form id="message-form" onsubmit="return false;">
+      <input id="message" name="message", type="text", placeholder="Type your message here..."/>
+      <button id="send-message" class="reset">Send</button>
     </form>
-    <div id="chat">
-      <ul>
-        <li>A: Message1</li>
-        <li>B: Message2</li>
+    <div>
+      <ul id="messages">
       </ul>
     </div>
   </body>
