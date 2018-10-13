@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -75,14 +74,11 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 }
 
 func getNewRumors() []*RumorMessage {
-	rumors, _ := g.rumors.newRumorsSince(status)
+	rumors, hasChanged := g.rumors.newRumorsSince(status)
 
-
-
-	status = g.generateStatusPacket().Want
-
-	fmt.Printf("STATUS WAS UPDATED TO %v", status)
-
+	if hasChanged {
+		status = g.generateStatusPacket().Want
+	}
 
 	return rumors
 }
