@@ -68,10 +68,25 @@ func TestInsertSortedThird(t *testing.T) {
 	array = insertSorted(array, 2)
 
 	if len(array) != 3 {
-		t.Errorf("Array size should be %v, got %v instead.", 2, len(array))
+		t.Errorf("Array size should be %v, got %v instead.", 3, len(array))
 	}
 
 	if !(array[0] == 0 && array[1] == 1 && array[2] == 2) {
 		t.Errorf("Expected array to be %v, got %v instead.", []uint{0, 1, 2}, array)
+	}
+}
+
+// Tests that a Gossiper correctly creates a Status packet based on its rumors.
+func TestInsertSortedFourth(t *testing.T) {
+
+	array := []uint32{1, 2, 3}
+	array = insertSorted(array, 4)
+
+	if len(array) != 4 {
+		t.Errorf("Array size should be %v, got %v instead.", 4, len(array))
+	}
+
+	if !(array[0] == 1 && array[1] == 2 && array[2] == 3 && array[3] == 4) {
+		t.Errorf("Expected array to be %v, got %v instead.", []uint{1, 2, 3, 4}, array)
 	}
 }

@@ -46,7 +46,7 @@ func insertSorted(array []uint32, elem uint32) []uint32 {
 
 	for low != high {
 
-		mid := int(math.Floor((float64(high - low) / 2)))
+		mid := int(math.Floor((float64(high + low) / 2)))
 		midElem := array[mid]
 
 		switch {

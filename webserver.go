@@ -2,17 +2,20 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
 const WEB_SERVER_PORT = ":8080"
 
 var g *Gossiper
+var status []PeerStatus
 
 func StartWebServer(gossiper *Gossiper) {
 
 	// Stores gossiper
 	g = gossiper
+	status = make([]PeerStatus, 0)
 
 	// Files
 	http.Handle("/", http.FileServer(http.Dir("./web")))
@@ -49,23 +52,39 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "POST":
 
-		var peer string
+		var message string
 
-		json.NewDecoder(req.Body).Decode(&peer)
+		json.NewDecoder(req.Body).Decode(&message)
 
-		if peer == "" {
+		if message == "" {
 			res.WriteHeader(http.StatusBadRequest)
 		}
 
-		g.addPeer(peer)
-		json.NewEncoder(res).Encode(g.peers)
+		simpleMessage := &SimpleMessage{"GUI", WEB_SERVER_PORT, message}
+		g.handleClient(simpleMessage.packed())
+
+		json.NewEncoder(res).Encode(getNewRumors())
 
 	case "GET":
-		json.NewEncoder(res).Encode(g.peers)
+
+		json.NewEncoder(res).Encode(getNewRumors())
 
 	default:
 		res.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+func getNewRumors() []*RumorMessage {
+	rumors, _ := g.rumors.newRumorsSince(status)
+
+
+
+	status = g.generateStatusPacket().Want
+
+	fmt.Printf("STATUS WAS UPDATED TO %v", status)
+
+
+	return rumors
 }
 
 func handleNode(res http.ResponseWriter, req *http.Request) {
@@ -81,7 +100,6 @@ func handleNode(res http.ResponseWriter, req *http.Request) {
 			res.WriteHeader(http.StatusBadRequest)
 		}
 
-		g.addPeer(peer)
 		json.NewEncoder(res).Encode(g.peers)
 
 	case "GET":
