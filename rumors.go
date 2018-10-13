@@ -72,9 +72,9 @@ func (r *RumorMessages) nextIDFor(origin string) uint32 {
 
     counter := uint32(INITIAL_ID)
 
-    for _, rumor := range r.rumors[origin] {
+    for _, id := range r.IDs[origin] {
 
-        if rumor.ID != counter {
+        if id != counter {
             return counter
         }
         counter++
