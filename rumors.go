@@ -83,6 +83,49 @@ func (r *RumorMessages) nextIDFor(origin string) uint32 {
     return counter
 }
 
+func (r *RumorMessages) newRumorsSince(statuses []PeerStatus) ([]*RumorMessage, bool) {
+
+    r.mutex.RLock()
+    defer r.mutex.RUnlock()
+
+    newRumors := make([]*RumorMessage, 0)
+    origins := make(map[string]uint32)
+    hasChanged := false
+
+    for _, origin := range r.allOrigins() {
+        origins[origin] = r.nextIDFor(origin)
+    }
+
+    for _, status := range statuses {
+        myNextID, found := origins[status.Identifier]
+        theirNextID := status.NextID
+
+        if !found {
+            theirNextID = INITIAL_ID
+        }
+
+        for i := theirNextID; i < myNextID; i++ {
+
+            hasChanged = true
+            rumor := r.get(status.Identifier, i)
+            newRumors = append(newRumors, rumor)
+        }
+
+        delete(origins, status.Identifier)
+    }
+
+    for origin, myNextID := range origins {
+
+        for i := INITIAL_ID; i < myNextID; i++ {
+            hasChanged = true
+            rumor := r.get(origin, i)
+            newRumors = append(newRumors, rumor)
+        }
+    }
+
+    return newRumors, hasChanged
+}
+
 func (r *RumorMessages) allOrigins() []string {
 
     r.mutex.RLock()
