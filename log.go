@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -79,4 +80,8 @@ func debugAskAndSendStatus(status *StatusPacket, to string) {
 	}
 
 	fmt.Printf("\n")
+}
+
+func debugServerRequest(req *http.Request) {
+	fmt.Printf("%v %v\n", req.Method, req.URL)
 }
