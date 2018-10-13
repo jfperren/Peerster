@@ -8,7 +8,7 @@ type RumorMessages struct {
     rumors  map[string]map[uint32]*RumorMessage
     IDs     map[string][]uint32
     origins map[string]bool
-    mutex   *sync.Mutex
+    mutex   *sync.RWMutex
 }
 
 func makeRumors() *RumorMessages {
@@ -16,14 +16,14 @@ func makeRumors() *RumorMessages {
         make(map[string]map[uint32]*RumorMessage),
         make(map[string][]uint32),
         make(map[string]bool),
-        &sync.Mutex{},
+        &sync.RWMutex{},
     }
 }
 
 func (r *RumorMessages) get(origin string, ID uint32) *RumorMessage {
 
-    //r.mutex.Lock()
-    //defer r.mutex.Unlock()
+    r.mutex.RLock()
+    defer r.mutex.RUnlock()
 
     rumorByID, found := r.rumors[origin]
 
@@ -36,8 +36,8 @@ func (r *RumorMessages) get(origin string, ID uint32) *RumorMessage {
 
 func (r *RumorMessages) contains(rumor *RumorMessage) bool {
 
-    //r.mutex.Lock()
-    //defer r.mutex.Unlock()
+    r.mutex.RLock()
+    defer r.mutex.RUnlock()
 
     return r.get(rumor.Origin, rumor.ID) != nil
 }
@@ -51,8 +51,8 @@ func (r *RumorMessages) put(rumor *RumorMessage) {
         panic("Should not try and store and <nil> rumor.")
     }
 
-    //r.mutex.Lock()
-    //defer r.mutex.Unlock()
+    r.mutex.Lock()
+    defer r.mutex.Unlock()
 
     _, found := r.IDs[rumor.Origin]
 
@@ -67,8 +67,8 @@ func (r *RumorMessages) put(rumor *RumorMessage) {
 
 func (r *RumorMessages) nextIDFor(origin string) uint32 {
 
-    //r.mutex.Lock()
-    //defer r.mutex.Unlock()
+    r.mutex.RLock()
+    defer r.mutex.RUnlock()
 
     counter := uint32(INITIAL_ID)
 
@@ -85,8 +85,8 @@ func (r *RumorMessages) nextIDFor(origin string) uint32 {
 
 func (r *RumorMessages) allOrigins() []string {
 
-    //r.mutex.Lock()
-    //defer r.mutex.Unlock()
+    r.mutex.RLock()
+    defer r.mutex.RUnlock()
 
     res := make([]string, 0)
 
