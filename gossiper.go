@@ -222,7 +222,7 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer string) {
 		panic("Cannot rumormonger with <nil> rumor!")
 	}
 
-	var shouldContinue bool
+	shouldContinue := false
 
 	// Forward package to peer
 	logMongering(peer)
@@ -251,24 +251,25 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer string) {
 
 		default:
 			logInSyncWith(peer)
-			shouldContinue = flipCoin()
 		}
 
 	case <- ticker.C: // Timeout
 		debugTimeout(peer)
-		shouldContinue = flipCoin()
+	}
+
+	newPeer, found := gossiper.randomPeer()
+
+	if !found {
+		return
+	}
+
+	if !shouldContinue && flipCoin() {
+		logFlippedCoin(newPeer)
+		shouldContinue = true
 	}
 
 	if shouldContinue {
-		newPeer, found := gossiper.randomPeer()
-
-		if !found {
-			return
-		}
-
-		logFlippedCoin(newPeer)
-		go gossiper.rumormonger(rumor, newPeer)
-
+		gossiper.rumormonger(rumor, newPeer)
 	} else {
 		debugStopMongering(rumor)
 	}
