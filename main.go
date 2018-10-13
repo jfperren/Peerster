@@ -29,6 +29,7 @@ func main () {
   	name := flag.String("name", "REQUIRED", "name of the gossiper")
   	peers := flag.String("peers", "REQUIRED", "comma separated list of peers of the form ip:port")
   	simple := flag.Bool("simple", false, "runs gossiper in simple broadcast mode")
+	server := flag.Bool("server", false, "Runs this node in server mode")
 
   	flag.Parse()
 
@@ -39,10 +40,14 @@ func main () {
   	fmt.Printf("name = %v\n", *name)
   	fmt.Printf("peers = %v\n", *peers)
   	fmt.Printf("simple = %v\n", *simple)
+	fmt.Printf("server = %v\n", *server)
 
   	// Creates Gossiper
+	gossiper := NewGossiper(*gossipAddr, *uiPort,  *name, *peers, *simple)
 
-  	Gossiper := NewGossiper(*gossipAddr, *uiPort,  *name, *peers, *simple)
-
-  	Gossiper.start()
+  	if *server {
+		StartWebServer(gossiper)
+	} else {
+		gossiper.start()
+	}
 }
