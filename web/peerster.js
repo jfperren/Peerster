@@ -7,8 +7,13 @@ function enqueueMessages(messages) {
 
 $(function(){
 
-  $("#send-message").click(function(){
-    $.post('/message', JSON.stringify("Hello"), function(messages) {
+
+  $("#message-form").submit(function(){
+
+    var message = $("#message").val();
+
+    $.post('/message', JSON.stringify(message), function(messages) {
+      var message = $("#message").val("");
       enqueueMessages(JSON.parse(messages));
     });
   });
