@@ -18,9 +18,13 @@ type Gossiper struct {
 	clientAddress   string
 	peers           []string
 	Name            string
-	handlers        map[string]chan*StatusPacket
+
 	rumors          *RumorMessages
 	NextID			uint32
+
+	handlerLock		*sync.RWMutex
+	handlers        map[string]chan*StatusPacket
+	handlerCount	map[string]int
 }
 
 const (
@@ -46,9 +50,11 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		clientAddress:  clientAddress,
 		Name:           name,
 		peers:          strings.Split(peers, ","),
-		handlers:       make(map[string]chan*StatusPacket),
 		rumors:         makeRumors(),
 		NextID:			INITIAL_ID,
+		handlerLock:	&sync.RWMutex{},
+		handlers:       make(map[string]chan*StatusPacket),
+		handlerCount:	make(map[string]int),
 	}
 }
 
@@ -220,9 +226,11 @@ func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
 
 		expected := gossiper.dispatchStatusPacket(source, packet.Status)
 		if !expected {
+			fmt.Print("UNEXPECTED STATUS\n")
 			rumor, _, _ := gossiper.compareStatus(packet.Status.Want, ComparisonModeMissingOrNew)
 
 			if rumor != nil {
+				fmt.Print("SEND RUMOR AFTER UNEXPECTED STATUS %v\n", rumor)
 				go gossiper.rumormonger(rumor, source)
 			}
 		}
@@ -270,6 +278,8 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer string) {
 		debugTimeout(peer)
 	}
 
+	gossiper.stopWaitingFrom(peer)
+
 	newPeer, found := gossiper.randomPeer()
 
 	if !found {
@@ -293,14 +303,25 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer string) {
  * @return `True` if the packet was consumed.
  */
 func (gossiper *Gossiper) dispatchStatusPacket(source string, statusPacket *StatusPacket) bool {
-	channel, found := gossiper.handlers[source]
-	if found {
-		channel <- statusPacket
+
+	gossiper.handlerLock.RLock()
+	defer gossiper.handlerLock.RUnlock()
+
+	expected := gossiper.handlerCount[source] > 0
+
+	if expected {
+		gossiper.handlers[source] <- statusPacket
 	}
-	return found
+
+	fmt.Printf("RESULT FROM DISPATCH: %v", expected)
+
+	return expected
 }
 
 func (gossiper *Gossiper) statusPacketsFrom(peer string) chan *StatusPacket {
+
+	gossiper.handlerLock.Lock()
+	defer gossiper.handlerLock.Unlock()
 
 	_, found := gossiper.handlers[peer]
 
@@ -308,7 +329,25 @@ func (gossiper *Gossiper) statusPacketsFrom(peer string) chan *StatusPacket {
 		gossiper.handlers[peer] = make(chan *StatusPacket, STATUS_BUFFER_SIZE)
 	}
 
+	gossiper.handlerCount[peer] = gossiper.handlerCount[peer] + 1
+
 	return gossiper.handlers[peer]
+}
+
+func (gossiper *Gossiper) stopWaitingFrom(peer string) {
+
+	gossiper.handlerLock.Lock()
+	defer gossiper.handlerLock.Unlock()
+
+	count := gossiper.handlerCount[peer]
+
+	if count > 0 {
+		count = count - 1
+	} else {
+		count = 0
+	}
+
+	gossiper.handlerCount[peer] = count
 }
 
 func (gossiper *Gossiper) compareStatus(statuses []PeerStatus, mode int) (*RumorMessage, []*RumorMessage, []PeerStatus) {
