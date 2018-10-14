@@ -313,8 +313,6 @@ func (gossiper *Gossiper) dispatchStatusPacket(source string, statusPacket *Stat
 		gossiper.handlers[source] <- statusPacket
 	}
 
-	fmt.Printf("RESULT FROM DISPATCH: %v", expected)
-
 	return expected
 }
 
@@ -358,8 +356,6 @@ func (gossiper *Gossiper) compareStatus(statuses []PeerStatus, mode int) (*Rumor
 
 	// First, we generate a statusPacket based on our rumor list
 	myStatuses := gossiper.generateStatusPacket().Want
-
-	fmt.Printf("COMPARING %v and %v\n", myStatuses, statuses)
 
 	// This map should store, for each node we know about, what is the nextID we want
 	myNextIDs := make(map[string]uint32)
@@ -409,7 +405,6 @@ func (gossiper *Gossiper) compareStatus(statuses []PeerStatus, mode int) (*Rumor
 			} else {
 				for i := theirNextID; i < myNextID; i++ {
 					rumor := gossiper.rumors.get(theirStatus.Identifier, i)
-					fmt.Printf("A - APPENDING %v\n", rumor)
 					allRumors = append(allRumors, rumor)
 				}
 			}

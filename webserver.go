@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -84,8 +83,6 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 
 		_, rumors, myStatuses := g.compareStatus(theirStatuses, ComparisonModeAllNew)
 		body := &RumorsAndStatuses{rumors, myStatuses}
-
-		fmt.Printf("BODY IS %v\n", body)
 
 		//res.WriteHeader(http.StatusOK)
 		json.NewEncoder(res).Encode(body)
