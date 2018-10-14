@@ -1,7 +1,6 @@
 package main
 
 import (
-	"math"
 	"math/rand"
 )
 
@@ -17,38 +16,4 @@ func contains(array []string, element string) bool {
 		}
 	}
 	return false
-}
-
-func insertAt(array []uint32, index int, elem uint32) []uint32 {
-	array = append(array, 0)
-	copy(array[index+1:], array[index:])
-	array[index] = elem
-	return array
-}
-
-func insertSorted(array []uint32, elem uint32) []uint32 {
-
-	if len(array) == 0 {
-		return append(array, elem)
-	}
-
-	low := 0
-	high := len(array)
-
-	for low != high {
-
-		mid := int(math.Floor(float64(high + low) / 2))
-		midElem := array[mid]
-
-		switch {
-		case elem < midElem:
-			high = mid
-		case elem > midElem:
-			low = mid + 1
-		case elem == midElem:
-			panic("ID should not already be in the table")
-		}
-	}
-
-	return insertAt(array, low, elem)
 }

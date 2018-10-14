@@ -7,8 +7,6 @@ import "sync"
 // while also offer higher-level functions related to those rumors.
 type RumorDatabase struct {
     rumors  map[string]map[uint32]*RumorMessage
-    IDs     map[string][]uint32
-    origins map[string]bool
     mutex   *sync.RWMutex
 }
 
@@ -16,8 +14,6 @@ type RumorDatabase struct {
 func MakeRumorDatabase() *RumorDatabase {
     return &RumorDatabase{
         make(map[string]map[uint32]*RumorMessage),
-        make(map[string][]uint32),
-        make(map[string]bool),
         &sync.RWMutex{},
     }
 }
@@ -38,18 +34,13 @@ func (r *RumorDatabase) Get(origin string, ID uint32) *RumorMessage {
     return rumorByID[ID]
 }
 
-// Return true if a rumor is already contained in the database. Comparison
-// is done using ID and origin node only and does not care about rumor text.
-func (r *RumorDatabase) Contains(rumor *RumorMessage) bool {
+// Return true if the rumor is the next expected rumor from the origin node.
+func (r *RumorDatabase) Expects(rumor *RumorMessage) bool {
 
-    if rumor == nil {
-        panic("Cannot use Contains with a <nil> rumor.")
-    }
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 
-    r.mutex.RLock()
-    defer r.mutex.RUnlock()
-
-    return r.Get(rumor.Origin, rumor.ID) != nil
+    return r.NextIDFor(rumor.Origin) == rumor.ID
 }
 
 // Return true if a rumor is already contained in the database. Comparison
@@ -60,18 +51,21 @@ func (r *RumorDatabase) Put(rumor *RumorMessage) {
         panic("Should not try and store and <nil> rumor.")
     }
 
-    r.mutex.Lock()
-    defer r.mutex.Unlock()
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
-    _, found := r.IDs[rumor.Origin]
+    // Does not process rumors which are not the next expected one.
+    if rumor.ID != uint32(len(r.rumors[rumor.Origin]) + 1) {
+    	return
+	}
+
+    _, found := r.rumors[rumor.Origin]
 
     if !found {
-        r.IDs[rumor.Origin] = make([]uint32, 0)
         r.rumors[rumor.Origin] = make(map[uint32]*RumorMessage)
     }
 
     r.rumors[rumor.Origin][rumor.ID] = rumor
-    r.IDs[rumor.Origin] = insertSorted(r.IDs[rumor.Origin], rumor.ID)
 }
 
 // Returns, for a given origin node, the first message ID that is NOT
@@ -82,23 +76,13 @@ func (r *RumorDatabase) NextIDFor(origin string) uint32 {
     r.mutex.RLock()
     defer r.mutex.RUnlock()
 
-    idsFromOrigin, found := r.IDs[origin]
+    rumors, found := r.rumors[origin]
 
     if !found {
     	return InitialId
 	}
 
-	counter := uint32(InitialId)
-
-    for _, id := range idsFromOrigin {
-
-        if id != counter {
-            return counter
-        }
-        counter++
-    }
-
-    return counter
+	return uint32(len(rumors)) + InitialId
 }
 
 // Return a slice containing the name of each known node in the rumor
@@ -110,7 +94,7 @@ func (r *RumorDatabase) AllOrigins() []string {
 
     res := make([]string, 0)
 
-    for origin := range r.IDs {
+    for origin := range r.rumors {
         res = append(res, origin)
     }
 

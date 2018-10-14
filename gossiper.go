@@ -192,13 +192,15 @@ func (gossiper *Gossiper) HandleGossip(packet *GossipPacket, source string) {
 		logRumor(packet.Rumor, source)
 		logPeers(gossiper.Peers)
 
-		if !gossiper.Rumors.Contains(packet.Rumor) {
+		// We only store & forward if the rumor is our next expected rumo
+		// from the source.
+		if gossiper.Rumors.Expects(packet.Rumor) {
 
 			gossiper.Rumors.Put(packet.Rumor)
 			peer, found := gossiper.randomPeer()
 
 			if found {
-				//debugForwardRumor(packet.Rumor)
+				debugForwardRumor(packet.Rumor)
 				go gossiper.rumormonger(packet.Rumor, peer)
 			}
 		}
