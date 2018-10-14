@@ -299,21 +299,21 @@ func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
 		case statuses != nil: // Peer has new messages
 			statusPacket := &common.StatusPacket{statuses}
 			go gossiper.sendTo(peer, statusPacket.Packed())
-			shouldContinue = false
+			shouldContinue = true
 
 		case otherRumor != nil: // Peer is missing messages
 
 			go gossiper.rumormonger(otherRumor, peer)
-			shouldContinue = false
+			shouldContinue = true
 
 		default:
 			common.LogInSyncWith(peer)
-			shouldContinue = true
+			shouldContinue = false
 		}
 
 	case <- ticker.C: // Timeout
 		common.DebugTimeout(peer)
-		shouldContinue = true
+		shouldContinue = false
 	}
 
 	gossiper.stopWaitingFrom(peer)
@@ -324,11 +324,9 @@ func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
 		return
 	}
 
-	if shouldContinue && common.FlipCoin() {
+	if !shouldContinue && common.FlipCoin() {
 		common.LogFlippedCoin(newPeer)
 		shouldContinue = true
-	} else {
-		shouldContinue = false
 	}
 
 	if shouldContinue {
