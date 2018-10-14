@@ -2,17 +2,21 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
 var g *Gossiper
-var status []PeerStatus
+
+type RumorsAndStatuses struct {
+	Rumors []*RumorMessage
+	Statuses []PeerStatus
+}
 
 func StartWebServer(gossiper *Gossiper, port string) {
 
 	// Stores gossiper
 	g = gossiper
-	status = make([]PeerStatus, 0)
 
 	// Files
 	http.Handle("/", http.FileServer(http.Dir("./web")))
@@ -52,35 +56,60 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 	case "POST":
 
 		var message string
+		err := json.NewDecoder(req.Body).Decode(&message)
 
-		json.NewDecoder(req.Body).Decode(&message)
+		if err != nil {
+			res.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(res).Encode(err)
+			return
+		}
 
 		if message == "" {
 			res.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(res).Encode("Message cannot be an empty string.")
+			return
 		}
 
-		simpleMessage := &SimpleMessage{"GUI", "", message}
+		var theirStatuses []PeerStatus
+		err = json.Unmarshal([]byte(req.Header.Get("x-statuses")), &theirStatuses)
+
+		if err != nil {
+			res.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(res).Encode("Error decoding 'x-statuses' parameter")
+			return
+		}
+
+		simpleMessage := &SimpleMessage{"", "", message}
 		g.handleClient(simpleMessage.packed())
 
-		json.NewEncoder(res).Encode(getNewRumors())
+		_, rumors, myStatuses := g.compareStatus(theirStatuses, ComparisonModeAllNew)
+		body := &RumorsAndStatuses{rumors, myStatuses}
+
+		fmt.Printf("BODY IS %v\n", body)
+
+		//res.WriteHeader(http.StatusOK)
+		json.NewEncoder(res).Encode(body)
 
 	case "GET":
 
-		json.NewEncoder(res).Encode(getNewRumors())
+		var theirStatuses []PeerStatus
+		err := json.Unmarshal([]byte(req.Header.Get("x-statuses")), &theirStatuses)
+
+		if err != nil {
+			res.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(res).Encode(err)
+			return
+		}
+
+		_, rumors, myStatuses := g.compareStatus(theirStatuses, ComparisonModeAllNew)
+		body := RumorsAndStatuses{rumors, myStatuses}
+
+		res.WriteHeader(http.StatusOK)
+		json.NewEncoder(res).Encode(body)
 
 	default:
 		res.WriteHeader(http.StatusMethodNotAllowed)
 	}
-}
-
-func getNewRumors() []*RumorMessage {
-	rumors, hasChanged := g.rumors.newRumorsSince(status)
-
-	if hasChanged {
-		status = g.generateStatusPacket().Want
-	}
-
-	return rumors
 }
 
 func handleNode(res http.ResponseWriter, req *http.Request) {
@@ -96,7 +125,12 @@ func handleNode(res http.ResponseWriter, req *http.Request) {
 			res.WriteHeader(http.StatusBadRequest)
 		}
 
-		json.NewEncoder(res).Encode(g.peers)
+		if containsString(g.peers, peer) {
+			json.NewEncoder(res).Encode("")
+		} else {
+			g.addPeerIfNeeded(peer)
+			json.NewEncoder(res).Encode(peer)
+		}
 
 	case "GET":
 		json.NewEncoder(res).Encode(g.peers)

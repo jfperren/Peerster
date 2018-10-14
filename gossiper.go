@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/dedis/protobuf"
 	"log"
 	"math/rand"
@@ -21,6 +22,11 @@ type Gossiper struct {
 	rumors          *RumorMessages
 	NextID			uint32
 }
+
+const (
+	ComparisonModeMissingOrNew = iota
+	ComparisonModeAllNew = iota
+)
 
 
 func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool) *Gossiper {
@@ -77,7 +83,7 @@ func (gossiper *Gossiper) start() {
 				debugAskAndSendStatus(packet.Status, peer)
 				go gossiper.sendTo(peer, packet)
 			}
-			
+
 			time.Sleep(ANTI_ENTROPY_DT)
 		}
 	}()
@@ -214,7 +220,7 @@ func (gossiper *Gossiper) handleGossip(packet *GossipPacket, source string) {
 
 		expected := gossiper.dispatchStatusPacket(source, packet.Status)
 		if !expected {
-			rumor, _ := gossiper.compareStatus(packet.Status)
+			rumor, _, _ := gossiper.compareStatus(packet.Status.Want, ComparisonModeMissingOrNew)
 
 			if rumor != nil {
 				go gossiper.rumormonger(rumor, source)
@@ -243,12 +249,12 @@ func (gossiper *Gossiper) rumormonger(rumor *RumorMessage, peer string) {
 	case statusPacket := <- gossiper.statusPacketsFrom(peer):
 
 		// Compare status from peer with own messages
-		otherRumor, status := gossiper.compareStatus(statusPacket)
+		otherRumor, _, statuses := gossiper.compareStatus(statusPacket.Want, ComparisonModeMissingOrNew)
 
 		switch  {
-		case status != nil: // Peer has new messages
-
-			go gossiper.sendTo(peer, status.packed())
+		case statuses != nil: // Peer has new messages
+			statusPacket := &StatusPacket{statuses}
+			go gossiper.sendTo(peer, statusPacket.packed())
 			shouldContinue = true
 
 		case otherRumor != nil: // Peer is missing messages
@@ -305,10 +311,16 @@ func (gossiper *Gossiper) statusPacketsFrom(peer string) chan *StatusPacket {
 	return gossiper.handlers[peer]
 }
 
-func (gossiper *Gossiper) compareStatus(statusPacket *StatusPacket) (*RumorMessage, *StatusPacket) {
+func (gossiper *Gossiper) compareStatus(statuses []PeerStatus, mode int) (*RumorMessage, []*RumorMessage, []PeerStatus) {
+
+	if mode > ComparisonModeAllNew || mode < ComparisonModeMissingOrNew {
+		mode = ComparisonModeAllNew
+	}
 
 	// First, we generate a statusPacket based on our rumor list
-	myStatusPacket := gossiper.generateStatusPacket()
+	myStatuses := gossiper.generateStatusPacket().Want
+
+	fmt.Printf("COMPARING %v and %v\n", myStatuses, statuses)
 
 	// This map should store, for each node we know about, what is the nextID we want
 	myNextIDs := make(map[string]uint32)
@@ -316,21 +328,28 @@ func (gossiper *Gossiper) compareStatus(statusPacket *StatusPacket) (*RumorMessa
 	// Should become true if during the process somewhere we saw a message that we do not yet have
 	rumorsWanted := false
 
-	for _, want := range myStatusPacket.Want {
-		myNextIDs[want.Identifier] = want.NextID
+	//
+	var allRumors []*RumorMessage
+
+	if mode == ComparisonModeAllNew {
+		allRumors = make([]*RumorMessage, 0)
 	}
 
-	for _, want := range statusPacket.Want {
+	for _, myStatus := range myStatuses {
+		myNextIDs[myStatus.Identifier] = myStatus.NextID
+	}
 
-		theirNextID := want.NextID
+	for _, theirStatus := range statuses {
+
+		theirNextID := theirStatus.NextID
 
 		// In case someone sends something smaller than
 		// possible, we fail gracefully
 		if theirNextID < INITIAL_ID {
-			return nil, nil
+			return nil, nil, nil
 		}
 
-		myNextID, found := myNextIDs[want.Identifier]
+		myNextID, found := myNextIDs[theirStatus.Identifier]
 
 		switch {
 
@@ -345,38 +364,61 @@ func (gossiper *Gossiper) compareStatus(statusPacket *StatusPacket) (*RumorMessa
 			rumorsWanted = true
 
 		case found && myNextID > theirNextID:
-			return gossiper.rumors.get(want.Identifier, theirNextID), nil
+
+			if mode == ComparisonModeMissingOrNew {
+				return gossiper.rumors.get(theirStatus.Identifier, theirNextID), nil, nil
+			} else {
+				for i := theirNextID; i < myNextID; i++ {
+					rumor := gossiper.rumors.get(theirStatus.Identifier, i)
+					fmt.Printf("A - APPENDING %v\n", rumor)
+					allRumors = append(allRumors, rumor)
+				}
+			}
 		}
 
 		// We remove the ID from our NextIDs map to keep track of the fact
 		// that we have seen this ID already.
 		if found {
-			delete(myNextIDs, want.Identifier)
+			delete(myNextIDs, theirStatus.Identifier)
 		}
 	}
 
 	// After comparing with all their IDs, if there is still some value
 	// in myNextIDs, it means that they don't know about such origin nodes
-	for identifier, nextID := range myNextIDs {
+	for identifier, myNextID := range myNextIDs {
 
 		// If we are also waiting for the first message,
 		// just skip this one, we cannot send anything.
-		if nextID == INITIAL_ID {
+		if myNextID == INITIAL_ID {
 			continue
 		}
 
-		// Return the first rumor from this node
-		return gossiper.rumors.get(identifier, INITIAL_ID), nil
+		if mode == ComparisonModeMissingOrNew {
+			// Get first rumor from this node
+			return gossiper.rumors.get(identifier, INITIAL_ID), nil, nil
+		} else {
+			for i := INITIAL_ID; i < myNextID; i++ {
+				rumor := gossiper.rumors.get(identifier, i)
+				allRumors = append(allRumors, rumor)
+			}
+		}
 	}
 
 	// If we did not return already with a rumor to send, and we want rumors,
 	// we simply return our status packet to notify.
-	if rumorsWanted {
-		return nil,  myStatusPacket
+	if rumorsWanted && mode == ComparisonModeMissingOrNew {
+		return nil, nil, myStatuses
 	}
 
-	// If the two statusPackets are equivalent, we simply return nil
-	return nil, nil
+	if mode == ComparisonModeMissingOrNew {
+		// In "Missing or New" mode, we simply return all nil to indicate
+		// that the two statusPackets are equivalent.
+		return nil, nil, nil
+	} else {
+		// In "All New" mode, we return all new messages alongside our
+		// status packet so that the caller can store it for next time
+		return nil, allRumors, myStatuses
+	}
 }
 
 func (gossiper *Gossiper) addPeerIfNeeded(peer string) {
