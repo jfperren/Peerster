@@ -144,6 +144,7 @@ func (gossiper *Gossiper) Stop() {
 // --
 
 //  Handle new packet from client
+func (gossiper *Gossiper) HandleClient(packet *GossipPacket) {
 
 	if packet == nil || packet.Simple == nil {
 		return // Fail gracefully
