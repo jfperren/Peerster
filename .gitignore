@@ -1,5 +1,4 @@
 .config/
-gossiper
 client/client
 scripts/
 .DS_Store

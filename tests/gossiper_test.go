@@ -22,7 +22,7 @@ func MockGossiper() *gossiper.Gossiper {
 		Peers:         []string{"127.0.0.1:5051", "127.0.0.1:5052"},
 		Handlers:      make(map[string]chan*common.StatusPacket),
 		Rumors:        gossiper.MakeRumorDatabase(),
-		NextID:        gossiper.InitialId,
+		NextID:        common.InitialId,
 	}
 }
 
@@ -40,7 +40,7 @@ func TestStatusPacket(t *testing.T) {
 
 	statusPacket := gossiper.GenerateStatusPacket()
 
-	if len(statusPacket.Want) != 2 {
+	if len(statusPacket.Want) != 1 {
 		t.Errorf("Length of statusPacket is %v, expected %v", len(statusPacket.Want), 2)
 	}
 
@@ -48,16 +48,20 @@ func TestStatusPacket(t *testing.T) {
 		t.Errorf("Expect Origin %v at position %v, got %v", "A", 1, statusPacket.Want[0].Identifier)
 	}
 
-	if statusPacket.Want[1].Identifier != "B" {
-		t.Errorf("Expect Origin %v at position %v, got %v", "B", 2, statusPacket.Want[1].Identifier)
+	if gossiper.Rumors.Get("A", 1) == nil {
+		t.Errorf("Should return (A, 1)")
 	}
 
-	if statusPacket.Want[0].NextID != 2 {
-		t.Errorf("Expect NextID for Origin %v to be %v, got %v", "A", 2, statusPacket.Want[0].NextID)
+	if gossiper.Rumors.Get("B", 2) != nil {
+		t.Errorf("Should return nil for (B, 2)")
 	}
 
-	if statusPacket.Want[1].NextID != 1 {
-		t.Errorf("Expect NextID for Origin %v to be %v, got %v", "B", 1, statusPacket.Want[1].NextID)
+	if gossiper.Rumors.NextIDFor("A") != 2 {
+		t.Errorf("Next ID for A should be 2")
+	}
+
+	if gossiper.Rumors.NextIDFor("B") != 1 {
+		t.Errorf("Next ID for B should be 1")
 	}
 }
 

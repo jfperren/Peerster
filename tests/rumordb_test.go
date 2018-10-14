@@ -10,18 +10,18 @@ func TestRumorsPutSameOrigin(t *testing.T) {
 
 	rumors := gossiper.MakeRumorDatabase()
 
-	rumors.Put(&common.RumorMessage{"A", 0, "Hello"})
-	rumors.Put(&common.RumorMessage{"A", 1, "Hi"})
+	rumors.Put(&common.RumorMessage{"A", 1, "Hello"})
+	rumors.Put(&common.RumorMessage{"A", 2, "Hi"})
 
 	if len(rumors.Rumors) != 1 {
 		t.Errorf("Expected length of Rumors to be %v, go %v instead.", 1, len(rumors.Rumors))
 	}
 
-	if !(rumors.Rumors["A"][0].ID == 0 && rumors.Rumors["A"][0].Origin == "A" && rumors.Rumors["A"][0].Text == "Hello") {
+	if !(rumors.Rumors["A"][0].ID == 1 && rumors.Rumors["A"][0].Origin == "A" && rumors.Rumors["A"][0].Text == "Hello") {
 		t.Errorf("Wrong rumor at Rumors['A'][0] -> %v.", rumors.Rumors["A"][0])
 	}
 
-	if !(rumors.Rumors["A"][1].ID == 1 && rumors.Rumors["A"][1].Origin == "A" && rumors.Rumors["A"][1].Text == "Hi") {
+	if !(rumors.Rumors["A"][1].ID == 2 && rumors.Rumors["A"][1].Origin == "A" && rumors.Rumors["A"][1].Text == "Hi") {
 		t.Errorf("Wrong rumor at Rumors['A'][1] -> %v.", rumors.Rumors["A"][1])
 	}
 }
@@ -30,8 +30,8 @@ func TestRumorsPutTwoOrigins(t *testing.T) {
 
 	rumors := gossiper.MakeRumorDatabase()
 
-	rumors.Put(&common.RumorMessage{"A", 0, "Hello"})
-	rumors.Put(&common.RumorMessage{"B", 1, "Hi"})
+	rumors.Put(&common.RumorMessage{"A", 1, "Hello"})
+	rumors.Put(&common.RumorMessage{"B", 2, "Hi"})
 
 	if len(rumors.Rumors) != 2 {
 		t.Errorf("Expected length of Rumors to be %v, go %v instead.", 2, len(rumors.Rumors))
@@ -50,17 +50,17 @@ func TestRumorsGetSameOrigin(t *testing.T) {
 
 	rumors := gossiper.MakeRumorDatabase()
 
-	rumors.Put(&common.RumorMessage{"A", 0, "Hello"})
-	rumors.Put(&common.RumorMessage{"A", 1, "Hi"})
+	rumors.Put(&common.RumorMessage{"A", 1, "Hello"})
+	rumors.Put(&common.RumorMessage{"A", 2, "Hi"})
 
-	firstRumor := rumors.Get("A", 0)
-	secondRumor := rumors.Get("A", 1)
+	firstRumor := rumors.Get("A", 1)
+	secondRumor := rumors.Get("A", 2)
 
-	if !(firstRumor.ID == 0 && firstRumor.Origin == "A" && firstRumor.Text == "Hello") {
+	if !(firstRumor.ID == 1 && firstRumor.Origin == "A" && firstRumor.Text == "Hello") {
 		t.Errorf("Wrong rumor at Rumors['A'][0] -> %v.", rumors.Rumors["A"][0])
 	}
 
-	if !(secondRumor.ID == 1 && secondRumor.Origin == "A" && secondRumor.Text == "Hi") {
+	if !(secondRumor.ID == 2 && secondRumor.Origin == "A" && secondRumor.Text == "Hi") {
 		t.Errorf("Wrong rumor at Rumors['A'][1] -> %v.", rumors.Rumors["A"][1])
 	}
 }
@@ -69,18 +69,18 @@ func TestRumorsGetTwoOrigins(t *testing.T) {
 
 	rumors := gossiper.MakeRumorDatabase()
 
-	rumors.Put(&common.RumorMessage{"A", 0, "Hello"})
-	rumors.Put(&common.RumorMessage{"B", 1, "Hi"})
+	rumors.Put(&common.RumorMessage{"A", 1, "Hello"})
+	rumors.Put(&common.RumorMessage{"B", 2, "Hi"})
 
-	firstRumor := rumors.Get("A", 0)
-	secondRumor := rumors.Get("B", 1)
+	firstRumor := rumors.Get("A", 1)
+	secondRumor := rumors.Get("B", 2)
 
-	if !(firstRumor.ID == 0 && firstRumor.Origin == "A" && firstRumor.Text == "Hello") {
-		t.Errorf("Wrong rumor at Rumors['A'][0] -> %v.", rumors.Rumors["A"][0])
+	if !(firstRumor.ID == 1 && firstRumor.Origin == "A" && firstRumor.Text == "Hello") {
+		t.Errorf("Wrong rumor at Rumors['A'][0] -> %v.", rumors.Rumors["A"][1])
 	}
 
-	if !(secondRumor.ID == 1 && secondRumor.Origin == "B" && secondRumor.Text == "Hi") {
-		t.Errorf("Wrong rumor at Rumors['A'][1] -> %v.", rumors.Rumors["A"][1])
+	if secondRumor != nil {
+		t.Errorf("Should not store rumor (B, 0)")
 	}
 }
 
