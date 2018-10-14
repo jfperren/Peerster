@@ -30,7 +30,7 @@ When the gossiper is running, you can send messages to the node directly via the
 client/client -UIPort=8082 -msg="Your message here"
 ```
 
-#### Via GUI
+#### Using the GUI
 
 In order to interact with the gossiper via the GUI, you will need to run the `Peerster` executable with the `-server` mode. For instance,
 
