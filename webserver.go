@@ -22,8 +22,10 @@ func StartWebServer(gossiper *Gossiper, port string) {
 	http.HandleFunc("/message", middleware(handleMessage))
 	http.HandleFunc("/node", middleware(handleNode))
 
+	go func () {
 		err := http.ListenAndServe(":" + port, nil)
 		if err == nil { panic(err) }
+	}()
 }
 
 func middleware(handler http.HandlerFunc) http.HandlerFunc {
