@@ -1,17 +1,71 @@
 
+function enqueueMessages(messages) {
+  $("#messages").append($.map(messages, function(message) {
+    return `<li>${message.Origin}: ${message.Text}</li>`;
+  }));
+}
+
+function enqueuePeers(peers) {
+  $("#peers").append($.map(peers, function(peer) {
+    return `<li>${peer}</li>`
+  }));
+}
+
+function postMessage(message, statuses, callback) {
+  $.ajax({
+    method: "POST",
+    url: "/message",
+    data: JSON.stringify(message),
+    headers: {
+      'x-statuses': JSON.stringify(statuses)
+    },
+    success: function(res) {
+      callback(JSON.parse(res));
+    }
+  });
+};
+
+function getMessages(statuses, callback) {
+  $.ajax({
+    method: "GET",
+    url: "/message",
+    headers: {
+      'x-statuses': JSON.stringify(statuses)
+    },
+    success: function(res) {
+      callback(JSON.parse(res));
+    }
+  });
+};
+
 $(function(){
 
+  var statuses = [];
+
+  $.get("/id", function(res) {
+    var title = JSON.parse(res)
+    $("#node-title").html(title)
+  });
+
+  $.get("/node", function(res) {
+    var peers = JSON.parse(res)
+    enqueuePeers(peers)
+  });
+
+  getMessages(statuses, function(res) {
+    enqueueMessages(res["Rumors"])
+    statuses = res["Statuses"]
+  });
+
   $("#peer-form").submit(function(){
-
     var newPeer = $("#peer").val()
-
     $.post('/node', JSON.stringify(newPeer), function(res) {
-
-      // Test error -> Alert
-
       $("#peer").val("");
       var peer = JSON.parse(res);
-      $("#peers").append(`<li>${peer}</li>`);
+
+      if (peer != "") {
+        enqueuePeers([peer])
+      }
     });
   });
 
@@ -19,17 +73,14 @@ $(function(){
 
     var message = $("#message").val()
 
-    if (message != "") {
-      $.post('/message', JSON.stringify(message), function(messages) {
-        $("#message").val("");
-        var newMessages = JSON.parse(messages);
-
-        console.log(newMessages)
-
-        $("#messages").append($.map(newMessages, function(message) {
-          return `<li>${message.Origin}: ${message.Text}</li>`;
-        }));
-      });
+    if (message == "") {
+      return
     }
+
+    postMessage(message, statuses, function(res) {
+      $("#message").val("");
+      enqueueMessages(res["Rumors"])
+      statuses = res["Statuses"]
+    });
   });
 });
