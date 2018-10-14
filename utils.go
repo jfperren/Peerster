@@ -10,16 +10,7 @@ func flipCoin() bool {
   	return rand.Int() % 2 == 0
 }
 
-func containsString(array []string, element string) bool {
-	for _, o := range array {
-		if o == element {
-			return true
-		}
-	}
-	return false
-}
-
-func containsUInt32(array []uint32, element uint32) bool {
+func contains(array []string, element string) bool {
 	for _, o := range array {
 		if o == element {
 			return true
@@ -46,7 +37,7 @@ func insertSorted(array []uint32, elem uint32) []uint32 {
 
 	for low != high {
 
-		mid := int(math.Floor((float64(high + low) / 2)))
+		mid := int(math.Floor(float64(high + low) / 2))
 		midElem := array[mid]
 
 		switch {

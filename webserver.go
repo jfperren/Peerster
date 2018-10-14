@@ -79,9 +79,9 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 		}
 
 		simpleMessage := &SimpleMessage{"", "", message}
-		g.handleClient(simpleMessage.packed())
+		g.HandleClient(simpleMessage.packed())
 
-		_, rumors, myStatuses := g.compareStatus(theirStatuses, ComparisonModeAllNew)
+		_, rumors, myStatuses := g.CompareStatus(theirStatuses, ComparisonModeAllNew)
 		body := &RumorsAndStatuses{rumors, myStatuses}
 
 		//res.WriteHeader(http.StatusOK)
@@ -98,7 +98,7 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		_, rumors, myStatuses := g.compareStatus(theirStatuses, ComparisonModeAllNew)
+		_, rumors, myStatuses := g.CompareStatus(theirStatuses, ComparisonModeAllNew)
 		body := RumorsAndStatuses{rumors, myStatuses}
 
 		res.WriteHeader(http.StatusOK)
@@ -122,15 +122,15 @@ func handleNode(res http.ResponseWriter, req *http.Request) {
 			res.WriteHeader(http.StatusBadRequest)
 		}
 
-		if containsString(g.peers, peer) {
+		if contains(g.Peers, peer) {
 			json.NewEncoder(res).Encode("")
 		} else {
-			g.addPeerIfNeeded(peer)
+			g.AddPeerIfNeeded(peer)
 			json.NewEncoder(res).Encode(peer)
 		}
 
 	case "GET":
-		json.NewEncoder(res).Encode(g.peers)
+		json.NewEncoder(res).Encode(g.Peers)
 
 	default:
 		res.WriteHeader(http.StatusMethodNotAllowed)

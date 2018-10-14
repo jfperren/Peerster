@@ -11,50 +11,50 @@ func MockGossiper() *Gossiper {
 	clientAddress := ":8080"
 
 	return &Gossiper{
-		simple:         true,
-		gossipSocket:   NewUDPSocket(gossipAddress),
-		clientSocket:   NewUDPSocket(clientAddress),
-		gossipAddress:  gossipAddress,
-		clientAddress:  clientAddress,
-		Name:           "Tester",
-		peers:          []string{"127.0.0.1:5051", "127.0.0.1:5052"},
-		handlers:       make(map[string]chan*StatusPacket),
-		rumors:         makeRumors(),
-		NextID:			INITIAL_ID,
+		Simple:        true,
+		GossipSocket:  NewUDPSocket(gossipAddress),
+		ClientSocket:  NewUDPSocket(clientAddress),
+		GossipAddress: gossipAddress,
+		ClientAddress: clientAddress,
+		Name:          "Tester",
+		Peers:         []string{"127.0.0.1:5051", "127.0.0.1:5052"},
+		Handlers:      make(map[string]chan*StatusPacket),
+		Rumors:        MakeRumorDatabase(),
+		NextID:        InitialId,
 	}
 }
 
-// Tests that a Gossiper correctly creates a Status packet based on its rumors.
+// Tests that a Gossiper correctly creates a Status packet based on its Rumors.
 func TestStatusPacket(t *testing.T) {
 
 	gossiper := MockGossiper()
-	defer gossiper.stop()
+	defer gossiper.Stop()
 
-	gossiper.rumors.put(&RumorMessage{"A", 1, "Hello"})
+	gossiper.Rumors.Put(&RumorMessage{"A", 1, "Hello"})
 
 	time.Sleep(100 * time.Millisecond)
 
-	gossiper.rumors.put(&RumorMessage{"B", 2, "Hi"})
+	gossiper.Rumors.Put(&RumorMessage{"B", 2, "Hi"})
 
-	statusPacket := gossiper.generateStatusPacket()
+	statusPacket := gossiper.GenerateStatusPacket()
 
-	if (len(statusPacket.Want) != 2) {
+	if len(statusPacket.Want) != 2 {
 		t.Errorf("Length of statusPacket is %v, expected %v", len(statusPacket.Want), 2)
 	}
 
-	if (statusPacket.Want[0].Identifier != "A") {
+	if statusPacket.Want[0].Identifier != "A" {
 		t.Errorf("Expect Origin %v at position %v, got %v", "A", 1, statusPacket.Want[0].Identifier)
 	}
 
-	if (statusPacket.Want[1].Identifier != "B") {
+	if statusPacket.Want[1].Identifier != "B" {
 		t.Errorf("Expect Origin %v at position %v, got %v", "B", 2, statusPacket.Want[1].Identifier)
 	}
 
-	if (statusPacket.Want[0].NextID != 2) {
+	if statusPacket.Want[0].NextID != 2 {
 		t.Errorf("Expect NextID for Origin %v to be %v, got %v", "A", 2, statusPacket.Want[0].NextID)
 	}
 
-	if (statusPacket.Want[1].NextID != 1) {
+	if statusPacket.Want[1].NextID != 1 {
 		t.Errorf("Expect NextID for Origin %v to be %v, got %v", "B", 1, statusPacket.Want[1].NextID)
 	}
 }
@@ -63,21 +63,25 @@ func TestStatusPacket(t *testing.T) {
 func TestCompareStatusPacketWithSame(t *testing.T) {
 
 	gossiper := MockGossiper()
-	defer gossiper.stop()
+	defer gossiper.Stop()
 
-	gossiper.rumors.put(&RumorMessage{"A", 1, "Hello"})
-	gossiper.rumors.put(&RumorMessage{"B", 2, "Hi"})
+	gossiper.Rumors.Put(&RumorMessage{"A", 1, "Hello"})
+	gossiper.Rumors.Put(&RumorMessage{"B", 2, "Hi"})
 
-	otherStatusPacket := &StatusPacket{[]PeerStatus{
-		PeerStatus{"A", 2},
-		PeerStatus{"B", 1},
-	}}
+	otherStatusPacket := []PeerStatus{
+		{"A", 2},
+		{"B", 1},
+	}
 
-	rumor, packet := gossiper.compareStatus(otherStatusPacket)
+	rumor, allRumors, packet := gossiper.CompareStatus(otherStatusPacket, ComparisonModeMissingOrNew)
 
 	if rumor != nil {
-		logStatus(gossiper.generateStatusPacket(), "none")
+		logStatus(gossiper.GenerateStatusPacket(), "none")
 		t.Errorf("Found rumor to send when statusPackets are the same.")
+	}
+
+	if allRumors != nil {
+		t.Fatalf("Should not return Rumors in MissingOrNew mode")
 	}
 
 	if packet != nil {
@@ -89,18 +93,18 @@ func TestCompareStatusPacketWithSame(t *testing.T) {
 func TestCompareStatusPacketWithMissingMessage(t *testing.T) {
 
 	gossiper := MockGossiper()
-	defer gossiper.stop()
+	defer gossiper.Stop()
 
-	gossiper.rumors.put(&RumorMessage{"A", 1, "Hello"})
-	gossiper.rumors.put(&RumorMessage{"B", 2, "Hi"})
+	gossiper.Rumors.Put(&RumorMessage{"A", 1, "Hello"})
+	gossiper.Rumors.Put(&RumorMessage{"B", 2, "Hi"})
 
 	// The other node has not seen (A, 0) yet
-	otherStatusPacket := &StatusPacket{[]PeerStatus{
-		PeerStatus{"A", 1},
-		PeerStatus{"B", 2},
-	}}
+	otherStatusPacket := []PeerStatus{
+		{"A", 1},
+		{"B", 2},
+	}
 
-	rumor, packet := gossiper.compareStatus(otherStatusPacket)
+	rumor, allRumors, packet := gossiper.CompareStatus(otherStatusPacket, ComparisonModeMissingOrNew)
 
 	if rumor == nil {
 		t.Fatalf("Should send rumor if statusPacket is missing one.")
@@ -110,8 +114,12 @@ func TestCompareStatusPacketWithMissingMessage(t *testing.T) {
 		t.Errorf("Found packet to send when statusPackets are the same.")
 	}
 
+	if allRumors != nil {
+		t.Fatalf("Should not return Rumors in MissingOrNew mode")
+	}
+
 	if rumor.ID != 1 || rumor.Origin != "A" || rumor.Text != "Hello" {
-		t.Errorf("Sent wrong rumor %v, expected %v", gossiper.rumors.get("A", 1), rumor)
+		t.Errorf("Sent wrong rumor %v, expected %v", gossiper.Rumors.Get("A", 1), rumor)
 	}
 }
 
@@ -119,17 +127,17 @@ func TestCompareStatusPacketWithMissingMessage(t *testing.T) {
 func TestCompareStatusPacketWithMissingNode(t *testing.T) {
 
 	gossiper := MockGossiper()
-	defer gossiper.stop()
+	defer gossiper.Stop()
 
-	gossiper.rumors.put(&RumorMessage{"A", 1, "Hello"})
-	gossiper.rumors.put(&RumorMessage{"B", 2, "Hi"})
+	gossiper.Rumors.Put(&RumorMessage{"A", 1, "Hello"})
+	gossiper.Rumors.Put(&RumorMessage{"B", 2, "Hi"})
 
 	// The other node has not seen (A, 0) yet
-	otherStatusPacket := &StatusPacket{[]PeerStatus{
-		PeerStatus{"B", 1},
-	}}
+	otherStatusPacket := []PeerStatus{
+		{"B", 1},
+	}
 
-	rumor, packet := gossiper.compareStatus(otherStatusPacket)
+	rumor, allRumors, packet := gossiper.CompareStatus(otherStatusPacket, ComparisonModeMissingOrNew)
 
 	if rumor == nil {
 		t.Errorf("Should send rumor if statusPacket is missing one.")
@@ -139,8 +147,12 @@ func TestCompareStatusPacketWithMissingNode(t *testing.T) {
 		t.Errorf("Found packet to send when statusPackets are the same.")
 	}
 
+	if allRumors != nil {
+		t.Fatalf("Should not return Rumors in MissingOrNew mode")
+	}
+
 	if rumor.ID != 1 || rumor.Origin != "A" || rumor.Text != "Hello" {
-		t.Errorf("Sent wrong rumor %v, expected %v", gossiper.rumors.get("A", 1), rumor)
+		t.Errorf("Sent wrong rumor %v, expected %v", gossiper.Rumors.Get("A", 1), rumor)
 	}
 }
 
@@ -148,21 +160,25 @@ func TestCompareStatusPacketWithMissingNode(t *testing.T) {
 func TestCompareStatusPacketWithAdditionalMessages(t *testing.T) {
 
 	gossiper := MockGossiper()
-	defer gossiper.stop()
+	defer gossiper.Stop()
 
-	gossiper.rumors.put(&RumorMessage{"A", 1, "Hello"})
-	gossiper.rumors.put(&RumorMessage{"B", 1, "Hi"})
+	gossiper.Rumors.Put(&RumorMessage{"A", 1, "Hello"})
+	gossiper.Rumors.Put(&RumorMessage{"B", 1, "Hi"})
 
 	// The other node has (B, 1) which we don't have
-	otherStatusPacket := &StatusPacket{[]PeerStatus{
-		PeerStatus{"A", 2},
-		PeerStatus{"B", 3},
-	}}
+	otherStatusPacket := []PeerStatus{
+		{"A", 2},
+		{"B", 3},
+	}
 
-	rumor, packet := gossiper.compareStatus(otherStatusPacket)
+	rumor, allRumors, packet := gossiper.CompareStatus(otherStatusPacket, ComparisonModeMissingOrNew)
 
 	if rumor != nil {
 		t.Errorf("It should not send rumor if the other node has all our messages")
+	}
+
+	if allRumors != nil {
+		t.Fatalf("Should not return Rumors in MissingOrNew mode")
 	}
 
 	if packet == nil {
@@ -174,21 +190,25 @@ func TestCompareStatusPacketWithAdditionalMessages(t *testing.T) {
 func TestCompareStatusPacketWithAdditionalNodes(t *testing.T) {
 
 	gossiper := MockGossiper()
-	defer gossiper.stop()
+	defer gossiper.Stop()
 
-	gossiper.rumors.put(&RumorMessage{"A", 1, "Hello"})
+	gossiper.Rumors.Put(&RumorMessage{"A", 1, "Hello"})
 
 	// The other node has (C, 1) which we don't have and don't know about
-	otherStatusPacket := &StatusPacket{[]PeerStatus{
-		PeerStatus{"A", 2},
-		PeerStatus{"B", 1},
-		PeerStatus{"C", 2},
-	}}
+	otherStatusPacket := []PeerStatus{
+		{"A", 2},
+		{"B", 1},
+		{"C", 2},
+	}
 
-	rumor, packet := gossiper.compareStatus(otherStatusPacket)
+	rumor, allRumors, packet := gossiper.CompareStatus(otherStatusPacket, ComparisonModeMissingOrNew)
 
 	if rumor != nil {
 		t.Errorf("It should not send rumor if the other node has all our messages")
+	}
+
+	if allRumors != nil {
+		t.Fatalf("Should not return Rumors in MissingOrNew mode")
 	}
 
 	if packet == nil {
@@ -201,20 +221,24 @@ func TestCompareStatusPacketWithAdditionalNodes(t *testing.T) {
 func TestCompareStatusPacketMissingNodeWithInitialID(t *testing.T) {
 
 	gossiper := MockGossiper()
-	defer gossiper.stop()
+	defer gossiper.Stop()
 
-	gossiper.rumors.put(&RumorMessage{"B", 1, "Hello"})
-	gossiper.rumors.put(&RumorMessage{"C", 2, "Hi"})
+	gossiper.Rumors.Put(&RumorMessage{"B", 1, "Hello"})
+	gossiper.Rumors.Put(&RumorMessage{"C", 2, "Hi"})
 
 	// The other node does not know about C but we have no message
-	otherStatusPacket := &StatusPacket{[]PeerStatus{
-		PeerStatus{"B", 2},
-	}}
+	otherStatusPacket := []PeerStatus{
+		{"B", 2},
+	}
 
-	rumor, packet := gossiper.compareStatus(otherStatusPacket)
+	rumor, allRumors, packet := gossiper.CompareStatus(otherStatusPacket, ComparisonModeMissingOrNew)
 
 	if rumor != nil {
 		t.Errorf("Should not send rumor if we don't have any new")
+	}
+
+	if allRumors != nil {
+		t.Fatalf("Should not return Rumors in MissingOrNew mode")
 	}
 
 	if packet != nil {
@@ -227,20 +251,24 @@ func TestCompareStatusPacketMissingNodeWithInitialID(t *testing.T) {
 func TestCompareStatusPacketAdditionalNodeWithInitialID(t *testing.T) {
 
 	gossiper := MockGossiper()
-	defer gossiper.stop()
+	defer gossiper.Stop()
 
-	gossiper.rumors.put(&RumorMessage{"A", 1, "Hello"})
+	gossiper.Rumors.Put(&RumorMessage{"A", 1, "Hello"})
 
 	// We haven't seen B yet but they don't have any message
-	otherStatusPacket := &StatusPacket{[]PeerStatus{
-		PeerStatus{"A", 2},
-		PeerStatus{"B", 1},
-	}}
+	otherStatusPacket := []PeerStatus{
+		{"A", 2},
+		{"B", 1},
+	}
 
-	rumor, packet := gossiper.compareStatus(otherStatusPacket)
+	rumor, allRumors, packet := gossiper.CompareStatus(otherStatusPacket, ComparisonModeMissingOrNew)
 
 	if rumor != nil {
 		t.Errorf("Should not send rumor if we don't have any new")
+	}
+
+	if allRumors != nil {
+		t.Fatalf("Should not return Rumors in MissingOrNew mode")
 	}
 
 	if packet != nil {
@@ -248,27 +276,31 @@ func TestCompareStatusPacketAdditionalNodeWithInitialID(t *testing.T) {
 	}
 }
 
-// Test that we prioritize our rumors when both status are missing
+// Test that we prioritize our Rumors when both status are missing
 func TestCompareStatusPacketPrioritizeRumors(t *testing.T) {
 
 	gossiper := MockGossiper()
-	defer gossiper.stop()
+	defer gossiper.Stop()
 
-	gossiper.rumors.put(&RumorMessage{"A", 1, "Hello"})
+	gossiper.Rumors.Put(&RumorMessage{"A", 1, "Hello"})
 
 	// They haven't seen (A, 0) but we haven't seen (B, 0)
-	otherStatusPacket := &StatusPacket{[]PeerStatus{
-		PeerStatus{"B", 2},
-	}}
+	otherStatusPacket := []PeerStatus{
+		{"B", 2},
+	}
 
-	rumor, packet := gossiper.compareStatus(otherStatusPacket)
+	rumor, allRumors, packet := gossiper.CompareStatus(otherStatusPacket, ComparisonModeMissingOrNew)
 
 	if rumor == nil {
-		t.Errorf("Should send a rumor if both statuses are missing rumors")
+		t.Errorf("Should send a rumor if both statuses are missing Rumors")
+	}
+
+	if allRumors != nil {
+		t.Fatalf("Should not return Rumors in MissingOrNew mode")
 	}
 
 	if packet != nil {
-		t.Errorf("Should not send a status if both statuses are missing rumors")
+		t.Errorf("Should not send a status if both statuses are missing Rumors")
 	}
 }
 
@@ -276,22 +308,26 @@ func TestCompareStatusPacketPrioritizeRumors(t *testing.T) {
 func TestCompareStatusPacketFirstRumor(t *testing.T) {
 
 	gossiper := MockGossiper()
-	defer gossiper.stop()
+	defer gossiper.Stop()
 
-	gossiper.rumors.put(&RumorMessage{"A", 1, "Hello"})
-	gossiper.rumors.put(&RumorMessage{"A", 2, "Hello Again"})
-	gossiper.rumors.put(&RumorMessage{"A", 3, "Is anyone here?"})
+	gossiper.Rumors.Put(&RumorMessage{"A", 1, "Hello"})
+	gossiper.Rumors.Put(&RumorMessage{"A", 2, "Hello Again"})
+	gossiper.Rumors.Put(&RumorMessage{"A", 3, "Is anyone here?"})
 
 	// They haven't seen anything
-	otherStatusPacket := &StatusPacket{[]PeerStatus{}}
-	rumor, packet := gossiper.compareStatus(otherStatusPacket)
+	otherStatusPacket := make([]PeerStatus, 0)
+	rumor, allRumors, packet := gossiper.CompareStatus(otherStatusPacket, ComparisonModeMissingOrNew)
 
 	if rumor == nil {
-		t.Fatalf("Should send a rumor if they are missing rumors")
+		t.Fatalf("Should send a rumor if they are missing Rumors")
+	}
+
+	if allRumors != nil {
+		t.Fatalf("Should not return Rumors in MissingOrNew mode")
 	}
 
 	if packet != nil {
-		t.Errorf("Should not send a status if they are missing rumors")
+		t.Errorf("Should not send a status if they are missing Rumors")
 	}
 
 	if rumor.ID != 1 || rumor.Origin != "A" || rumor.Text != "Hello" {

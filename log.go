@@ -8,6 +8,12 @@ import (
 
 const LogDebug = false;
 
+// --
+// -- INFO MESSAGES
+// --
+//
+// These are log messages to be used in the assignment.
+
 func logClientMessage(message *SimpleMessage) {
 	fmt.Printf("CLIENT MESSAGE %v\n", message.Contents)
 }
@@ -47,7 +53,9 @@ func logPeers(peers []string) {
 	fmt.Printf("PEERS %v\n", strings.Join(peers, ","))
 }
 
-// --- Debug Messages ---
+// --
+// -- DEBUG MESSAGES
+// --
 //
 // These are optional messages, not required in the assignment
 // that might be used for debugging.
