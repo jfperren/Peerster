@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const LogDebug = false;
+
 func logClientMessage(message *SimpleMessage) {
 	fmt.Printf("CLIENT MESSAGE %v\n", message.Contents)
 }
@@ -51,14 +53,17 @@ func logPeers(peers []string) {
 // that might be used for debugging.
 
 func debugStopMongering(rumor *RumorMessage) {
+	if !LogDebug { return }
 	fmt.Printf("STOP MONGERING rumor %v\n", rumor.Text)
 }
 
 func debugTimeout(peer string) {
+	if !LogDebug { return }
 	fmt.Printf("TIMEOUT from %v\n", peer)
 }
 
 func debugSendStatus(status *StatusPacket, to string) {
+	if !LogDebug { return }
 	fmt.Printf("SEND STATUS to %v ", to)
 
 	for _, peerStatus := range status.Want {
@@ -69,10 +74,12 @@ func debugSendStatus(status *StatusPacket, to string) {
 }
 
 func debugForwardRumor(rumor *RumorMessage) {
+	if !LogDebug { return }
 	fmt.Printf("FORWARD rumor %v\n", rumor.Text)
 }
 
 func debugAskAndSendStatus(status *StatusPacket, to string) {
+	if !LogDebug { return }
 	fmt.Printf("ASK AND SEND STATUS to %v ", to)
 
 	for _, peerStatus := range status.Want {
@@ -83,5 +90,6 @@ func debugAskAndSendStatus(status *StatusPacket, to string) {
 }
 
 func debugServerRequest(req *http.Request) {
+	if !LogDebug { return }
 	fmt.Printf("%v %v\n", req.Method, req.URL)
 }
