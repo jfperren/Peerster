@@ -5,12 +5,10 @@ import (
 	"net/http"
 )
 
-const WEB_SERVER_PORT = ":8080"
-
 var g *Gossiper
 var status []PeerStatus
 
-func StartWebServer(gossiper *Gossiper) {
+func StartWebServer(gossiper *Gossiper, port string) {
 
 	// Stores gossiper
 	g = gossiper
@@ -24,8 +22,8 @@ func StartWebServer(gossiper *Gossiper) {
 	http.HandleFunc("/message", middleware(handleMessage))
 	http.HandleFunc("/node", middleware(handleNode))
 
-	err := http.ListenAndServe(WEB_SERVER_PORT, nil)
-	if err == nil { panic(err) }
+		err := http.ListenAndServe(":" + port, nil)
+		if err == nil { panic(err) }
 }
 
 func middleware(handler http.HandlerFunc) http.HandlerFunc {
@@ -59,7 +57,7 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 			res.WriteHeader(http.StatusBadRequest)
 		}
 
-		simpleMessage := &SimpleMessage{"GUI", WEB_SERVER_PORT, message}
+		simpleMessage := &SimpleMessage{"GUI", "", message}
 		g.handleClient(simpleMessage.packed())
 
 		json.NewEncoder(res).Encode(getNewRumors())

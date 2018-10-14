@@ -42,12 +42,14 @@ func main () {
   	fmt.Printf("simple = %v\n", *simple)
 	fmt.Printf("server = %v\n", *server)
 
-  	// Creates Gossiper
-	gossiper := NewGossiper(*gossipAddr, *uiPort,  *name, *peers, *simple)
+	var gossiper *Gossiper
 
   	if *server {
-		StartWebServer(gossiper)
+		gossiper = NewGossiper(*gossipAddr, "",  *name, *peers, *simple)
+		StartWebServer(gossiper, *uiPort)
 	} else {
-		gossiper.start()
+		gossiper = NewGossiper(*gossipAddr, ":" + *uiPort,  *name, *peers, *simple)
 	}
+
+	gossiper.start()
 }

@@ -23,12 +23,14 @@ type Gossiper struct {
 }
 
 
-func NewGossiper(gossipAddress, clientPort, name string, peers string, simple bool) *Gossiper {
-
-	clientAddress := ":" + clientPort
+func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool) *Gossiper {
 
 	gossipSocket := NewUDPSocket(gossipAddress)
-	clientSocket := NewUDPSocket(clientAddress)
+	var clientSocket *UDPSocket
+
+	if clientAddress != "" {
+		clientSocket = NewUDPSocket(clientAddress)
+	}
 
 	return &Gossiper{
 		simple:         simple,
@@ -49,25 +51,6 @@ func (gossiper *Gossiper) start() {
 	go func() {
 
 		for {
-
-			var packet GossipPacket
-			bytes, _, alive := gossiper.clientSocket.Receive()
-
-			if !alive { break }
-
-			protobuf.Decode(bytes, &packet)
-
-			if !packet.isValid() {
-				panic("Received invalid packet")
-			}
-
-			go gossiper.handleClient(&packet)
-		}
-	}()
-
-	go func() {
-
-		for {
 			var packet GossipPacket
 			bytes, source, alive := gossiper.gossipSocket.Receive()
 
@@ -84,7 +67,9 @@ func (gossiper *Gossiper) start() {
 	}()
 
 	go func() {
+
 		for {
+
 			peer, found := gossiper.randomPeer()
 
 			if found {
@@ -92,10 +77,32 @@ func (gossiper *Gossiper) start() {
 				debugAskAndSendStatus(packet.Status, peer)
 				go gossiper.sendTo(peer, packet)
 			}
-
+			
 			time.Sleep(ANTI_ENTROPY_DT)
 		}
 	}()
+
+	if gossiper.clientSocket != nil {
+
+		go func() {
+
+			for {
+
+				var packet GossipPacket
+				bytes, _, alive := gossiper.clientSocket.Receive()
+
+				if !alive { break }
+
+				protobuf.Decode(bytes, &packet)
+
+				if !packet.isValid() {
+					panic("Received invalid packet")
+				}
+
+				go gossiper.handleClient(&packet)
+			}
+		}()
+	}
 
 	wg := new(sync.WaitGroup)
 	wg.Add(3)
