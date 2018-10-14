@@ -1,5 +1,4 @@
-package main
-
+package common
 
 // --
 // -- DATA STRUCTURES
@@ -37,7 +36,7 @@ type GossipPacket struct {
 // --
 
 // Pack a SimpleMessage into a GossipPacket
-func (simple *SimpleMessage) packed() *GossipPacket {
+func (simple *SimpleMessage) Packed() *GossipPacket {
 
     if simple == nil {
         panic("Cannot pack <nil> Simple into a GossipPacket")
@@ -47,7 +46,7 @@ func (simple *SimpleMessage) packed() *GossipPacket {
 }
 
 // Pack a RumorMessage into a GossipPacket
-func (rumor *RumorMessage) packed() *GossipPacket {
+func (rumor *RumorMessage) Packed() *GossipPacket {
 
     if rumor == nil {
         panic("Cannot pack <nil> rumor into a GossipPacket")
@@ -57,7 +56,7 @@ func (rumor *RumorMessage) packed() *GossipPacket {
 }
 
 // Pack a StatusPacket into a GossipPacket
-func (status *StatusPacket) packed() *GossipPacket {
+func (status *StatusPacket) Packed() *GossipPacket {
 
     if status == nil {
         panic("Cannot pack <nil> status into a GossipPacket")
@@ -67,6 +66,6 @@ func (status *StatusPacket) packed() *GossipPacket {
 }
 
 // Checks if a given GossipPacket is valid. It is only valid if exactly one of its 3 fields is non-nil.
-func (packet *GossipPacket) isValid() bool {
+func (packet *GossipPacket) IsValid() bool {
     return (packet.Simple == nil && packet.Rumor == nil && packet.Status != nil) || (packet.Simple == nil && packet.Rumor != nil && packet.Status == nil) || (packet.Simple != nil && packet.Rumor == nil && packet.Status == nil)
 }

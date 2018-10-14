@@ -1,4 +1,4 @@
-package main
+package common
 
 import (
 	"fmt"
@@ -14,24 +14,24 @@ const LogDebug = false;
 //
 // These are log messages to be used in the assignment.
 
-func logClientMessage(message *SimpleMessage) {
+func LogClientMessage(message *SimpleMessage) {
 	fmt.Printf("CLIENT MESSAGE %v\n", message.Contents)
 }
 
-func logSimpleMessage(message *SimpleMessage) {
+func LogSimpleMessage(message *SimpleMessage) {
 	fmt.Printf("SIMPLE MESSAGE origin %v from %v contents %v\n",
 		message.OriginalName, message.RelayPeerAddr, message.Contents)
 }
 
-func logRumor(rumor *RumorMessage, relayAddress string) {
+func LogRumor(rumor *RumorMessage, relayAddress string) {
 	fmt.Printf("RUMOR origin %v from %v ID %v contents %v\n", rumor.Origin, relayAddress, rumor.ID, rumor.Text)
 }
 
-func logMongering(peerAddress string) {
+func LogMongering(peerAddress string) {
 	fmt.Printf("MONGERING with %v\n", peerAddress)
 }
 
-func logStatus(status *StatusPacket, relayAddress string) {
+func LogStatus(status *StatusPacket, relayAddress string) {
 	fmt.Printf("STATUS from %v ", relayAddress)
 
 	for _, peerStatus := range status.Want {
@@ -41,15 +41,15 @@ func logStatus(status *StatusPacket, relayAddress string) {
 	fmt.Printf("\n")
 }
 
-func logFlippedCoin(peerAddress string) {
+func LogFlippedCoin(peerAddress string) {
 	fmt.Printf("FLIPPED COIN sending rumor to %v\n", peerAddress)
 }
 
-func logInSyncWith(peerAddress string) {
+func LogInSyncWith(peerAddress string) {
 	fmt.Printf("IN SYNC WITH %v\n", peerAddress)
 }
 
-func logPeers(peers []string) {
+func LogPeers(peers []string) {
 	fmt.Printf("PEERS %v\n", strings.Join(peers, ","))
 }
 
@@ -60,17 +60,17 @@ func logPeers(peers []string) {
 // These are optional messages, not required in the assignment
 // that might be used for debugging.
 
-func debugStopMongering(rumor *RumorMessage) {
+func DebugStopMongering(rumor *RumorMessage) {
 	if !LogDebug { return }
 	fmt.Printf("STOP MONGERING rumor %v\n", rumor.Text)
 }
 
-func debugTimeout(peer string) {
+func DebugTimeout(peer string) {
 	if !LogDebug { return }
 	fmt.Printf("TIMEOUT from %v\n", peer)
 }
 
-func debugSendStatus(status *StatusPacket, to string) {
+func DebugSendStatus(status *StatusPacket, to string) {
 	if !LogDebug { return }
 	fmt.Printf("SEND STATUS to %v ", to)
 
@@ -81,12 +81,12 @@ func debugSendStatus(status *StatusPacket, to string) {
 	fmt.Printf("\n")
 }
 
-func debugForwardRumor(rumor *RumorMessage) {
+func DebugForwardRumor(rumor *RumorMessage) {
 	if !LogDebug { return }
 	fmt.Printf("FORWARD rumor %v\n", rumor.Text)
 }
 
-func debugAskAndSendStatus(status *StatusPacket, to string) {
+func DebugAskAndSendStatus(status *StatusPacket, to string) {
 	if !LogDebug { return }
 	fmt.Printf("ASK AND SEND STATUS to %v ", to)
 
@@ -97,7 +97,7 @@ func debugAskAndSendStatus(status *StatusPacket, to string) {
 	fmt.Printf("\n")
 }
 
-func debugServerRequest(req *http.Request) {
+func DebugServerRequest(req *http.Request) {
 	if !LogDebug { return }
 	fmt.Printf("%v %v\n", req.Method, req.URL)
 }

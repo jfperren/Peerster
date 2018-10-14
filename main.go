@@ -1,16 +1,10 @@
-package main
+package gossiper
 
 import (
-    "flag"
+	"flag"
 	"fmt"
-	"time"
+	"github.com/jfperren/Peerster/gossiper"
 )
-
-const StatusBufferSize = 5
-const StatusTimeout = 1 * time.Second
-const AntiEntropyDT = 1 * time.Second
-const InitialId = uint32(1)
-
 
 func main () {
 
@@ -34,14 +28,14 @@ func main () {
   	fmt.Printf("simple = %v\n", *simple)
 	fmt.Printf("server = %v\n", *server)
 
-	var gossiper *Gossiper
+	var g *gossiper.Gossiper
 
   	if *server {
-		gossiper = NewGossiper(*gossipAddr, "",  *name, *peers, *simple)
-		StartWebServer(gossiper, *uiPort)
+		g = gossiper.NewGossiper(*gossipAddr, "",  *name, *peers, *simple)
+		gossiper.StartWebServer(g, *uiPort)
 	} else {
-		gossiper = NewGossiper(*gossipAddr, ":" + *uiPort,  *name, *peers, *simple)
+		g = gossiper.NewGossiper(*gossipAddr, ":" + *uiPort,  *name, *peers, *simple)
 	}
 
-	gossiper.Start()
+	g.Start()
 }

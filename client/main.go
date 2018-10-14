@@ -4,35 +4,10 @@ import (
   "fmt"
   "flag"
   "github.com/dedis/protobuf"
+  "github.com/jfperren/Peerster/common"
   "net"
 )
 
-type GossipPacket struct {
-  Simple        *SimpleMessage
-  Rumor         *RumorMessage
-  Status        *StatusPacket
-}
-
-type StatusPacket struct {
-  Want          []PeerStatus
-}
-
-type SimpleMessage struct {
-  OriginalName  string
-  RelayPeerAddr string
-  Contents      string
-}
-
-type RumorMessage struct {
-  Origin        string
-  ID            uint32
-  Text          string
-}
-
-type PeerStatus struct {
-  Identifier    string
-  NextID        uint32
-}
 
 func main () {
 
@@ -66,7 +41,7 @@ func main () {
   if err != nil { panic(err) }
 
   // Creates packet
-  packet := &GossipPacket{&SimpleMessage{"", "", *message},nil,nil}
+  packet := &common.GossipPacket{&common.SimpleMessage{"", "", *message},nil,nil}
 
   // Encodes message
   bytes, err := protobuf.Encode(packet)
