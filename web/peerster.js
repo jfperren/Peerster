@@ -1,4 +1,7 @@
 
+
+var statuses = [];
+
 function enqueueMessages(messages) {
   $("#messages").append($.map(messages, function(message) {
     return `<li>${message.Origin}: ${message.Text}</li>`;
@@ -38,9 +41,16 @@ function getMessages(statuses, callback) {
   });
 };
 
-$(function(){
+function loadNewMessages() {
+  getMessages(statuses, function(res) {
+    enqueueMessages(res["Rumors"])
+    statuses = res["Statuses"]
+  });
+}
 
-  var statuses = [];
+
+
+$(function(){
 
   $.get("/id", function(res) {
     var title = JSON.parse(res)
@@ -52,10 +62,9 @@ $(function(){
     enqueuePeers(peers)
   });
 
-  getMessages(statuses, function(res) {
-    enqueueMessages(res["Rumors"])
-    statuses = res["Statuses"]
-  });
+  loadNewMessages()
+
+  setInterval(loadNewMessages, 1000)
 
   $("#peer-form").submit(function(){
     var newPeer = $("#peer").val()
