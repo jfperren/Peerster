@@ -57,6 +57,10 @@ func LogUpdateRoutingTable(origin, address string) {
 	fmt.Printf("DSDV %v %v\n", origin, address)
 }
 
+func LogPrivate(private *PrivateMessage) {
+	fmt.Printf("PRIVATE origin %v hop-limit %v contents %v\n", private.Origin, private.HopLimit, private.Text)
+}
+
 // --
 // -- DEBUG MESSAGES
 // --
@@ -114,4 +118,9 @@ func DebugSendRouteRumor(address string) {
 func DebugReceiveRouteRumor(origin, address string) {
 	if !LogDebug { return }
 	fmt.Printf("RECEIVE ROUTE RUMOR from %v at %v\n", origin, address)
+}
+
+func DebugUnknownDestination(destination string) {
+	if !LogDebug { return }
+	fmt.Printf("UNKNOWN DESTINATION %v\n", destination)
 }

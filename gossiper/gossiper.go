@@ -173,25 +173,39 @@ func (gossiper *Gossiper) Stop() {
 //  Handle new packet from client
 func (gossiper *Gossiper) HandleClient(packet *common.GossipPacket) {
 
-	if packet == nil || packet.Simple == nil {
+	if packet == nil || !packet.IsValid() {
 		return // Fail gracefully
 	}
 
-	common.LogClientMessage(packet.Simple)
+	if packet.Simple != nil {
+		common.LogClientMessage(packet.Simple)
+	}
+
 	common.LogPeers(gossiper.Peers)
 
 	if gossiper.Simple {
+
 		go gossiper.relay(packet, true)
+
 	} else {
 
-		rumor := gossiper.generateRumor(packet.Simple.Contents)
+		switch {
 
-		gossiper.Rumors.Put(rumor)
+		case packet.Simple != nil:
 
-		peer, found := gossiper.randomPeer()
+			rumor := gossiper.generateRumor(packet.Simple.Contents)
 
-		if found {
-			go gossiper.rumormonger(rumor, peer)
+			gossiper.Rumors.Put(rumor)
+
+			peer, found := gossiper.randomPeer()
+
+			if found {
+				go gossiper.rumormonger(rumor, peer)
+			}
+
+		case packet.Private != nil:
+
+			gossiper.handlePrivateMessage(packet.Private)
 		}
 	}
 }
@@ -259,6 +273,10 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 				go gossiper.rumormonger(rumor, source)
 			}
 		}
+
+	case packet.Private != nil:
+
+		gossiper.handlePrivateMessage(packet.Private)
 	}
 }
 
@@ -292,6 +310,33 @@ func (gossiper *Gossiper) relay(packet *common.GossipPacket, setName bool) {
 	for i := 0; i < len(gossiper.Peers); i++ {
 		if gossiper.Peers[i] != packet.Simple.RelayPeerAddr {
 			gossiper.sendTo(gossiper.Peers[i], packet)
+		}
+	}
+}
+
+func (gossiper *Gossiper) handlePrivateMessage(message *common.PrivateMessage) {
+
+	if message.Origin == "" {
+		message.Origin = gossiper.Name
+	}
+
+	if message.Destination == gossiper.Name {
+		// If it's for us, simply log it and it's done
+		common.LogPrivate(message)
+	} else {
+
+		// Decrement hop-limit
+		message.HopLimit--
+
+		// If it's non-zero, we forward according to the NextHop table
+		if message.HopLimit != 0 {
+			nextPeer, found := gossiper.NextHop[message.Destination]
+
+			if found {
+				go gossiper.sendTo(nextPeer, message.Packed())
+			} else {
+				common.DebugUnknownDestination(message.Destination)
+			}
 		}
 	}
 }
