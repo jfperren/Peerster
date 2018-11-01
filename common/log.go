@@ -53,6 +53,10 @@ func LogPeers(peers []string) {
 	fmt.Printf("PEERS %v\n", strings.Join(peers, ","))
 }
 
+func LogUpdateRoutingTable(origin, address string) {
+	fmt.Printf("DSDV %v %v\n", origin, address)
+}
+
 // --
 // -- DEBUG MESSAGES
 // --

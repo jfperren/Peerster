@@ -20,10 +20,11 @@ type Gossiper struct {
 	Peers         	[]string							// List of known peer IP addresses
 	Name          	string								// Name of this node
 	Rumors 			*RumorDatabase						// Database of known Rumors
-	NextID uint32										// NextID to be used for Rumors
-	HandlerLock  *sync.RWMutex							// Lock for safely updating & reading handlers
-	Handlers     map[string]chan*common.StatusPacket	// Channels waiting for StatusPackets
-	HandlerCount map[string]int							// Count of rumormongering processes waiting on a node status
+	NextID 			uint32								// NextID to be used for Rumors
+	HandlerLock  	*sync.RWMutex						// Lock for safely updating & reading handlers
+	Handlers     	map[string]chan*common.StatusPacket	// Channels waiting for StatusPackets
+	HandlerCount 	map[string]int						// Count of rumormongering processes waiting on a node status
+	NextHop		 	map[string]string					// Routing Table
 }
 
 const (
@@ -56,6 +57,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		HandlerLock:   &sync.RWMutex{},
 		Handlers:      make(map[string]chan*common.StatusPacket),
 		HandlerCount:  make(map[string]int),
+		NextHop:	   make(map[string]string),
 	}
 }
 
@@ -192,6 +194,9 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 		common.LogRumor(packet.Rumor, source)
 		common.LogPeers(gossiper.Peers)
+
+		// Update routing table
+		gossiper.updateRoutingTable(packet.Rumor.Origin, source)
 
 		// We only store & forward if the rumor is our next expected rumo
 		// from the source.
@@ -545,6 +550,17 @@ func (gossiper *Gossiper) randomPeer() (string, bool) {
 	}
 
 	return gossiper.Peers[rand.Int() % len(gossiper.Peers)], true
+}
+
+func (gossiper *Gossiper) updateRoutingTable(origin, address string) {
+
+	currentAddress, found := gossiper.NextHop[origin]
+
+	// Only update if needed
+	if !found || currentAddress != address {
+		gossiper.NextHop[origin] = address
+		common.LogUpdateRoutingTable(origin, address)
+	}
 }
 
 // --
