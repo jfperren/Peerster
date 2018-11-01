@@ -51,6 +51,12 @@ function postNode(node, callback) {
   });
 }
 
+function getUsers(callback) {
+    $.get("/user", function(res) {
+        callback(JSON.parse(res), null);
+    });
+}
+
 // --- DOM UPDATE --- //
 
 function enqueueMessages(newMessages) {
@@ -79,6 +85,19 @@ function enqueuePeers(newPeers) {
   }));
 }
 
+function enqueueUsers(newUsers) {
+
+    newUsers = newUsers.filter(function(user) {
+        return !users.includes(user);
+    })
+
+    users = users + newUsers;
+
+    $("#users").append($.map(newUsers, function(user) {
+        return `<li>${user.Name} @ ${user.Address}</li>`
+    }));
+}
+
 // --- CONVENIENCE METHODS --- //
 
 function loadNewMessages() {
@@ -89,9 +108,15 @@ function loadNewMessages() {
 }
 
 function loadNewPeers() {
-  getNodes(function(res, err) {
-    enqueuePeers(res)
-  });
+    getNodes(function(res, err) {
+        enqueuePeers(res)
+    });
+}
+
+function loadNewUsers() {
+    getUsers(function(res, err) {
+        enqueueUsers(res)
+    });
 }
 
 function isValidIPAddress(address) {
@@ -104,6 +129,7 @@ function isValidIPAddress(address) {
 var statuses = [];
 var peers = [];
 var messages = [];
+var users = [];
 
 $(function(){
 
@@ -114,9 +140,11 @@ $(function(){
 
   loadNewPeers()
   loadNewMessages()
+  loadNewUsers()
 
   setInterval(loadNewMessages, 1000)
   setInterval(loadNewPeers, 1000)
+  setInterval(loadNewUsers, 1000)
 
   $("#peer-form").submit(function(){
 
