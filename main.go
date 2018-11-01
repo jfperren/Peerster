@@ -15,7 +15,8 @@ func main () {
   	name := flag.String("name", "REQUIRED", "name of the gossiper")
   	peers := flag.String("peers", "REQUIRED", "comma separated list of peers of the form ip:port")
   	simple := flag.Bool("simple", false, "runs gossiper in simple broadcast mode")
-		server := flag.Bool("server", false, "Runs this node in server mode")
+  	server := flag.Bool("server", false, "runs this node in server mode")
+  	rtimer := flag.Int("rtimer", 0, "route rumors sending period in seconds, 0 to disable sending of route rumors.")
 
   	flag.Parse()
 
@@ -27,14 +28,15 @@ func main () {
   	fmt.Printf("peers = %v\n", *peers)
   	fmt.Printf("simple = %v\n", *simple)
 	fmt.Printf("server = %v\n", *server)
+  	fmt.Printf("rtimer = %v\n", *rtimer)
 
 	var g *gossiper.Gossiper
 
   	if *server {
-		g = gossiper.NewGossiper(*gossipAddr, "",  *name, *peers, *simple)
+		g = gossiper.NewGossiper(*gossipAddr, "",  *name, *peers, *simple, *rtimer)
 		gossiper.StartWebServer(g, *uiPort)
 	} else {
-		g = gossiper.NewGossiper(*gossipAddr, ":" + *uiPort,  *name, *peers, *simple)
+		g = gossiper.NewGossiper(*gossipAddr, ":" + *uiPort,  *name, *peers, *simple, *rtimer)
 	}
 
 	g.Start()

@@ -69,3 +69,7 @@ func (status *StatusPacket) Packed() *GossipPacket {
 func (packet *GossipPacket) IsValid() bool {
     return (packet.Simple == nil && packet.Rumor == nil && packet.Status != nil) || (packet.Simple == nil && packet.Rumor != nil && packet.Status == nil) || (packet.Simple != nil && packet.Rumor == nil && packet.Status == nil)
 }
+
+func (rumor *RumorMessage) IsRouteRumor() bool {
+    return rumor.Text == ""
+}

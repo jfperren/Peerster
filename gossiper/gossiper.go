@@ -25,6 +25,7 @@ type Gossiper struct {
 	Handlers     	map[string]chan*common.StatusPacket	// Channels waiting for StatusPackets
 	HandlerCount 	map[string]int						// Count of rumormongering processes waiting on a node status
 	NextHop		 	map[string]string					// Routing Table
+	Rtimer			time.Duration						// Interval for sending route rumors
 }
 
 const (
@@ -35,7 +36,7 @@ const (
 
 // Create a new Gossiper using the given addresses. Use gossiper.Start()
 // to Start listening for messages
-func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool) *Gossiper {
+func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool, rtimer int) *Gossiper {
 
 	gossipSocket := common.NewUDPSocket(gossipAddress)
 	var clientSocket *common.UDPSocket
@@ -58,6 +59,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		Handlers:      make(map[string]chan*common.StatusPacket),
 		HandlerCount:  make(map[string]int),
 		NextHop:	   make(map[string]string),
+		Rtimer:		   time.Duration(rtimer) * time.Second,
 	}
 }
 
@@ -72,6 +74,7 @@ func (gossiper *Gossiper) Start() {
 
 	if !gossiper.Simple {
 		go gossiper.antiEntropy()
+		go gossiper.sendRouteRumors()
 	}
 
 	if gossiper.ClientSocket != nil {
@@ -80,7 +83,7 @@ func (gossiper *Gossiper) Start() {
 
 	// Allows the loops to run indefinitely after the main code is completed.
 	wg := new(sync.WaitGroup)
-	wg.Add(3)
+	wg.Add(4)
 	wg.Wait()
 }
 
@@ -114,6 +117,26 @@ func (gossiper *Gossiper) antiEntropy() {
 		}
 
 		time.Sleep(common.AntiEntropyDT)
+	}
+}
+
+// Main loop for sending route rumors
+func (gossiper *Gossiper) sendRouteRumors() {
+
+	if gossiper.Rtimer == common.DontSendRouteRumor {
+		return
+	}
+
+	for {
+		peer, found := gossiper.randomPeer()
+
+		if found {
+			routeRumor := gossiper.GenerateRouteRumor()
+			common.DebugSendRouteRumor(peer)
+			go gossiper.sendTo(peer, routeRumor.Packed())
+		}
+
+		time.Sleep(gossiper.Rtimer)
 	}
 }
 
@@ -192,7 +215,12 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 	case packet.Rumor != nil:
 
-		common.LogRumor(packet.Rumor, source)
+		if packet.Rumor.IsRouteRumor() {
+			common.DebugReceiveRouteRumor(packet.Rumor.Origin, source)
+		} else {
+			common.LogRumor(packet.Rumor, source)
+		}
+
 		common.LogPeers(gossiper.Peers)
 
 		// Update routing table
@@ -529,6 +557,10 @@ func (gossiper *Gossiper) GenerateStatusPacket() *common.StatusPacket {
 	}
 
 	return &common.StatusPacket{peerStatuses}
+}
+
+func (gossiper *Gossiper) GenerateRouteRumor() *common.RumorMessage {
+	return &common.RumorMessage{gossiper.Name, gossiper.NextID, ""}
 }
 
 // --

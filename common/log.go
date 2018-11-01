@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const LogDebug = false;
+const LogDebug = true;
 
 // --
 // -- INFO MESSAGES
@@ -104,4 +104,14 @@ func DebugAskAndSendStatus(status *StatusPacket, to string) {
 func DebugServerRequest(req *http.Request) {
 	if !LogDebug { return }
 	fmt.Printf("%v %v\n", req.Method, req.URL)
+}
+
+func DebugSendRouteRumor(address string) {
+	if !LogDebug { return }
+	fmt.Printf("SEND ROUTE RUMOR to %v\n", address)
+}
+
+func DebugReceiveRouteRumor(origin, address string) {
+	if !LogDebug { return }
+	fmt.Printf("RECEIVE ROUTE RUMOR from %v at %v\n", origin, address)
 }
