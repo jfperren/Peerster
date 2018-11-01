@@ -57,6 +57,17 @@ function getUsers(callback) {
     });
 }
 
+function postPrivateMessage(message, destination, callback) {
+    $.ajax({
+        method: "POST",
+        url: "/privateMessage",
+        data: JSON.stringify({ 'Destination': destination, 'Text': message }),
+        success: function(res) {
+            callback(JSON.parse(res));
+        }
+    });
+};
+
 // --- DOM UPDATE --- //
 
 function enqueueMessages(newMessages) {
@@ -94,7 +105,7 @@ function enqueueUsers(newUsers) {
     users = users + newUsers;
 
     $("#users").append($.map(newUsers, function(user) {
-        return `<li>${user.Name} @ ${user.Address}</li>`
+        return `<li><a class="send-private" href="#">${user.Name} @ ${user.Address}</a></li>`
     }));
 }
 
@@ -185,5 +196,17 @@ $(function(){
       // Updates status
       statuses = res["Statuses"];
     });
+  });
+
+  $("#users").on('click', '.send-private', function(e) {
+    e.preventDefault();
+
+    var message = prompt(`Send a private message to {"Alice"}`, "Your message here...")
+
+    if (message == null || message == "") {
+      return
+    }
+
+    postPrivateMessage(message, "Alice", function(res) { });
   });
 });
