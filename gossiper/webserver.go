@@ -106,6 +106,7 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 		}
 
 		_, rumors, myStatuses := g.CompareStatus(theirStatuses, ComparisonModeAllNew)
+
 		body := RumorsAndStatuses{rumors, myStatuses}
 
 		res.WriteHeader(http.StatusOK)

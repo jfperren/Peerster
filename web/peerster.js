@@ -62,7 +62,7 @@ function getUsers(callback) {
 function enqueueMessages(newMessages) {
 
   newMessages = newMessages.filter(function(message) {
-    return !messages.includes(message);
+    return !messages.includes(message) && message.Text != "";
   })
 
   messages = messages.concat(newMessages);
