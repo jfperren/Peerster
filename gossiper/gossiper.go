@@ -71,10 +71,10 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 func (gossiper *Gossiper) Start() {
 
 	go gossiper.gossip()
+	go gossiper.sendRouteRumors()
 
 	if !gossiper.Simple {
 		go gossiper.antiEntropy()
-		go gossiper.sendRouteRumors()
 	}
 
 	if gossiper.ClientSocket != nil {
@@ -152,7 +152,8 @@ func (gossiper *Gossiper) client(){
 		protobuf.Decode(bytes, &packet)
 
 		if !packet.IsValid() {
-			panic("Received invalid packet")
+			// Fail gracefully
+			continue
 		}
 
 		go gossiper.HandleClient(&packet)
