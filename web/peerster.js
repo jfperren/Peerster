@@ -38,10 +38,12 @@ function postNode(node, callback) {
 
   if (!isValidIPAddress(node)) {
     callback(null, `Invalid IP Address: ${node}`);
+    return
   }
 
   if (peers.includes(node)) {
     callback(null, `IP Address already in list of peers: ${node}`);
+    return
   }
 
   $.post('/node', JSON.stringify(node), function(res) {
