@@ -13,6 +13,11 @@ type RumorsAndStatuses struct {
 	Statuses []common.PeerStatus
 }
 
+type User struct {
+	Name string
+	Address string
+}
+
 func StartWebServer(gossiper *Gossiper, port string) {
 
 	// Stores gossiper
@@ -25,6 +30,7 @@ func StartWebServer(gossiper *Gossiper, port string) {
 	http.HandleFunc("/id", middleware(handleId))
 	http.HandleFunc("/message", middleware(handleMessage))
 	http.HandleFunc("/node", middleware(handleNode))
+	http.HandleFunc("/user", middleware(handleUser))
 
 	go func () {
 		err := http.ListenAndServe(":" + port, nil)
@@ -132,6 +138,25 @@ func handleNode(res http.ResponseWriter, req *http.Request) {
 
 	case "GET":
 		json.NewEncoder(res).Encode(g.Peers)
+
+	default:
+		res.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func handleUser(res http.ResponseWriter, req *http.Request) {
+
+	switch req.Method {
+
+	case "GET":
+
+		users := make([]*User, 0)
+
+		for k, v := range(g.NextHop) {
+			users = append(users, &User{k, v})
+		}
+
+		json.NewEncoder(res).Encode(users)
 
 	default:
 		res.WriteHeader(http.StatusMethodNotAllowed)
