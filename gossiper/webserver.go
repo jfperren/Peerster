@@ -18,6 +18,11 @@ type User struct {
 	Address string
 }
 
+type Message struct {
+	Destination string
+	Text string
+}
+
 func StartWebServer(gossiper *Gossiper, port string) {
 
 	// Stores gossiper
@@ -31,6 +36,7 @@ func StartWebServer(gossiper *Gossiper, port string) {
 	http.HandleFunc("/message", middleware(handleMessage))
 	http.HandleFunc("/node", middleware(handleNode))
 	http.HandleFunc("/user", middleware(handleUser))
+	http.HandleFunc("/privateMessage", middleware(handlePrivateMessage))
 
 	go func () {
 		err := http.ListenAndServe(":" + port, nil)
@@ -158,6 +164,43 @@ func handleUser(res http.ResponseWriter, req *http.Request) {
 		}
 
 		json.NewEncoder(res).Encode(users)
+
+	default:
+		res.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func handlePrivateMessage(res http.ResponseWriter, req *http.Request) {
+
+	switch req.Method {
+
+	case "POST":
+
+		var message Message
+		err := json.NewDecoder(req.Body).Decode(&message)
+
+		if err != nil {
+			res.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(res).Encode(err)
+			return
+		}
+
+		if message.Text == "" {
+			res.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(res).Encode("Message cannot be an empty string.")
+			return
+		}
+
+		if message.Destination == "" {
+			res.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(res).Encode("Message destination be an empty string.")
+			return
+		}
+
+		privateMessage := common.NewPrivateMessage("", message.Destination, message.Text)
+		g.HandleClient(privateMessage.Packed())
+
+		res.WriteHeader(http.StatusOK)
 
 	default:
 		res.WriteHeader(http.StatusMethodNotAllowed)
