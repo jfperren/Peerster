@@ -1,7 +1,6 @@
 package common
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"net/http"
@@ -127,7 +126,12 @@ func DebugUnknownDestination(destination string) {
 	fmt.Printf("UNKNOWN DESTINATION %v\n", destination)
 }
 
-func DebugScanChunk(chunkPosition int, hash [sha256.Size]byte) {
+func DebugScanChunk(chunkPosition int, hash []byte) {
 	if !LogDebug { return }
-	fmt.Printf("SCAN FILE chunk %v hash %v...\n", chunkPosition, hex.EncodeToString(hash[:])[:8])
+	fmt.Printf("SCAN CHUNK number %v hash %v...\n", chunkPosition, hex.EncodeToString(hash)[:8])
+}
+
+func DebugScanFile(filename string, length int, metahash []byte) {
+	if !LogDebug { return }
+	fmt.Printf("SCAN FILE name %v length %v metahash %v\n", filename, length, hex.EncodeToString(metahash)[:8])
 }

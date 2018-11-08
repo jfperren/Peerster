@@ -11,3 +11,4 @@ const InitialHopLimit = 10
 const FileChunkSize = 8196
 const SharedFilesDir = "_SharedFiles/"
 const MetaFileSuffix = ".meta"
+const ChunkFileSuffix = ".chunk"
