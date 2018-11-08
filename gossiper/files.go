@@ -8,8 +8,14 @@ import (
 	"strconv"
 )
 
+type File struct {
+	name  string
+	size  int
+	hash  []byte
+}
+
 // Prepares a file so as to make it available to send on the network. Chunk + computes hash
-func ScanFile(fileName string) string {
+func ScanFile(fileName string) *File {
 
 	// Open file for reading
 	filePath := common.SharedFilesDir + fileName
@@ -18,7 +24,7 @@ func ScanFile(fileName string) string {
 
 
 	buff := make([]byte, common.FileChunkSize)
-	length := 0
+	size := 0
 	hashes := make([]byte, 0)
 
 	for i := 0; true; i++ {
@@ -31,7 +37,7 @@ func ScanFile(fileName string) string {
 
 		// Append hash and increase length
 		hashes = append(hashes, hash[:]...)
-		length += count
+		size += count
 
 		// Write chunk into separate file
 		chunkPath := common.SharedFilesDir + fileName + common.ChunkFileSuffix + strconv.Itoa(i)
@@ -54,10 +60,10 @@ func ScanFile(fileName string) string {
 	metaFile, err := os.OpenFile(metaPath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil { fmt.Print(err) }
 
-	common.DebugScanFile(fileName, length, metaHash[:])
+	common.DebugScanFile(fileName, size, metaHash[:])
 
 	// Write list of hashes in meta file
 	metaFile.Write(hashes)
 
-	return "Hello"
+	return &File{fileName,size,metaHash[:]}
 }
