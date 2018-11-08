@@ -1,6 +1,8 @@
 package common
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strings"
@@ -123,4 +125,9 @@ func DebugReceiveRouteRumor(origin, address string) {
 func DebugUnknownDestination(destination string) {
 	if !LogDebug { return }
 	fmt.Printf("UNKNOWN DESTINATION %v\n", destination)
+}
+
+func DebugScanChunk(chunkPosition int, hash [sha256.Size]byte) {
+	if !LogDebug { return }
+	fmt.Printf("SCAN FILE chunk %v hash %v...\n", chunkPosition, hex.EncodeToString(hash[:])[:8])
 }

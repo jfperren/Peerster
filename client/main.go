@@ -1,10 +1,11 @@
 package main
 
 import (
-  "fmt"
   "flag"
+  "fmt"
   "github.com/dedis/protobuf"
   "github.com/jfperren/Peerster/common"
+  "github.com/jfperren/Peerster/gossiper"
   "net"
 )
 
@@ -15,8 +16,8 @@ func main () {
 
   uiPort := flag.String("UIPort", "8080", "port for the UI client")
   message := flag.String("msg", "Test message", "message to be sent")
-  dest := flag.String("dest", "REQUIRED", "destination for the private message")
-  file := flag.String("file", "REQUIRED", "file to be indexed by the gossiper")
+  dest := flag.String("dest", "", "destination for the private message")
+  file := flag.String("file", "", "file to be indexed by the gossiper")
 
 
   flag.Parse()
@@ -32,6 +33,10 @@ func main () {
 
   // Simply sends message via UDP. Note that we need to use a port different
   // from UIPort otherwise there will be some errors.
+
+  if *file != "" {
+      gossiper.ScanFile(*file)
+  }
 
   // Resolves local address
   localAddr, err := net.ResolveUDPAddr("udp4", ":5050")
