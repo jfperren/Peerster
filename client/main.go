@@ -15,13 +15,18 @@ func main () {
 
   uiPort := flag.String("UIPort", "8080", "port for the UI client")
   message := flag.String("msg", "Test message", "message to be sent")
+  dest := flag.String("dest", "REQUIRED", "destination for the private message")
+  file := flag.String("file", "REQUIRED", "file to be indexed by the gossiper")
+
 
   flag.Parse()
 
   // Print Flags
 
-  // fmt.Printf("port = %v\n", *uiPort)
-  // fmt.Printf("message = %v\n", *message)
+  fmt.Printf("port = %v\n", *uiPort)
+  fmt.Printf("message = %v\n", *message)
+  fmt.Printf("dest = %v\n", *dest)
+  fmt.Printf("file = %v\n", *file)
 
   fmt.Printf("Sending message '%v' to port %v\n", *message, *uiPort)
 
@@ -41,7 +46,7 @@ func main () {
   if err != nil { panic(err) }
 
   // Creates packet
-  packet := &common.GossipPacket{&common.SimpleMessage{"", "", *message},nil,nil}
+  packet := (&common.SimpleMessage{"", "", *message}).Packed()
 
   // Encodes message
   bytes, err := protobuf.Encode(packet)
