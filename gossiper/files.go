@@ -9,6 +9,13 @@ import (
 	"os"
 )
 
+type FileSystem struct {
+	sharedPath string
+	downloadPath string
+	chunks map[string]*Chunk
+	metaFiles map[string]*MetaFile
+}
+
 type MetaFile struct {
 	name  string
 	size  int
@@ -21,6 +28,15 @@ type Chunk struct {
 	data  []byte
 }
 
+func NewFileSystem(sharedPath, downloadPath string) *FileSystem {
+	return &FileSystem{
+		sharedPath,
+		downloadPath,
+		make(map[string]*Chunk),
+		make(map[string]*MetaFile),
+	}
+}
+
 func NewMetaFile(name string, data []byte) *MetaFile {
 	hash := sha256.Sum256(data)
 	return &MetaFile{name, 0, hash[:] , data}
@@ -31,17 +47,13 @@ func NewChunk(data []byte) *Chunk {
 	return &Chunk{hash[:], data}
 }
 
-type FileSystem struct {
-	chunks map[string]*Chunk
-	metaFiles map[string]*MetaFile
-}
 
-func (fs FileSystem) getMetaFile(hash []byte) (*MetaFile, bool) {
+func (fs *FileSystem) getMetaFile(hash []byte) (*MetaFile, bool) {
 	v, found := fs.metaFiles[hex.EncodeToString(hash)]
 	return v, found
 }
 
-func (fs FileSystem) getChunk(hash []byte) (*Chunk, bool) {
+func (fs *FileSystem) getChunk(hash []byte) (*Chunk, bool) {
 	v, found := fs.chunks[hex.EncodeToString(hash)]
 	return v, found
 }
@@ -51,7 +63,7 @@ func (metaFile *MetaFile) countOfChunks() int {
 }
 
 func (metaFile *MetaFile) hashAt(index int) []byte {
-	return metaFile.data[index * common.FileChunkSize: (index + 1) * common.FileChunkSize]
+	return metaFile.data[index * sha256.Size: (index + 1) * sha256.Size]
 }
 
 func (chunk *Chunk) size() int {
@@ -63,47 +75,31 @@ func (chunk *Chunk) isLastIn(metaFile *MetaFile) bool {
 	return bytes.Compare(lastHash, chunk.hash) == 0
 }
 
-func (fs FileSystem) storeMetaFile(metaFile *MetaFile) bool {
+func (fs *FileSystem) storeMetaFile(metaFile *MetaFile) bool {
 
 	key := hex.EncodeToString(metaFile.hash)
 
-	_, found := fs.metaFiles[key]
-
-	if found {
-		return false
-	}
-
 	fs.metaFiles[key] = metaFile
 
-	go metaFile.save()
+	go fs.saveMetaFileOnDisk(metaFile)
 
 	return true
 }
 
-func (fs FileSystem) storeChunk(chunk *Chunk) bool {
+func (fs *FileSystem) storeChunk(chunk *Chunk) bool {
 
 	key := hex.EncodeToString(chunk.hash)
 
-	metaFile, found := fs.metaFiles[key]
-
-	if found {
-		return false
-	}
-
-	metaFile.size += chunk.size()
 	fs.chunks[key] = chunk
 
-	go chunk.save()
 
-	if chunk.isLastIn(metaFile) {
-		fs.reconstructFile(metaFile.hash)
-	}
+	go fs.saveChunkOnDisk(chunk)
 
 	return true
 }
 
 
-func (fs FileSystem) saveDataReply(name string, reply *common.DataReply) bool {
+func (fs *FileSystem) processDataReply(name string, reply *common.DataReply) bool {
 
 	metaFile, found := fs.getMetaFile(reply.HashValue)
 
@@ -115,11 +111,22 @@ func (fs FileSystem) saveDataReply(name string, reply *common.DataReply) bool {
 	} else {
 
 		chunk := NewChunk(reply.Data)
-		return fs.storeChunk(chunk)
+
+		ok := fs.storeChunk(chunk)
+
+		if ok {
+			metaFile.size += chunk.size()
+
+			if chunk.isLastIn(metaFile) {
+				fs.reconstructFile(metaFile.hash)
+			}
+		}
+
+		return ok
 	}
 }
 
-func (fs FileSystem) reconstructFile(metaHash []byte) {
+func (fs *FileSystem) reconstructFile(metaHash []byte) {
 
 	data := make([]byte, 0)
 
@@ -141,19 +148,21 @@ func (fs FileSystem) reconstructFile(metaHash []byte) {
 		data = append(data, chunk.data...)
 	}
 
-	filePath := common.SharedFilesDir + metaFile.name
+	common.LogReconstructed(metaFile.name)
+
+	filePath := fs.downloadPath + metaFile.name
 	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil { fmt.Print(err) }
 	file.Write(data)
 
 }
 
-func (fs FileSystem) downloadStatus(metaHash []byte) ([]byte, bool) {
+func (fs *FileSystem) downloadStatus(metaHash []byte) ([]byte, int, bool) {
 
 	metaFile, found := fs.getMetaFile(metaHash)
 
 	if !found {
-		return metaHash, false
+		return metaHash, common.MetaHashChunkId,  false
 	}
 
 	for i := 0; i < metaFile.countOfChunks(); i++ {
@@ -163,14 +172,14 @@ func (fs FileSystem) downloadStatus(metaHash []byte) ([]byte, bool) {
 		_, found := fs.getChunk(hash)
 
 		if !found {
-			return hash, false
+			return hash, i, false
 		}
 	}
 
-	return make([]byte, 0), true
+	return make([]byte, 0), common.NoChunkId, true
 }
 
-func (chunk *Chunk) save() {
+func (fs *FileSystem) saveChunkOnDisk(chunk *Chunk) {
 
 	chunkPath := common.SharedFilesDir + hex.EncodeToString(chunk.hash) + common.ChunkFileSuffix
 	chunkFile, err := os.OpenFile(chunkPath, os.O_WRONLY|os.O_CREATE, 0644)
@@ -179,7 +188,7 @@ func (chunk *Chunk) save() {
 
 }
 
-func (meta *MetaFile) save() {
+func (fs *FileSystem) saveMetaFileOnDisk(meta *MetaFile) {
 
 	metaPath := common.SharedFilesDir + meta.name + common.MetaFileSuffix
 	metaFile, err := os.OpenFile(metaPath, os.O_WRONLY|os.O_CREATE, 0644)
@@ -189,19 +198,19 @@ func (meta *MetaFile) save() {
 }
 
 // Prepares a file so as to make it available to send on the network. Chunk + computes hash
-func (fs FileSystem) ScanFile(fileName string) {
+func (fs *FileSystem) ScanFile(fileName string) {
 
 	// Open file for reading
-	filePath := common.SharedFilesDir + fileName
+	filePath := fs.sharedPath + fileName
 	file, err := os.Open(filePath)
 	if err != nil { fmt.Print(err) }
 
-	buff := make([]byte, common.FileChunkSize)
 	size := 0
 	hashes := make([]byte, 0)
 
 	for i := 0; true; i++ {
 
+		buff := make([]byte, common.FileChunkSize)
 		count, err := file.Read(buff);
 		if err != nil { fmt.Print(err) }
 
@@ -213,8 +222,8 @@ func (fs FileSystem) ScanFile(fileName string) {
 		size += count
 
 		// Write chunk into separate file
-		chunk := &Chunk{hash[:], buff}
-		chunk.save()
+		chunk := &Chunk{hash[:], buff[:]}
+		fs.storeChunk(chunk)
 
 		common.DebugScanChunk(i, hash[:])
 
@@ -228,7 +237,7 @@ func (fs FileSystem) ScanFile(fileName string) {
 
 	// Create and open meta file
 	metaFile := &MetaFile{fileName, size,metaHash[:],hashes}
-	metaFile.save()
+	fs.storeMetaFile(metaFile)
 
 	common.DebugScanFile(fileName, size, metaHash[:])
 

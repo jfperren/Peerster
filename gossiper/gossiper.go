@@ -22,6 +22,8 @@ type Gossiper struct {
 	Rumors 			*RumorDatabase						// Database of known Rumors
 	NextID 			uint32								// NextID to be used for Rumors
 	Rtimer			time.Duration						// Interval for sending route rumors
+
+	FileSystem 		*FileSystem
 	Dispatcher 		*Dispatcher
 	Router			*Router
 }
