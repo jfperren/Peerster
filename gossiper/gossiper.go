@@ -233,7 +233,73 @@ func (gossiper *Gossiper) HandleClient(packet *common.GossipPacket) {
 		gossiper.FileSystem.ScanFile(filename)
 	}
 }
+
+func (gossiper *Gossiper) StartDownload(name string, metaHash []byte, peer string, counter int) {
+
+	if counter > common.MaxDownloadRequests {
+		// Probably print some stuff
+		common.DebugDownloadTimeout(name, metaHash, peer)
+		return
 	}
+
+	nextHash, chunkId, completed := gossiper.FileSystem.downloadStatus(metaHash)
+
+	if completed {
+		common.DebugDownloadCompleted(name, metaHash, peer)
+		return
+	}
+
+	common.DebugStartDownload(name, nextHash, peer)
+
+	go func() {
+
+		ticker := time.NewTicker(common.DonwloadTimeout)
+		defer ticker.Stop()
+
+		select {
+		case packet := <-gossiper.Dispatcher.dataReplies(nextHash):
+
+			reply := packet.DataReply
+
+			if reply == nil {
+				// Error, we expect only a data reply from this
+				return
+			}
+
+			if !reply.VerifyHash(nextHash) {
+				// Unexpected hash or incorrect data, retry
+				common.DebugCorruptedDataReply(nextHash, reply)
+				go gossiper.StartDownload(name, metaHash, peer, counter+1)
+			}
+
+			stored := gossiper.FileSystem.processDataReply(name, reply)
+
+			if !stored {
+				// There was an error,
+				panic("Error storing data")
+			}
+
+			// At this point, the download is successful, so we can log it
+
+			if chunkId == common.MetaHashChunkId {
+				common.LogDownloadingMetafile(name, packet.DataReply.Origin)
+			} else {
+				common.LogDownloadingChunk(name, chunkId, packet.DataReply.Origin)
+			}
+
+			// Then we start downloading the next chunk
+			go gossiper.StartDownload(name, metaHash, peer, 0)
+
+		case <-ticker.C: // Timeout
+			go gossiper.StartDownload(name, metaHash, peer, counter+1)
+		}
+
+		gossiper.Dispatcher.stopWaitingOnDataReply(nextHash)
+	}()
+
+	request := gossiper.GenerateDataRequest(peer, nextHash)
+	gossiper.sendToNode(request.Packed(), request.Destination, nil)
+
 }
 
 // Handle packet from another node.
@@ -637,35 +703,44 @@ func (gossiper *Gossiper) GenerateRouteRumor() *common.RumorMessage {
 	return &common.RumorMessage{gossiper.Name, gossiper.NextID, ""}
 }
 
-// --
-// -- PEERS
-// --
+func (gossiper *Gossiper) GenerateDataReply(request *common.DataRequest) (*common.DataReply, bool) {
 
-// Add a new peer IP address to the list of known peers
-func (gossiper *Gossiper) AddPeerIfNeeded(peer string) {
+	var data []byte
 
-	if !common.Contains(gossiper.Peers, peer) {
-		gossiper.Peers = append(gossiper.Peers, peer)
+	metaHash, found := gossiper.FileSystem.getMetaFile(request.HashValue)
+
+	if found {
+
+		data = metaHash.data
+
+	} else {
+
+		chunk, found := gossiper.FileSystem.getChunk(request.HashValue)
+
+		if !found {
+			common.DebugHashNotFound(request.HashValue, request.Origin)
+			return nil, false
+		}
+
+		data = chunk.data
 	}
+
+
+	return &common.DataReply{
+		gossiper.Name,
+		request.Origin,
+		common.InitialHopLimit,
+		request.HashValue,
+		data,
+	}, true
 }
 
-func (gossiper *Gossiper) randomPeer() (string, bool) {
-
-	if len(gossiper.Peers) == 0 {
-		return "", false
-	}
-
-	return gossiper.Peers[rand.Int() % len(gossiper.Peers)], true
-}
-
-func (gossiper *Gossiper) updateRoutingTable(origin, address string) {
-
-	currentAddress, found := gossiper.NextHop[origin]
-
-	// Only update if needed
-	if !found || currentAddress != address {
-		gossiper.NextHop[origin] = address
-		common.LogUpdateRoutingTable(origin, address)
+func (gossiper *Gossiper) GenerateDataRequest(destination string, hash []byte) *common.DataRequest {
+	return &common.DataRequest{
+		gossiper.Name,
+		destination,
+		common.InitialHopLimit,
+		hash,
 	}
 }
 
