@@ -27,7 +27,7 @@ func NewUDPSocket(address string) *UDPSocket {
 // whether the connection is still alive or not.
 func (socket *UDPSocket) Receive() ([]byte, string, bool) {
 
-    buffer := make([]byte, 1024)
+    buffer := make([]byte, SocketBufferSize)
 
     n, peer, err := socket.connection.ReadFromUDP(buffer)
     if err != nil { return []byte{}, "", false }
