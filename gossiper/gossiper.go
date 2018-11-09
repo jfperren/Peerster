@@ -21,11 +21,9 @@ type Gossiper struct {
 	Name          	string								// Name of this node
 	Rumors 			*RumorDatabase						// Database of known Rumors
 	NextID 			uint32								// NextID to be used for Rumors
-	HandlerLock  	*sync.RWMutex						// Lock for safely updating & reading handlers
-	Handlers     	map[string]chan*common.StatusPacket	// Channels waiting for StatusPackets
-	HandlerCount 	map[string]int						// Count of rumormongering processes waiting on a node status
 	NextHop		 	map[string]string					// Routing Table
 	Rtimer			time.Duration						// Interval for sending route rumors
+	Dispatcher 		*Dispatcher
 }
 
 const (
@@ -55,11 +53,9 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		Peers:         strings.Split(peers, ","),
 		Rumors:        MakeRumorDatabase(),
 		NextID:        common.InitialId,
-		HandlerLock:   &sync.RWMutex{},
-		Handlers:      make(map[string]chan*common.StatusPacket),
-		HandlerCount:  make(map[string]int),
 		NextHop:	   make(map[string]string),
 		Rtimer:		   time.Duration(rtimer) * time.Second,
+		Dispatcher:		NewDispatcher(),
 	}
 }
 
@@ -369,7 +365,9 @@ func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
 	defer ticker.Stop()
 
 	select {
-	case statusPacket := <- gossiper.statusPacketsFrom(peer):
+	case packet := <- gossiper.Dispatcher.statusPackets(peer):
+
+		statusPacket := packet.Status
 
 		// Compare status from peer with own messages
 		otherRumor, _, statuses := gossiper.CompareStatus(statusPacket.Want, ComparisonModeMissingOrNew)
@@ -395,7 +393,7 @@ func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
 		shouldContinue = false
 	}
 
-	gossiper.stopWaitingFrom(peer)
+	gossiper.Dispatcher.stopWaitingOnStatusPacket(peer)
 
 	newPeer, found := gossiper.randomPeer()
 
@@ -418,58 +416,6 @@ func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
 // --
 // -- HANDLING STATUS PACKETS AND VECTOR CLOCKS
 // --
-
- // Dispatch a status packet to potential Handlers. Return true if the status packet was expected by a
- // rumormongering process.
-func (gossiper *Gossiper) dispatchStatusPacket(source string, statusPacket *common.StatusPacket) bool {
-
-	gossiper.HandlerLock.RLock()
-	defer gossiper.HandlerLock.RUnlock()
-
-	expected := gossiper.HandlerCount[source] > 0
-
-	if expected {
-		gossiper.Handlers[source] <- statusPacket
-	}
-
-	return expected
-}
-
-// Create / return a channel that will allow to receive status packets from a given node.
-// Calling this function implicitly register that a new rumormongering process is waiting
-// on a status packet. To indicate that this is no longer the case, call stopWaitingFrom(peer).
-func (gossiper *Gossiper) statusPacketsFrom(peer string) chan *common.StatusPacket {
-
-	gossiper.HandlerLock.Lock()
-	defer gossiper.HandlerLock.Unlock()
-
-	_, found := gossiper.Handlers[peer]
-
-	if !found {
-		gossiper.Handlers[peer] = make(chan *common.StatusPacket, common.StatusBufferSize)
-	}
-
-	gossiper.HandlerCount[peer] = gossiper.HandlerCount[peer] + 1
-
-	return gossiper.Handlers[peer]
-}
-
-// Explicitly state that a given rumormongering process is no longer waiting for a status packet.
-func (gossiper *Gossiper) stopWaitingFrom(peer string) {
-
-	gossiper.HandlerLock.Lock()
-	defer gossiper.HandlerLock.Unlock()
-
-	count := gossiper.HandlerCount[peer]
-
-	if count > 0 {
-		count = count - 1
-	} else {
-		count = 0
-	}
-
-	gossiper.HandlerCount[peer] = count
-}
 
 // Compare the gossiper's vector clock with another one. There are two possible modes for this:
 //
