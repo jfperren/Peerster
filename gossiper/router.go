@@ -1,32 +1,50 @@
 package gossiper
 
+import (
+	"github.com/jfperren/Peerster/common"
+	"strings"
+	"math/rand"
+)
 
+
+type Router struct {
+	NextHop		 	map[string]string	// Routing Table
+	Peers         	[]string			// List of known peer IP addresses
+}
+
+func NewRouter(peers string) *Router {
+
+	return &Router{
+		NextHop:	   make(map[string]string),
+		Peers:         strings.Split(peers, ","),
+	}
+}
 
 
 // Add a new peer IP address to the list of known peers
-func (gossiper *Gossiper) AddPeerIfNeeded(peer string) {
+func (router *Router) AddPeerIfNeeded(peer string) {
 
-	if !common.Contains(gossiper.Peers, peer) {
-		gossiper.Peers = append(gossiper.Peers, peer)
+	if !common.Contains(router.Peers, peer) {
+		router.Peers = append(router.Peers, peer)
 	}
 }
 
-func (gossiper *Gossiper) randomPeer() (string, bool) {
+func (router *Router) randomPeer() (string, bool) {
 
-	if len(gossiper.Peers) == 0 {
+	if len(router.Peers) == 0 {
 		return "", false
 	}
 
-	return gossiper.Peers[rand.Int() % len(gossiper.Peers)], true
+	return router.Peers[rand.Int() % len(router.Peers)], true
 }
 
-func (gossiper *Gossiper) updateRoutingTable(origin, address string) {
+func (router *Router) updateRoutingTable(origin, address string) {
 
-	currentAddress, found := gossiper.NextHop[origin]
+	currentAddress, found := router.NextHop[origin]
 
 	// Only update if needed
 	if !found || currentAddress != address {
-		gossiper.NextHop[origin] = address
+		router.NextHop[origin] = address
 		common.LogUpdateRoutingTable(origin, address)
 	}
 }

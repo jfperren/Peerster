@@ -136,15 +136,15 @@ func handleNode(res http.ResponseWriter, req *http.Request) {
 			res.WriteHeader(http.StatusBadRequest)
 		}
 
-		if common.Contains(g.Peers, peer) {
+		if common.Contains(g.Router.Peers, peer) {
 			json.NewEncoder(res).Encode("")
 		} else {
-			g.AddPeerIfNeeded(peer)
+			g.Router.AddPeerIfNeeded(peer)
 			json.NewEncoder(res).Encode(peer)
 		}
 
 	case "GET":
-		json.NewEncoder(res).Encode(g.Peers)
+		json.NewEncoder(res).Encode(g.Router.Peers)
 
 	default:
 		res.WriteHeader(http.StatusMethodNotAllowed)
@@ -159,7 +159,7 @@ func handleUser(res http.ResponseWriter, req *http.Request) {
 
 		users := make([]*User, 0)
 
-		for k, v := range(g.NextHop) {
+		for k, v := range(g.Router.NextHop) {
 			users = append(users, &User{k, v})
 		}
 

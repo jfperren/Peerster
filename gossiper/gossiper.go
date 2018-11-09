@@ -17,13 +17,13 @@ type Gossiper struct {
 	ClientSocket  	*common.UDPSocket					// UDP Socket that connects to the client
 	GossipAddress 	string								// IP address used in GossipSocket
 	ClientAddress 	string								// IP address used in ClientSocket
-	Peers         	[]string							// List of known peer IP addresses
+
 	Name          	string								// Name of this node
 	Rumors 			*RumorDatabase						// Database of known Rumors
 	NextID 			uint32								// NextID to be used for Rumors
-	NextHop		 	map[string]string					// Routing Table
 	Rtimer			time.Duration						// Interval for sending route rumors
 	Dispatcher 		*Dispatcher
+	Router			*Router
 }
 
 const (
@@ -44,18 +44,22 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 	}
 
 	return &Gossiper{
-		Simple:        simple,
-		GossipSocket:  gossipSocket,
-		ClientSocket:  clientSocket,
-		GossipAddress: gossipAddress,
-		ClientAddress: clientAddress,
-		Name:          name,
-		Peers:         strings.Split(peers, ","),
-		Rumors:        MakeRumorDatabase(),
-		NextID:        common.InitialId,
-		NextHop:	   make(map[string]string),
-		Rtimer:		   time.Duration(rtimer) * time.Second,
+		Simple:        	simple,
+		GossipSocket:  	gossipSocket,
+		ClientSocket:  	clientSocket,
+		GossipAddress: 	gossipAddress,
+		ClientAddress: 	clientAddress,
+		Name:          	name,
+
+		Rumors:        	NewRumorDatabase(),
+		NextID:        	common.InitialId,
+
+		Rtimer:		   	time.Duration(rtimer) * time.Second,
+		FileSystem:	   	NewFileSystem(
+			common.SharedFilesDir + name + "/",
+			common.DownloadDir + name + "/"),
 		Dispatcher:		NewDispatcher(),
+		Router:			NewRouter(peers),
 	}
 }
 
@@ -66,7 +70,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 // Start listening for UDP packets on Gossiper's clientAddress & gossipAddress
 func (gossiper *Gossiper) Start() {
 
-	go gossiper.gossip()
+	go gossiper.receiveGossip()
 	go gossiper.sendRouteRumors()
 
 	if !gossiper.Simple {
@@ -74,7 +78,7 @@ func (gossiper *Gossiper) Start() {
 	}
 
 	if gossiper.ClientSocket != nil {
-		go gossiper.client()
+		go gossiper.receiveClient()
 	}
 
 	// Allows the loops to run indefinitely after the main code is completed.
@@ -84,7 +88,7 @@ func (gossiper *Gossiper) Start() {
 }
 
 // Main loop for handling gossip packets from other nodes.
-func (gossiper *Gossiper) gossip() {
+func (gossiper *Gossiper) receiveGossip() {
 	for {
 		var packet common.GossipPacket
 		bytes, source, alive := gossiper.GossipSocket.Receive()
@@ -97,6 +101,8 @@ func (gossiper *Gossiper) gossip() {
 			panic("Received invalid packet")
 		}
 
+		gossiper.Router.AddPeerIfNeeded(source)
+
 		go gossiper.HandleGossip(&packet, source)
 	}
 }
@@ -104,12 +110,12 @@ func (gossiper *Gossiper) gossip() {
 // Main loop for pinging other nodes as part of the anti-entropy algorithm.
 func (gossiper *Gossiper) antiEntropy() {
 	for {
-		peer, found := gossiper.randomPeer()
+		peer, found := gossiper.Router.randomPeer()
 
 		if found {
 			packet := gossiper.GenerateStatusPacket().Packed()
 			common.DebugAskAndSendStatus(packet.Status, peer)
-			go gossiper.sendTo(peer, packet)
+			go gossiper.sendToNeighbor(peer, packet)
 		}
 
 		time.Sleep(common.AntiEntropyDT)
@@ -124,12 +130,12 @@ func (gossiper *Gossiper) sendRouteRumors() {
 	}
 
 	for {
-		peer, found := gossiper.randomPeer()
+		peer, found := gossiper.Router.randomPeer()
 
 		if found {
 			routeRumor := gossiper.GenerateRouteRumor()
 			common.DebugSendRouteRumor(peer)
-			go gossiper.sendTo(peer, routeRumor.Packed())
+			go gossiper.sendToNeighbor(peer, routeRumor.Packed())
 		}
 
 		time.Sleep(gossiper.Rtimer)
@@ -137,7 +143,8 @@ func (gossiper *Gossiper) sendRouteRumors() {
 }
 
 // Main loop for handling client packets.
-func (gossiper *Gossiper) client(){
+func (gossiper *Gossiper) receiveClient(){
+
 	for {
 
 		var packet common.GossipPacket
@@ -173,36 +180,57 @@ func (gossiper *Gossiper) HandleClient(packet *common.GossipPacket) {
 		return // Fail gracefully
 	}
 
-	if packet.Simple != nil {
+	switch {
+
+	case packet.Simple != nil:
+
 		common.LogClientMessage(packet.Simple)
-	}
 
-	common.LogPeers(gossiper.Peers)
+		if gossiper.Simple {
 
-	if gossiper.Simple {
+			go gossiper.broadcastToNeighbors(packet, true)
 
-		go gossiper.relay(packet, true)
-
-	} else {
-
-		switch {
-
-		case packet.Simple != nil:
+		} else {
 
 			rumor := gossiper.generateRumor(packet.Simple.Contents)
 
 			gossiper.Rumors.Put(rumor)
 
-			peer, found := gossiper.randomPeer()
+			peer, found := gossiper.Router.randomPeer()
 
 			if found {
 				go gossiper.rumormonger(rumor, peer)
 			}
-
-		case packet.Private != nil:
-
-			gossiper.handlePrivateMessage(packet.Private)
 		}
+
+	case packet.Private != nil:
+
+		// Replace origin with gossiper's name
+		packet.Private.Origin = gossiper.Name
+
+		destined := gossiper.sendToNode(packet, packet.Private.Destination, nil)
+
+		if destined {
+			common.LogPrivate(packet.Private)
+		}
+
+	case packet.DataRequest != nil:
+
+		destination := packet.DataRequest.Destination
+		filename := packet.DataRequest.Origin
+		hash := packet.DataRequest.HashValue
+
+		go gossiper.StartDownload(filename, hash, destination, 0)
+
+	case packet.DataReply != nil:
+
+		// By convention, we use DataReply objects with destination set as filename as a way for the client
+		// to tell which file should be uploaded onto the network.
+		filename := packet.DataReply.Destination
+
+		gossiper.FileSystem.ScanFile(filename)
+	}
+}
 	}
 }
 
@@ -213,16 +241,14 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 		return // Fail gracefully
 	}
 
-	gossiper.AddPeerIfNeeded(source)
-
 	switch {
 
 	case packet.Simple != nil:
 
 		common.LogSimpleMessage(packet.Simple)
-		common.LogPeers(gossiper.Peers)
+		common.LogPeers(gossiper.Router.Peers)
 
-		go gossiper.relay(packet, false)
+		go gossiper.broadcastToNeighbors(packet, false)
 
 	case packet.Rumor != nil:
 
@@ -232,17 +258,17 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 			common.LogRumor(packet.Rumor, source)
 		}
 
-		common.LogPeers(gossiper.Peers)
+		common.LogPeers(gossiper.Router.Peers)
 
 		// Update routing table
-		gossiper.updateRoutingTable(packet.Rumor.Origin, source)
+		gossiper.Router.updateRoutingTable(packet.Rumor.Origin, source)
 
 		// We only store & forward if the rumor is our next expected rumo
 		// from the source.
 		if gossiper.Rumors.Expects(packet.Rumor) {
 
 			gossiper.Rumors.Put(packet.Rumor)
-			peer, found := gossiper.randomPeer()
+			peer, found := gossiper.Router.randomPeer()
 
 			if found {
 				common.DebugForwardRumor(packet.Rumor)
@@ -252,14 +278,14 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 		statusPacket := gossiper.GenerateStatusPacket()
 		common.DebugSendStatus(statusPacket, source)
-		go gossiper.sendTo(source, statusPacket.Packed())
+		go gossiper.sendToNeighbor(source, statusPacket.Packed())
 
 	case packet.Status != nil:
 
 		common.LogStatus(packet.Status, source)
-		common.LogPeers(gossiper.Peers)
+		common.LogPeers(gossiper.Router.Peers)
 
-		expected := gossiper.dispatchStatusPacket(source, packet.Status)
+		expected := gossiper.Dispatcher.dispatchStatusPacket(source, packet)
 
 		if !expected {
 
@@ -272,16 +298,97 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 	case packet.Private != nil:
 
-		gossiper.handlePrivateMessage(packet.Private)
+		destination := packet.Private.Destination
+		hopLimit := &packet.Private.HopLimit
+
+		destined := gossiper.sendToNode(packet, destination, hopLimit)
+
+		if destined {
+			common.LogPrivate(packet.Private)
+		}
+
+	case packet.DataReply != nil:
+
+		destination := packet.DataReply.Destination
+		hopLimit := &packet.DataReply.HopLimit
+
+		destined := gossiper.sendToNode(packet, destination, hopLimit)
+
+		if destined {
+
+			common.DebugReceiveDataReply(packet.DataReply)
+
+			gossiper.Dispatcher.dispatchDataReply(packet)
+		}
+
+	case packet.DataRequest != nil:
+
+		destination := packet.DataRequest.Destination
+		hopLimit := &packet.DataRequest.HopLimit
+
+		destined := gossiper.sendToNode(packet, destination, hopLimit)
+
+		if destined {
+
+			common.DebugReceiveDataRequest(packet.DataRequest)
+
+			reply, ok := gossiper.GenerateDataReply(packet.DataRequest)
+
+			if ok {
+
+				hash := hex.EncodeToString(reply.HashValue)
+				com := sha256.Sum256(reply.Data)
+				computedHash := hex.EncodeToString(com[:])
+
+				gossiper.sendToNode(reply.Packed(), reply.Destination, nil)
+			}
+		}
 	}
 }
+
 
 // --
 // -- SEND PACKETS TO OTHER NODES
 // --
 
-// Send a GossipPacket to a given node
-func (gossiper *Gossiper) sendTo(peerAddress string, packet *common.GossipPacket) {
+// Send a GossipPacket to any node on the network identified by name.
+func (gossiper *Gossiper) sendToNode(packet *common.GossipPacket, destination string, hopLimit *uint32) bool {
+
+	if destination == "" {
+		common.DebugSendNoDestination()
+	}
+
+	if destination == gossiper.Name {
+
+		// If it's for us, we don't need to do anything
+		return true
+	}
+
+	if hopLimit != nil {
+
+		// This is in forwarding mode, so we need to decrease the count and verify that we should still continue
+		*hopLimit--
+
+		// If it's non-zero, we forward according to the NextHop table
+		if *hopLimit <= 0 {
+			return false
+		}
+	}
+
+	nextPeer, found := gossiper.Router.NextHop[destination]
+
+	if found {
+		common.DebugForwardPointToPoint(destination, nextPeer)
+		go gossiper.sendToNeighbor(nextPeer, packet)
+	} else {
+		common.DebugUnknownDestination(destination)
+	}
+
+	return false
+}
+
+// Send a GossipPacket to a given neighboring node identified by IP address
+func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.GossipPacket) {
 
 	if !packet.IsValid() {
 		log.Panicf("Sending invalid packet: %v", packet)
@@ -293,46 +400,19 @@ func (gossiper *Gossiper) sendTo(peerAddress string, packet *common.GossipPacket
 	gossiper.GossipSocket.Send(bytes, peerAddress)
 }
 
-// Relay a GossipPacket containing a Simple message to every known peer.
-func (gossiper *Gossiper) relay(packet *common.GossipPacket, setName bool) {
+// Broadcast a GossipPacket containing a Simple message to every neighboring node.
+func (gossiper *Gossiper) broadcastToNeighbors(packet *common.GossipPacket, setName bool) {
 
 	if packet.Simple == nil {
-		panic("Cannot relay GossipPacker that does not contain SimpleMessage.")
+		panic("Cannot broadcastToNeighbors GossipPacker that does not contain SimpleMessage.")
 	}
 
 	packet.Simple.RelayPeerAddr = gossiper.GossipAddress
 	if setName { packet.Simple.OriginalName = gossiper.Name }
 
-	for i := 0; i < len(gossiper.Peers); i++ {
-		if gossiper.Peers[i] != packet.Simple.RelayPeerAddr {
-			gossiper.sendTo(gossiper.Peers[i], packet)
-		}
-	}
-}
-
-func (gossiper *Gossiper) handlePrivateMessage(message *common.PrivateMessage) {
-
-	if message.Origin == "" {
-		message.Origin = gossiper.Name
-	}
-
-	if message.Destination == gossiper.Name {
-		// If it's for us, simply log it and it's done
-		common.LogPrivate(message)
-	} else {
-
-		// Decrement hop-limit
-		message.HopLimit--
-
-		// If it's non-zero, we forward according to the NextHop table
-		if message.HopLimit != 0 {
-			nextPeer, found := gossiper.NextHop[message.Destination]
-
-			if found {
-				go gossiper.sendTo(nextPeer, message.Packed())
-			} else {
-				common.DebugUnknownDestination(message.Destination)
-			}
+	for i := 0; i < len(gossiper.Router.Peers); i++ {
+		if gossiper.Router.Peers[i] != packet.Simple.RelayPeerAddr {
+			gossiper.sendToNeighbor(gossiper.Router.Peers[i], packet)
 		}
 	}
 }
@@ -358,7 +438,7 @@ func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
 
 	// Forward package to peer
 	common.LogMongering(peer)
-	go gossiper.sendTo(peer, rumor.Packed())
+	go gossiper.sendToNeighbor(peer, rumor.Packed())
 
 	// Start timer
 	ticker := time.NewTicker(common.StatusTimeout)
@@ -375,7 +455,7 @@ func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
 		switch  {
 		case statuses != nil: // Peer has new messages
 			statusPacket := &common.StatusPacket{statuses}
-			go gossiper.sendTo(peer, statusPacket.Packed())
+			go gossiper.sendToNeighbor(peer, statusPacket.Packed())
 			shouldContinue = true
 
 		case otherRumor != nil: // Peer is missing messages
@@ -395,7 +475,7 @@ func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
 
 	gossiper.Dispatcher.stopWaitingOnStatusPacket(peer)
 
-	newPeer, found := gossiper.randomPeer()
+	newPeer, found := gossiper.Router.randomPeer()
 
 	if !found {
 		return

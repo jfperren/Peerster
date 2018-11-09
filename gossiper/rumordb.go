@@ -14,7 +14,7 @@ type RumorDatabase struct {
 }
 
 // Create an empty database of Rumors.
-func MakeRumorDatabase() *RumorDatabase {
+func NewRumorDatabase() *RumorDatabase {
 	return &RumorDatabase{
 		make(map[string]map[uint32]*common.RumorMessage),
 		&sync.RWMutex{},
