@@ -40,9 +40,6 @@ sharedDir="_SharedFiles"
 
 # Start Gossipers & Clean folders
 
-# General peerster (gossiper) command
-#./Peerster -UIPort=12345 -gossipAddr=127.0.0.1:5001 -name=A -peers=127.0.0.1:5002 > A.out &
-
 for i in `seq 1 5`;
 do
 	outFileName="logs/$name.out"
@@ -98,7 +95,7 @@ do
   echo $line >> "$sharedDir/B/$file_b_too_big"
 done
 
-# Clean Alice's downloads
+# Upload files & start downloading
 
 ./client/client -UIPort=8080 -file=$file_a_small
 ./client/client -UIPort=8084 -file=$file_e_big

@@ -1,32 +1,5 @@
 #!/usr/bin/env bash
 
-# This script tests the simple case of 5 gossipers sending each other files.
-# The setup is a line A - B - C - D - E
-
-go build
-cd client
-go build
-cd ..
-
-# Variables
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m'
-DEBUG="false"
-
-outputFiles=()
-
-UIPort=8080
-gossipPort=5000
-name="A"
-rtimer=1
-
-# Start Gossipers & Clean folders
-
-# General peerster (gossiper) command
-#./Peerster -UIPort=12345 -gossipAddr=127.0.0.1:5001 -name=A -peers=127.0.0.1:5002 > A.out &
-
 # The general setup is the following:
 #
 # There is a ring of 7 nodes (similar to test_2_ring but with 7):
@@ -48,6 +21,27 @@ rtimer=1
 # - A, D, F and H are visible by everybody because they send route rumors
 # - B and I are also visible because they send regular rumors
 # - The other nodes are not visible because they don't send any rumor
+
+go build
+cd client
+go build
+cd ..
+
+# Variables
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+DEBUG="false"
+
+outputFiles=()
+
+UIPort=8080
+gossipPort=5000
+name="A"
+rtimer=1
+
+# Start Gossipers
 
 for i in `seq 1 10`;
 do
@@ -86,33 +80,13 @@ do
 	name=$(echo "$name" | tr "A-Y" "B-Z")
 done
 
+# Nothing to do except we send one rumor
+
 sleep 2
 
 ./client/client -UIPort=8088 -msg="Hello"
 
-# Create files
-
-# ./client/client -UIPort=8080 -file=$file_a_small
-# ./client/client -UIPort=8084 -file=$file_e_big
-# ./client/client -UIPort=8081 -file=$file_b_too_big
-#
-# sleep 1
-#
-# ./client/client -UIPort=8084 -file=$file_a_small -request=$hash_file_a_small -dest="A"
-# ./client/client -UIPort=8080 -file=$file_c_medium -request=$hash_file_c_medium -dest="C"
-# ./client/client -UIPort=8080 -file=$file_d_inexistant -request=$hash_file_d_inexistant -dest="D"
-# ./client/client -UIPort=8080 -file=$file_e_big -request=$hash_file_e_big -dest="E"
-# ./client/client -UIPort=8081 -file=$file_f_no_node -request=$hash_file_f_no_node -dest="F"
-#
-# sleep 1
-#
-# ./client/client -UIPort=8082 -file=$file_c_medium
-#
-# sleep 1
-#
-# ./client/client -UIPort=8084 -file=$file_c_medium -request=$hash_file_c_medium -dest="C"
-
-sleep 5
+sleep 2
 
 pkill -f Peerster
 
