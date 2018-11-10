@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"github.com/jfperren/Peerster/common"
 	"github.com/jfperren/Peerster/gossiper"
 	"os"
 	"os/signal"
@@ -20,18 +20,9 @@ func main () {
   	simple := flag.Bool("simple", false, "runs gossiper in simple broadcast mode")
   	server := flag.Bool("server", false, "runs this node in server mode")
   	rtimer := flag.Int("rtimer", 0, "route rumors sending period in seconds, 0 to disable sending of route rumors.")
+	verbose := flag.Bool("verbose", false, "display additional logs (useful for testing)")
 
   	flag.Parse()
-
-  	// Print Flags
-
-  	fmt.Printf("port = %v\n", *uiPort)
-  	fmt.Printf("gossipAddr = %v\n", *gossipAddr)
-  	fmt.Printf("name = %v\n", *name)
-  	fmt.Printf("peers = %v\n", *peers)
-  	fmt.Printf("simple = %v\n", *simple)
-	fmt.Printf("server = %v\n", *server)
-  	fmt.Printf("rtimer = %v\n", *rtimer)
 
 	var g *gossiper.Gossiper
 
@@ -42,6 +33,9 @@ func main () {
 		g = gossiper.NewGossiper(*gossipAddr, ":" + *uiPort,  *name, *peers, *simple, *rtimer)
 	}
 
+	common.Verbose = *verbose
+	common.DebugStartGossiper(g.ClientAddress, g.GossipAddress, g.Name, g.Router.Peers, g.Simple, g.Rtimer)
+
 	g.Start()
 
 	c := make(chan os.Signal)
@@ -49,6 +43,7 @@ func main () {
 	go func() {
 		<-c
 		g.Stop()
+		common.DebugStopGossiper()
 		os.Exit(1)
 	}()
 }

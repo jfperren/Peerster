@@ -3,7 +3,6 @@ package main
 import (
   "encoding/hex"
   "flag"
-  "fmt"
   "github.com/dedis/protobuf"
   "github.com/jfperren/Peerster/common"
 )
@@ -20,14 +19,6 @@ func main () {
   request := flag.String("request", "", "request a chunk or metafile of this hash")
 
   flag.Parse()
-
-  // Print Flags
-
-  fmt.Printf("port = %v\n", *uiPort)
-  fmt.Printf("message = %v\n", *message)
-  fmt.Printf("dest = %v\n", *dest)
-  fmt.Printf("file = %v\n", *file)
-  fmt.Printf("request = %v\n", *request)
 
   // Packet to send
   var packet *common.GossipPacket

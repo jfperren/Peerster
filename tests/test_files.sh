@@ -58,7 +58,7 @@ do
   sharedDirName="$sharedDir/$name/"
   downloadDirName="$downloadDir/$name/"
 
-	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer> $outFileName &
+	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose > $outFileName &
 
   rm -rf $downloadDirName && mkdir $downloadDirName
   rm -rf $sharedDirName && mkdir $sharedDirName
@@ -189,7 +189,7 @@ echo -e "${NC}# Check that B did not process the file that is too big${NC}"
 
 expect_contains B "WARNING file too_big.txt is too big for Peerster (max. 2Mb)"
 
-echo -e "${NC}# Check that D looked and did not find file asked by A{NC}"
+echo -e "${NC}# Check that D looked and did not find file asked by A${NC}"
 
 expect_contains D "RECEIVE DATA REQUEST from A to D metahash $hash_file_d_inexistant"
 expect_contains D "NOT FOUND hash $hash_file_d_inexistant from A"
