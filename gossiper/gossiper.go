@@ -331,12 +331,11 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 		common.LogPeers(gossiper.Router.Peers)
 
-		// Update routing table
-		gossiper.Router.updateRoutingTable(packet.Rumor.Origin, source)
-
 		// We only store & forward if the rumor is our next expected rumo
 		// from the source.
 		if gossiper.Rumors.Expects(packet.Rumor) {
+
+			gossiper.Router.updateRoutingTable(packet.Rumor.Origin, source)
 
 			gossiper.Rumors.Put(packet.Rumor)
 			peer, found := gossiper.Router.randomPeer()
