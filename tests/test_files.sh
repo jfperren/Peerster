@@ -15,18 +15,12 @@ GREEN='\033[0;32m'
 NC='\033[0m'
 DEBUG="false"
 
-outputFiles=()
-message_c1_1=Weather_is_clear
-message_c2_1=Winter_is_coming
-message_c1_2=No_clouds_really
-message_c2_2=Let\'s_go_skiing
-message_c3=Is_anybody_here?
-
 UIPort=8080
 gossipPort=5000
 name="A"
 rtimer=1
 
+outputFiles=()
 file_a_small="hello.txt"
 file_b_too_big="too_big.txt"
 file_c_medium="message.txt"
@@ -110,7 +104,7 @@ done
 ./client/client -UIPort=8084 -file=$file_e_big
 ./client/client -UIPort=8081 -file=$file_b_too_big
 
-sleep 1
+sleep 2
 
 ./client/client -UIPort=8084 -file=$file_a_small -request=$hash_file_a_small -dest="A"
 ./client/client -UIPort=8080 -file=$file_c_medium -request=$hash_file_c_medium -dest="C"
