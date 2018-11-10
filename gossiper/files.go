@@ -197,7 +197,7 @@ func (fs *FileSystem) saveMetaFileOnDisk(meta *MetaFile) {
 }
 
 // Prepares a file so as to make it available to send on the network. Chunk + computes hash
-func (fs *FileSystem) ScanFile(fileName string) {
+func (fs *FileSystem) ScanFile(fileName string) bool {
 
 	// Open file for reading
 	filePath := fs.sharedPath + fileName
@@ -206,6 +206,7 @@ func (fs *FileSystem) ScanFile(fileName string) {
 
 	size := 0
 	hashes := make([]byte, 0)
+	chunks := make([]Chunk, 0)
 
 	for i := 0; true; i++ {
 
@@ -221,10 +222,12 @@ func (fs *FileSystem) ScanFile(fileName string) {
 		size += count
 
 		// Write chunk into separate file
-		chunk := &Chunk{hash[:], buff[:]}
-		fs.storeChunk(chunk)
+		chunk := Chunk{hash[:], buff[:]}
+		chunks = append(chunks, chunk)
 
-		common.DebugScanChunk(i, hash[:])
+		if len(hashes) > common.FileChunkSize {
+			return false
+		}
 
 		if count < common.FileChunkSize {
 			break
@@ -238,5 +241,13 @@ func (fs *FileSystem) ScanFile(fileName string) {
 	metaFile := &MetaFile{fileName, size,metaHash[:],hashes}
 	fs.storeMetaFile(metaFile)
 
+	// Store all chunks
+	for i, chunk := range(chunks) {
+		common.DebugScanChunk(i, chunk.hash)
+		fs.storeChunk(&chunk)
+	}
+
 	common.DebugScanFile(fileName, size, metaHash[:])
+
+	return true
 }

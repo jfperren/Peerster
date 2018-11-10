@@ -228,7 +228,11 @@ func (gossiper *Gossiper) HandleClient(packet *common.GossipPacket) {
 		// to tell which file should be uploaded onto the network.
 		filename := packet.DataReply.Destination
 
-		gossiper.FileSystem.ScanFile(filename)
+		ok := gossiper.FileSystem.ScanFile(filename)
+
+		if !ok {
+			common.DebugFileTooBig()
+		}
 	}
 }
 

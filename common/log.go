@@ -204,3 +204,8 @@ func DebugSendNoOrigin() {
 	if !LogDebug { return }
 	fmt.Printf("WARNING attempt to send or forward to node without specifying origin\n")
 }
+
+func DebugFileTooBig() {
+	if !LogDebug { return }
+	fmt.Printf("WARNING file is too big for Peerster (max. 2Mb)\n")
+}
