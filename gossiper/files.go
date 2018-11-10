@@ -71,7 +71,7 @@ func (chunk *Chunk) size() int {
 }
 
 func (chunk *Chunk) isLastIn(metaFile *MetaFile) bool {
-	lastHash := metaFile.hashAt(metaFile.countOfChunks())
+	lastHash := metaFile.hashAt(metaFile.countOfChunks() - 1)
 	return bytes.Compare(lastHash, chunk.hash) == 0
 }
 
@@ -92,16 +92,15 @@ func (fs *FileSystem) storeChunk(chunk *Chunk) bool {
 
 	fs.chunks[key] = chunk
 
-
 	go fs.saveChunkOnDisk(chunk)
 
 	return true
 }
 
 
-func (fs *FileSystem) processDataReply(name string, reply *common.DataReply) bool {
+func (fs *FileSystem) processDataReply(name string, metaHash []byte, reply *common.DataReply) bool {
 
-	metaFile, found := fs.getMetaFile(reply.HashValue)
+	metaFile, found := fs.getMetaFile(metaHash)
 
 	if !found {
 
@@ -240,5 +239,4 @@ func (fs *FileSystem) ScanFile(fileName string) {
 	fs.storeMetaFile(metaFile)
 
 	common.DebugScanFile(fileName, size, metaHash[:])
-
 }

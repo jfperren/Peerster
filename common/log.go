@@ -1,6 +1,7 @@
 package common
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"net/http"
@@ -60,6 +61,18 @@ func LogUpdateRoutingTable(origin, address string) {
 
 func LogPrivate(private *PrivateMessage) {
 	fmt.Printf("PRIVATE origin %v hop-limit %v contents %v\n", private.Origin, private.HopLimit, private.Text)
+}
+
+func LogDownloadingMetafile(filename string, seed string) {
+	fmt.Printf("DOWNLOADING metafile of %v from %v\n", filename, seed)
+}
+
+func LogDownloadingChunk(filename string, n int, seed string) {
+	fmt.Printf("DOWNLOADING %v chunk %v from %v\n", filename, n, seed)
+}
+
+func LogReconstructed(filename string) {
+	fmt.Printf("RECONSTRUCTED file %v\n", filename)
 }
 
 // --
@@ -133,5 +146,61 @@ func DebugScanChunk(chunkPosition int, hash []byte) {
 
 func DebugScanFile(filename string, size int, metahash []byte) {
 	if !LogDebug { return }
-	fmt.Printf("SCAN FILE name %v size %v metahash %v\n", filename, size, hex.EncodeToString(metahash)[:8])
+	fmt.Printf("SCAN FILE name %v size %v metahash %v\n", filename, size, hex.EncodeToString(metahash))
+}
+
+func DebugStartDownload(filename string, metahash []byte, source string) {
+	if !LogDebug { return }
+	fmt.Printf("START DOWNLOADING file %v from %v metahash %v\n", filename, source, hex.EncodeToString(metahash))
+}
+
+func DebugDownloadTimeout(filename string, metahash []byte, source string) {
+	if !LogDebug { return }
+	fmt.Printf("DOWNLOAD TIMEOUT file %v from %v metahash %v\n", filename, source, hex.EncodeToString(metahash))
+}
+
+func DebugDownloadCompleted(filename string, metahash []byte, source string) {
+	if !LogDebug { return }
+	fmt.Printf("DOWNLOAD COMPLETED file %v from %v metahash %v\n", filename, source, hex.EncodeToString(metahash))
+}
+
+func DebugReceiveDataRequest(request *DataRequest) {
+	if !LogDebug { return }
+	fmt.Printf("RECEIVE DATA REQUEST from %v to %v metahash %v\n", request.Origin, request.Destination, hex.EncodeToString(request.HashValue))
+}
+
+func DebugReceiveDataReply(reply *DataReply) {
+	if !LogDebug { return }
+	fmt.Printf("RECEIVE DATA REPLY from %v to %v metahash %v\n", reply.Origin, reply.Destination, hex.EncodeToString(reply.HashValue))
+}
+
+func DebugForwardPointToPoint(destination, nextAddress string) {
+	if !LogDebug { return }
+	fmt.Printf("ROUTE POINT-TO-POINT MESSAGE destination %v nextAddreess %v\n", destination, nextAddress)
+}
+
+func DebugHashNotFound(hash []byte, source string) {
+	if !LogDebug { return }
+	fmt.Printf("NOT FOUND hash %v from %v\n", hex.EncodeToString(hash)[:8], source)
+}
+
+func DebugCorruptedDataReply(hash []byte, reply *DataReply) {
+	if !LogDebug { return }
+
+	expected := hex.EncodeToString(hash)[:8]
+	received := hex.EncodeToString(reply.HashValue)[:8]
+	computedHash := sha256.Sum256(reply.Data)
+	computed := hex.EncodeToString(computedHash[:])[:8]
+
+	fmt.Printf("CORRUPTED DATA REPLY expected %v received %v computed %v\n", expected, received, computed)
+}
+
+func DebugSendNoDestination() {
+	if !LogDebug { return }
+	fmt.Printf("WARNING attempt to send or forward to node with no destination\n")
+}
+
+func DebugSendNoOrigin() {
+	if !LogDebug { return }
+	fmt.Printf("WARNING attempt to send or forward to node without specifying origin\n")
 }

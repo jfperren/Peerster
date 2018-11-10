@@ -112,6 +112,16 @@ func (status *StatusPacket) Packed() *GossipPacket {
     return &GossipPacket{nil,nil,status, nil, nil, nil}
 }
 
+// Pack a PrivateMessage into a GossipPacket
+func (private *PrivateMessage) Packed() *GossipPacket {
+
+    if private == nil {
+        panic("Cannot pack <nil> private message into a GossipPacket")
+    }
+
+    return &GossipPacket{nil,nil,nil, private, nil, nil}
+}
+
 // Pack a DataRequest into a GossipPacket
 func (request *DataRequest) Packed() *GossipPacket {
 
@@ -142,7 +152,8 @@ func (packet *GossipPacket) IsValid() bool {
 
 func (reply *DataReply) VerifyHash(expected []byte) bool {
 
-    dataIsConsistent := bytes.Compare(sha256.Sum256(reply.Data)[:], reply.HashValue) == 0
+    computedHash := sha256.Sum256(reply.Data)
+    dataIsConsistent := bytes.Compare(computedHash[:], reply.HashValue) == 0
     hashIsExpected := bytes.Compare(reply.HashValue, expected) == 0
 
     return dataIsConsistent && hashIsExpected

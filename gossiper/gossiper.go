@@ -4,8 +4,6 @@ import (
 	"github.com/dedis/protobuf"
 	"github.com/jfperren/Peerster/common"
 	"log"
-	"math/rand"
-	"strings"
 	"sync"
 	"time"
 )
@@ -270,9 +268,10 @@ func (gossiper *Gossiper) StartDownload(name string, metaHash []byte, peer strin
 				// Unexpected hash or incorrect data, retry
 				common.DebugCorruptedDataReply(nextHash, reply)
 				go gossiper.StartDownload(name, metaHash, peer, counter+1)
+				return
 			}
 
-			stored := gossiper.FileSystem.processDataReply(name, reply)
+			stored := gossiper.FileSystem.processDataReply(name, metaHash, reply)
 
 			if !stored {
 				// There was an error,
@@ -403,11 +402,6 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 			reply, ok := gossiper.GenerateDataReply(packet.DataRequest)
 
 			if ok {
-
-				hash := hex.EncodeToString(reply.HashValue)
-				com := sha256.Sum256(reply.Data)
-				computedHash := hex.EncodeToString(com[:])
-
 				gossiper.sendToNode(reply.Packed(), reply.Destination, nil)
 			}
 		}
@@ -724,7 +718,6 @@ func (gossiper *Gossiper) GenerateDataReply(request *common.DataRequest) (*commo
 
 		data = chunk.data
 	}
-
 
 	return &common.DataReply{
 		gossiper.Name,
