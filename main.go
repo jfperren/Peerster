@@ -4,6 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/jfperren/Peerster/gossiper"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main () {
@@ -40,4 +43,12 @@ func main () {
 	}
 
 	g.Start()
+
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		g.Stop()
+		os.Exit(1)
+	}()
 }
