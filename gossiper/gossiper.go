@@ -10,16 +10,14 @@ import (
 
 type Gossiper struct {
 
+	Name          	string								// Name of this node
 	Simple        	bool								// Stores if gossiper runs in simple mode.
+
 	GossipSocket  	*common.UDPSocket					// UDP Socket that connects to other nodes
 	ClientSocket  	*common.UDPSocket					// UDP Socket that connects to the client
-	GossipAddress 	string								// IP address used in GossipSocket
-	ClientAddress 	string								// IP address used in ClientSocket
 
-	Name          	string								// Name of this node
 	Rumors 			*RumorDatabase						// Database of known Rumors
 	NextID 			uint32								// NextID to be used for Rumors
-	Rtimer			time.Duration						// Interval for sending route rumors
 
 	FileSystem 		*FileSystem
 	Dispatcher 		*Dispatcher
@@ -44,22 +42,17 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 	}
 
 	return &Gossiper{
+		Name:          	name,
 		Simple:        	simple,
 		GossipSocket:  	gossipSocket,
 		ClientSocket:  	clientSocket,
-		GossipAddress: 	gossipAddress,
-		ClientAddress: 	clientAddress,
-		Name:          	name,
 
 		Rumors:        	NewRumorDatabase(),
 		NextID:        	common.InitialId,
 
-		Rtimer:		   	time.Duration(rtimer) * time.Second,
-		FileSystem:	   	NewFileSystem(
-			common.SharedFilesDir + name + "/",
-			common.DownloadDir + name + "/"),
+		FileSystem:	   	NewFileSystem(common.SharedFilesDir + name + "/", common.DownloadDir + name + "/"),
 		Dispatcher:		NewDispatcher(),
-		Router:			NewRouter(peers),
+		Router:			NewRouter(peers, time.Duration(rtimer) * time.Second),
 	}
 }
 
@@ -125,7 +118,7 @@ func (gossiper *Gossiper) antiEntropy() {
 // Main loop for sending route rumors
 func (gossiper *Gossiper) sendRouteRumors() {
 
-	if gossiper.Rtimer == common.DontSendRouteRumor {
+	if gossiper.Router.Rtimer == common.DontSendRouteRumor {
 		return
 	}
 
@@ -138,7 +131,7 @@ func (gossiper *Gossiper) sendRouteRumors() {
 			go gossiper.sendToNeighbor(peer, routeRumor.Packed())
 		}
 
-		time.Sleep(gossiper.Rtimer)
+		time.Sleep(gossiper.Router.Rtimer)
 	}
 }
 
@@ -472,7 +465,7 @@ func (gossiper *Gossiper) broadcastToNeighbors(packet *common.GossipPacket, setN
 		panic("Cannot broadcastToNeighbors GossipPacker that does not contain SimpleMessage.")
 	}
 
-	packet.Simple.RelayPeerAddr = gossiper.GossipAddress
+	packet.Simple.RelayPeerAddr = gossiper.GossipSocket.Address
 	if setName { packet.Simple.OriginalName = gossiper.Name }
 
 	for i := 0; i < len(gossiper.Router.Peers); i++ {

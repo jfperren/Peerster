@@ -4,19 +4,22 @@ import (
 	"github.com/jfperren/Peerster/common"
 	"strings"
 	"math/rand"
+	"time"
 )
 
 
 type Router struct {
 	NextHop		 	map[string]string	// Routing Table
 	Peers         	[]string			// List of known peer IP addresses
+	Rtimer			time.Duration		// Interval for sending route rumors
 }
 
-func NewRouter(peers string) *Router {
+func NewRouter(peers string, rtimer time.Duration) *Router {
 
 	return &Router{
-		NextHop:	   make(map[string]string),
-		Peers:         strings.Split(peers, ","),
+		NextHop:	make(map[string]string),
+		Peers:      strings.Split(peers, ","),
+		Rtimer:		rtimer,
 	}
 }
 

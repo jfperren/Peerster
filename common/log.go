@@ -226,11 +226,3 @@ func DebugStopGossiper() {
 	if !Verbose { return }
 	fmt.Printf("STOP GOSSIPER")
 }
-
-// --
-// -- WARNING messages
-// --
-//
-// These are separated from debug because it might make sense to include when running in production. It is also used
-// by some tests to check that the gossiper fails gracefully in certain circumstances.
-

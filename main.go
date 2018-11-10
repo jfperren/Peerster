@@ -34,7 +34,7 @@ func main () {
 	}
 
 	common.Verbose = *verbose
-	common.DebugStartGossiper(g.ClientAddress, g.GossipAddress, g.Name, g.Router.Peers, g.Simple, g.Rtimer)
+	common.DebugStartGossiper(g.ClientSocket.Address, g.GossipSocket.Address, g.Name, g.Router.Peers, g.Simple, g.Router.Rtimer)
 
 	g.Start()
 

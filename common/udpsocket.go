@@ -8,6 +8,7 @@ import (
 // higher-level functions to create UDP connections.
 type UDPSocket struct {
     connection *net.UDPConn
+    Address    string
 }
 
 // Create a new UDP socket and bind it to the given port.
@@ -19,7 +20,7 @@ func NewUDPSocket(address string) *UDPSocket {
     udpConn, err := net.ListenUDP("udp4", udpAddr)
     if err != nil { panic(err) }
 
-    return &UDPSocket{udpConn}
+    return &UDPSocket{udpConn, address}
 }
 
 // Wait until new data is receives and extract it. Also return
