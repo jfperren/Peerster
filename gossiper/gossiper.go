@@ -17,7 +17,6 @@ type Gossiper struct {
 	ClientSocket  	*common.UDPSocket					// UDP Socket that connects to the client
 
 	Rumors 			*RumorDatabase						// Database of known Rumors
-	NextID 			uint32								// NextID to be used for Rumors
 
 	FileSystem 		*FileSystem
 	Dispatcher 		*Dispatcher
@@ -48,8 +47,6 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		ClientSocket:  	clientSocket,
 
 		Rumors:        	NewRumorDatabase(),
-		NextID:        	common.InitialId,
-
 		FileSystem:	   	NewFileSystem(common.SharedFilesDir + name + "/", common.DownloadDir + name + "/"),
 		Dispatcher:		NewDispatcher(),
 		Router:			NewRouter(peers, time.Duration(rtimer) * time.Second),
@@ -328,10 +325,12 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 		// from the source.
 		if gossiper.Rumors.Expects(packet.Rumor) {
 
-			gossiper.Router.updateRoutingTable(packet.Rumor.Origin, source)
+			if gossiper.Name != packet.Rumor.Origin {
+				gossiper.Router.updateRoutingTable(packet.Rumor.Origin, source)
+			}
 
 			gossiper.Rumors.Put(packet.Rumor)
-			peer, found := gossiper.Router.randomPeer()
+			peer, found := gossiper.Router.randomPeerExcept(source)
 
 			if found {
 				common.DebugForwardRumor(packet.Rumor)
@@ -689,10 +688,6 @@ func (gossiper *Gossiper) GenerateStatusPacket() *common.StatusPacket {
 	return &common.StatusPacket{peerStatuses}
 }
 
-func (gossiper *Gossiper) GenerateRouteRumor() *common.RumorMessage {
-	return &common.RumorMessage{gossiper.Name, gossiper.NextID, ""}
-}
-
 func (gossiper *Gossiper) GenerateDataReply(request *common.DataRequest) (*common.DataReply, bool) {
 
 	var data []byte
@@ -737,16 +732,20 @@ func (gossiper *Gossiper) GenerateDataRequest(destination string, hash []byte) *
 // -- RUMORS
 // --
 
+func (gossiper *Gossiper) GenerateRouteRumor() *common.RumorMessage {
+	return gossiper.generateRumor("")
+}
+
 // Generate a new Rumor based on the string.
 func (gossiper *Gossiper) generateRumor(message string) *common.RumorMessage {
 
 	rumor := &common.RumorMessage{
 		Origin: gossiper.Name,
-		ID:     gossiper.NextID,
+		ID:     gossiper.Rumors.ConsumeNextID(),
 		Text:   message,
 	}
 
-	gossiper.NextID++
+	gossiper.Rumors.Put(rumor)
 
 	return rumor
 }

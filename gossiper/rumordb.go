@@ -9,13 +9,15 @@ import (
 // Database-like object that stores / serves Rumors in a thread-safe way,
 // while also offer higher-level functions related to those Rumors.
 type RumorDatabase struct {
-	Rumors map[string]map[uint32]*common.RumorMessage
-	Mutex  *sync.RWMutex
+	nextID 	uint32										// NextID to be used for Rumors
+	Rumors 	map[string]map[uint32]*common.RumorMessage	// List of rumor Ids per node
+	Mutex  	*sync.RWMutex								// Read-write lock to access the database
 }
 
 // Create an empty database of Rumors.
 func NewRumorDatabase() *RumorDatabase {
 	return &RumorDatabase{
+		common.InitialId,
 		make(map[string]map[uint32]*common.RumorMessage),
 		&sync.RWMutex{},
 	}
@@ -40,8 +42,6 @@ func (r *RumorDatabase) Get(origin string, ID uint32) *common.RumorMessage {
 // Return true if the rumor is the next expected rumor from the origin node.
 func (r *RumorDatabase) Expects(rumor *common.RumorMessage) bool {
 
-	r.Mutex.RLock()
-	defer r.Mutex.RUnlock()
 
 	return r.NextIDFor(rumor.Origin) == rumor.ID
 }
@@ -106,4 +106,16 @@ func (r *RumorDatabase) AllOrigins() []string {
 	}
 
 	return res
+}
+
+// Returns the next ID + increase it
+func (r *RumorDatabase) ConsumeNextID() uint32 {
+
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+
+	nextID := r.nextID
+	r.nextID = nextID + 1
+
+	return nextID
 }

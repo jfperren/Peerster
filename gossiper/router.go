@@ -41,6 +41,29 @@ func (router *Router) randomPeer() (string, bool) {
 	return router.Peers[rand.Int() % len(router.Peers)], true
 }
 
+func (router *Router) randomPeerExcept(peer string) (string, bool) {
+
+	if len(router.Peers) == 0 {
+		return "", false
+	}
+
+	if len(router.Peers) == 1 && router.Peers[0] == peer {
+		return "", false
+	}
+
+	for {
+		potentialPeer, found := router.randomPeer()
+
+		if !found {
+			return potentialPeer, found
+		}
+
+		if potentialPeer != peer {
+			return potentialPeer, true
+		}
+	}
+}
+
 func (router *Router) updateRoutingTable(origin, address string) {
 
 	currentAddress, found := router.NextHop[origin]
