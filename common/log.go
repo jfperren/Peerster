@@ -181,7 +181,7 @@ func DebugForwardPointToPoint(destination, nextAddress string) {
 
 func DebugHashNotFound(hash []byte, source string) {
 	if !LogDebug { return }
-	fmt.Printf("NOT FOUND hash %v from %v\n", hex.EncodeToString(hash)[:8], source)
+	fmt.Printf("NOT FOUND hash %v from %v\n", hex.EncodeToString(hash), source)
 }
 
 func DebugCorruptedDataReply(hash []byte, reply *DataReply) {
@@ -205,7 +205,7 @@ func DebugSendNoOrigin() {
 	fmt.Printf("WARNING attempt to send or forward to node without specifying origin\n")
 }
 
-func DebugFileTooBig() {
+func DebugFileTooBig(name string) {
 	if !LogDebug { return }
-	fmt.Printf("WARNING file is too big for Peerster (max. 2Mb)\n")
+	fmt.Printf("WARNING file %v is too big for Peerster (max. 2Mb)\n", name)
 }

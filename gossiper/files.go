@@ -86,13 +86,13 @@ func (fs *FileSystem) storeMetaFile(metaFile *MetaFile) bool {
 	return true
 }
 
-func (fs *FileSystem) storeChunk(chunk *Chunk) bool {
+func (fs *FileSystem) storeChunk(chunk Chunk) bool {
 
 	key := hex.EncodeToString(chunk.hash)
 
-	fs.chunks[key] = chunk
+	fs.chunks[key] = &chunk
 
-	go fs.saveChunkOnDisk(chunk)
+	go fs.saveChunkOnDisk(&chunk)
 
 	return true
 }
@@ -111,7 +111,7 @@ func (fs *FileSystem) processDataReply(name string, metaHash []byte, reply *comm
 
 		chunk := NewChunk(reply.Data)
 
-		ok := fs.storeChunk(chunk)
+		ok := fs.storeChunk(*chunk)
 
 		if ok {
 			metaFile.size += chunk.size()
@@ -221,8 +221,7 @@ func (fs *FileSystem) ScanFile(fileName string) bool {
 		hashes = append(hashes, hash[:]...)
 		size += count
 
-		// Write chunk into separate file
-		chunk := Chunk{hash[:], buff[:]}
+		chunk := Chunk{hash[:], buff}
 		chunks = append(chunks, chunk)
 
 		if len(hashes) > common.FileChunkSize {
@@ -244,7 +243,7 @@ func (fs *FileSystem) ScanFile(fileName string) bool {
 	// Store all chunks
 	for i, chunk := range(chunks) {
 		common.DebugScanChunk(i, chunk.hash)
-		fs.storeChunk(&chunk)
+		fs.storeChunk(chunk)
 	}
 
 	common.DebugScanFile(fileName, size, metaHash[:])

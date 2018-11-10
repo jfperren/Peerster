@@ -231,7 +231,7 @@ func (gossiper *Gossiper) HandleClient(packet *common.GossipPacket) {
 		ok := gossiper.FileSystem.ScanFile(filename)
 
 		if !ok {
-			common.DebugFileTooBig()
+			common.DebugFileTooBig(filename)
 		}
 	}
 }
