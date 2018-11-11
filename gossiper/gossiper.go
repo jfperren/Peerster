@@ -15,26 +15,24 @@ import (
 // (dispatching packets to correct goroutines), Router (keep track of peers & routing table), RumorsDB
 // (store rumors and compute vector clocks), on all of which Gossiper relies on.
 type Gossiper struct {
+	Name   string // Name of this node
+	Simple bool   // Stores if gossiper runs in simple mode.
 
-	Name          	string								// Name of this node
-	Simple        	bool								// Stores if gossiper runs in simple mode.
+	GossipSocket *common.UDPSocket // UDP Socket that connects to other nodes
+	ClientSocket *common.UDPSocket // UDP Socket that connects to the client
 
-	GossipSocket  	*common.UDPSocket					// UDP Socket that connects to other nodes
-	ClientSocket  	*common.UDPSocket					// UDP Socket that connects to the client
+	Rumors   *RumorDatabase           // Database of known Rumors
+	Messages []*common.PrivateMessage // List of Private Messages Received
 
-	Rumors 			*RumorDatabase						// Database of known Rumors
-	Messages		[]*common.PrivateMessage			// List of Private Messages Received
-
-	FileSystem 		*FileSystem							// Stores and serves shared files
-	Dispatcher 		*Dispatcher							// Dispatches incoming messages to expecting processes
-	Router			*Router								// Handles routing to neighboring and non-neighboring nodes.
+	FileSystem *FileSystem // Stores and serves shared files
+	Dispatcher *Dispatcher // Dispatches incoming messages to expecting processes
+	Router     *Router     // Handles routing to neighboring and non-neighboring nodes.
 }
 
 const (
-	ComparisonModeMissingOrNew = iota					// Flag to be used when comparing two nodes' status packets
-	ComparisonModeAllNew = iota							// Flag to be used when comparing a node status with the client status
+	ComparisonModeMissingOrNew = iota // Flag to be used when comparing two nodes' status packets
+	ComparisonModeAllNew       = iota // Flag to be used when comparing a node status with the client status
 )
-
 
 // Create a new Gossiper using the given addresses.
 //
@@ -66,15 +64,15 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 	}
 
 	return &Gossiper{
-		Name:          	name,
-		Simple:        	simple,
-		GossipSocket:  	gossipSocket,
-		ClientSocket:  	clientSocket,
+		Name:         name,
+		Simple:       simple,
+		GossipSocket: gossipSocket,
+		ClientSocket: clientSocket,
 
-		Rumors:        	NewRumorDatabase(),
-		FileSystem:	   	NewFileSystem(sharedPath, downloadPath),
-		Dispatcher:		NewDispatcher(),
-		Router:			NewRouter(peers, time.Duration(rtimer) * time.Second),
+		Rumors:     NewRumorDatabase(),
+		FileSystem: NewFileSystem(sharedPath, downloadPath),
+		Dispatcher: NewDispatcher(),
+		Router:     NewRouter(peers, time.Duration(rtimer)*time.Second),
 	}
 }
 
@@ -118,7 +116,9 @@ func (gossiper *Gossiper) receiveGossip() {
 		var packet common.GossipPacket
 		bytes, source, alive := gossiper.GossipSocket.Receive()
 
-		if !alive { break }
+		if !alive {
+			break
+		}
 
 		protobuf.Decode(bytes, &packet)
 
@@ -168,14 +168,16 @@ func (gossiper *Gossiper) sendRouteRumors() {
 }
 
 // Main loop for handling client packets.
-func (gossiper *Gossiper) receiveClient(){
+func (gossiper *Gossiper) receiveClient() {
 
 	for {
 
 		var packet common.GossipPacket
 		bytes, _, alive := gossiper.ClientSocket.Receive()
 
-		if !alive { break }
+		if !alive {
+			break
+		}
 
 		protobuf.Decode(bytes, &packet)
 
@@ -187,7 +189,6 @@ func (gossiper *Gossiper) receiveClient(){
 		go gossiper.HandleClient(&packet)
 	}
 }
-
 
 // --
 // --  HANDLING NEW PACKETS
@@ -410,7 +411,9 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
 	}
 
 	bytes, err := protobuf.Encode(packet)
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 
 	gossiper.GossipSocket.Send(bytes, peerAddress)
 }
@@ -423,7 +426,9 @@ func (gossiper *Gossiper) broadcastToNeighbors(packet *common.GossipPacket, setN
 	}
 
 	packet.Simple.RelayPeerAddr = gossiper.GossipSocket.Address
-	if setName { packet.Simple.OriginalName = gossiper.Name }
+	if setName {
+		packet.Simple.OriginalName = gossiper.Name
+	}
 
 	for i := 0; i < len(gossiper.Router.Peers); i++ {
 		if gossiper.Router.Peers[i] != packet.Simple.RelayPeerAddr {
@@ -464,14 +469,14 @@ func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
 	defer ticker.Stop()
 
 	select {
-	case packet := <- gossiper.Dispatcher.statusPackets(peer):
+	case packet := <-gossiper.Dispatcher.statusPackets(peer):
 
 		statusPacket := packet.Status
 
 		// Compare status from peer with own messages
 		otherRumor, _, statuses := gossiper.CompareStatus(statusPacket.Want, ComparisonModeMissingOrNew)
 
-		switch  {
+		switch {
 		case statuses != nil: // Peer has new messages
 			statusPacket := &common.StatusPacket{statuses}
 			go gossiper.sendToNeighbor(peer, statusPacket.Packed())
@@ -487,7 +492,7 @@ func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
 			shouldContinue = false
 		}
 
-	case <- ticker.C: // Timeout
+	case <-ticker.C: // Timeout
 		common.DebugTimeout(peer)
 		shouldContinue = false
 	}
@@ -560,12 +565,7 @@ func (gossiper *Gossiper) StartDownload(name string, metaHash []byte, peer strin
 				return
 			}
 
-			stored := gossiper.FileSystem.processDataReply(name, metaHash, reply)
-
-			if !stored {
-				// There was an error,
-				panic("Error storing data")
-			}
+			gossiper.FileSystem.processDataReply(name, metaHash, reply)
 
 			// At this point, the download is successful, so we can log it
 
@@ -728,7 +728,6 @@ func (gossiper *Gossiper) GenerateStatusPacket() *common.StatusPacket {
 
 	return &common.StatusPacket{peerStatuses}
 }
-
 
 // Generate a data reply to a given request
 func (gossiper *Gossiper) GenerateDataReply(request *common.DataRequest) (*common.DataReply, bool) {

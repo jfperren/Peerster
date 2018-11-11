@@ -6,16 +6,14 @@ import (
 	"sync"
 )
 
-
 // A dispatcher is responsible for coordinating between multiple processes who are
 // all waiting to receive some packets from a given source. Through the dispatcher,
 // processes can explicitely state what sources they are waiting on and will be notified
 // upon receipt of such packet
 type Dispatcher struct {
-
-	HandlerLock  	*sync.RWMutex						// Lock for safely updating & reading handlers
-	Handlers     	map[string]chan*common.GossipPacket	// Channels waiting for StatusPackets
-	HandlerCount 	map[string]int						// Count of rumormongering processes waiting on a node status
+	HandlerLock  *sync.RWMutex                        // Lock for safely updating & reading handlers
+	Handlers     map[string]chan *common.GossipPacket // Channels waiting for StatusPackets
+	HandlerCount map[string]int                       // Count of rumormongering processes waiting on a node status
 
 }
 

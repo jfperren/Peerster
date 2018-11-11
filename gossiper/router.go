@@ -2,28 +2,27 @@ package gossiper
 
 import (
 	"github.com/jfperren/Peerster/common"
-	"strings"
 	"math/rand"
+	"strings"
 	"time"
 )
 
 // A Router is responsible for handling the neighbors (Peers) for gossip communication as well
 // as a DSDV table (NextHop) for the more complex routing of private messages and downloads.
 type Router struct {
-	NextHop		 	map[string]string	// Routing Table
-	Peers         	[]string			// List of known peer IP addresses
-	Rtimer			time.Duration		// Interval for sending route rumors
+	NextHop map[string]string // Routing Table
+	Peers   []string          // List of known peer IP addresses
+	Rtimer  time.Duration     // Interval for sending route rumors
 }
 
 func NewRouter(peers string, rtimer time.Duration) *Router {
 
 	return &Router{
-		NextHop:	make(map[string]string),
-		Peers:      strings.Split(peers, ","),
-		Rtimer:		rtimer,
+		NextHop: make(map[string]string),
+		Peers:   strings.Split(peers, ","),
+		Rtimer:  rtimer,
 	}
 }
-
 
 // Add a new peer IP address to the list of known peers
 func (router *Router) AddPeerIfNeeded(peer string) {
@@ -39,7 +38,7 @@ func (router *Router) randomPeer() (string, bool) {
 		return "", false
 	}
 
-	return router.Peers[rand.Int() % len(router.Peers)], true
+	return router.Peers[rand.Int()%len(router.Peers)], true
 }
 
 func (router *Router) randomPeerExcept(peer string) (string, bool) {

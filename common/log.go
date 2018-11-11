@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-var Verbose = true;
+var Verbose = true
 
 // --
 // -- INFO MESSAGES

@@ -11,18 +11,18 @@ import (
 var g *Gossiper
 
 type RumorsAndStatuses struct {
-	Rumors []*common.RumorMessage
+	Rumors   []*common.RumorMessage
 	Statuses []common.PeerStatus
 }
 
 type User struct {
-	Name string
+	Name    string
 	Address string
 }
 
 type Message struct {
 	Destination string
-	Text string
+	Text        string
 }
 
 type File struct {
@@ -31,9 +31,9 @@ type File struct {
 }
 
 type FileRequest struct {
-	Name string
+	Name        string
 	Destination string
-	Hash string
+	Hash        string
 }
 
 func StartWebServer(gossiper *Gossiper, port string) {
@@ -53,9 +53,11 @@ func StartWebServer(gossiper *Gossiper, port string) {
 	http.HandleFunc("/fileRequest", middleware(handleFileRequest))
 	http.HandleFunc("/fileUpload", middleware(handleFileUpload))
 
-	go func () {
-		err := http.ListenAndServe(":" + port, nil)
-		if err == nil { panic(err) }
+	go func() {
+		err := http.ListenAndServe(":"+port, nil)
+		if err == nil {
+			panic(err)
+		}
 	}()
 }
 
@@ -174,7 +176,7 @@ func handleUser(res http.ResponseWriter, req *http.Request) {
 
 		users := make([]*User, 0)
 
-		for k, v := range(g.Router.NextHop) {
+		for k, v := range g.Router.NextHop {
 			users = append(users, &User{k, v})
 		}
 
@@ -235,7 +237,7 @@ func handlePrivateMessage(res http.ResponseWriter, req *http.Request) {
 
 		var body []*common.PrivateMessage
 
-		if  index >= len(g.Messages) {
+		if index >= len(g.Messages) {
 			body = make([]*common.PrivateMessage, 0)
 		} else {
 			body = g.Messages[index:]
@@ -282,13 +284,13 @@ func handleFileUpload(res http.ResponseWriter, req *http.Request) {
 		json.NewEncoder(res).Encode(File{
 			metaFile.Name,
 			hex.EncodeToString(metaFile.Hash),
-		});
+		})
 
 	case "GET":
 
 		metaFiles := make([]File, 0)
 
-		for _, metaFile := range(g.FileSystem.metaFiles) {
+		for _, metaFile := range g.FileSystem.metaFiles {
 			metaFiles = append(metaFiles, File{
 				metaFile.Name,
 				hex.EncodeToString(metaFile.Hash),

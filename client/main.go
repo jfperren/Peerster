@@ -1,77 +1,77 @@
 package main
 
 import (
-  "encoding/hex"
-  "flag"
-  "github.com/dedis/protobuf"
-  "github.com/jfperren/Peerster/common"
+	"encoding/hex"
+	"flag"
+	"github.com/dedis/protobuf"
+	"github.com/jfperren/Peerster/common"
 )
 
+func main() {
 
-func main () {
+	// Define Flags
 
-  // Define Flags
+	uiPort := flag.String("UIPort", "8080", "port for the UI client")
+	message := flag.String("msg", "Test message", "message to be sent")
+	dest := flag.String("dest", "", "destination for the private message")
+	file := flag.String("file", "", "file to be indexed by the gossiper, or filename of the requested file")
+	request := flag.String("request", "", "request a chunk or metafile of this hash")
 
-  uiPort := flag.String("UIPort", "8080", "port for the UI client")
-  message := flag.String("msg", "Test message", "message to be sent")
-  dest := flag.String("dest", "", "destination for the private message")
-  file := flag.String("file", "", "file to be indexed by the gossiper, or filename of the requested file")
-  request := flag.String("request", "", "request a chunk or metafile of this hash")
+	flag.Parse()
 
-  flag.Parse()
+	// Packet to send
+	var packet *common.GossipPacket
 
-  // Packet to send
-  var packet *common.GossipPacket
+	switch {
 
-  switch {
+	case *request != "":
 
-  case *request != "":
+		if *file == "" {
+			panic("Cannot request a file without giving a name")
+		}
 
-    if *file == "" {
-      panic("Cannot request a file without giving a name")
-    }
+		if *dest == "" {
+			panic("Cannot request a file without specifying the destination node")
+		}
 
-    if *dest == "" {
-      panic("Cannot request a file without specifying the destination node")
-    }
+		hash, err := hex.DecodeString(*request)
 
-    hash, err := hex.DecodeString(*request)
+		if err != nil {
+			panic("Error decoding hash specified in 'request'")
+		}
 
-    if err != nil {
-      panic("Error decoding hash specified in 'request'")
-    }
+		request := &common.DataRequest{*file, *dest, common.InitialHopLimit, hash}
+		packet = request.Packed()
 
-    request := &common.DataRequest{*file, *dest, common.InitialHopLimit, hash}
-    packet = request.Packed()
+	case *file != "":
 
-  case *file != "":
+		reply := &common.DataReply{"client", *file, 0, make([]byte, 0), make([]byte, 0)}
+		packet = reply.Packed()
 
-    reply := &common.DataReply{"client", *file, 0, make([]byte, 0), make([]byte, 0)}
-    packet = reply.Packed()
+	case *dest != "":
 
-  case *dest != "":
+		private := &common.PrivateMessage{"client", 0, *message, *dest, common.InitialHopLimit}
+		packet = private.Packed()
 
-    private := &common.PrivateMessage{"client", 0, *message, *dest, common.InitialHopLimit}
-    packet = private.Packed()
+	case *message != "":
 
-  case *message != "":
+		simple := &common.SimpleMessage{"client", "", *message}
+		packet = simple.Packed()
 
-    simple := &common.SimpleMessage{"client", "", *message}
-    packet = simple.Packed()
+	default:
 
-  default:
+		panic("No message specified, unclear instructions.")
+	}
 
-    panic("No message specified, unclear instructions.")
-  }
+	// Encodes message
+	bytes, err := protobuf.Encode(packet)
+	if err != nil {
+		panic(err)
+	}
 
-  // Encodes message
-  bytes, err := protobuf.Encode(packet)
-  if err != nil { panic(err) }
-
-  // Send
-  socket := common.NewUDPSocket(":5050")
-  socket.Send(bytes, ":" + *uiPort)
-  socket.Unbind()
+	// Send
+	socket := common.NewUDPSocket(":5050")
+	socket.Send(bytes, ":"+*uiPort)
+	socket.Unbind()
 
 }
-

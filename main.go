@@ -9,30 +9,30 @@ import (
 	"syscall"
 )
 
-func main () {
+func main() {
 
-  	// Define Flags
+	// Define Flags
 
-  	uiPort := flag.String("UIPort", "8080", "port for the UI client")
-  	gossipAddr := flag.String("gossipAddr", "127.0.0.1:5000", "port for the gossiper")
-  	name := flag.String("name", "REQUIRED", "name of the gossiper")
-  	peers := flag.String("peers", "REQUIRED", "comma separated list of peers of the form ip:port")
-  	simple := flag.Bool("simple", false, "runs gossiper in simple broadcast mode")
-  	server := flag.Bool("server", false, "runs this node in server mode")
-  	rtimer := flag.Int("rtimer", 0, "route rumors sending period in seconds, 0 to disable sending of route rumors.")
+	uiPort := flag.String("UIPort", "8080", "port for the UI client")
+	gossipAddr := flag.String("gossipAddr", "127.0.0.1:5000", "port for the gossiper")
+	name := flag.String("name", "REQUIRED", "name of the gossiper")
+	peers := flag.String("peers", "REQUIRED", "comma separated list of peers of the form ip:port")
+	simple := flag.Bool("simple", false, "runs gossiper in simple broadcast mode")
+	server := flag.Bool("server", false, "runs this node in server mode")
+	rtimer := flag.Int("rtimer", 0, "route rumors sending period in seconds, 0 to disable sending of route rumors.")
 	verbose := flag.Bool("verbose", false, "display additional logs (useful for testing)")
 	separatefs := flag.Bool("separatefs", true, "set to true to use its own _Download and _SharedFile folder")
 
-  	flag.Parse()
+	flag.Parse()
 
 	var g *gossiper.Gossiper
 
-  	if *server {
-		g = gossiper.NewGossiper(*gossipAddr, "",  *name, *peers, *simple, *rtimer, *separatefs)
+	if *server {
+		g = gossiper.NewGossiper(*gossipAddr, "", *name, *peers, *simple, *rtimer, *separatefs)
 		gossiper.StartWebServer(g, *uiPort)
 		common.DebugStartGossiper("no_client_address", g.GossipSocket.Address, g.Name, g.Router.Peers, g.Simple, g.Router.Rtimer)
 	} else {
-		g = gossiper.NewGossiper(*gossipAddr, ":" + *uiPort,  *name, *peers, *simple, *rtimer, *separatefs)
+		g = gossiper.NewGossiper(*gossipAddr, ":"+*uiPort, *name, *peers, *simple, *rtimer, *separatefs)
 		common.DebugStartGossiper(g.ClientSocket.Address, g.GossipSocket.Address, g.Name, g.Router.Peers, g.Simple, g.Router.Rtimer)
 	}
 

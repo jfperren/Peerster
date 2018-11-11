@@ -4,9 +4,8 @@ import (
 	"math/rand"
 )
 
-
 func FlipCoin() bool {
-  	return rand.Int() % 2 == 0
+	return rand.Int()%2 == 0
 }
 
 func Contains(array []string, element string) bool {
