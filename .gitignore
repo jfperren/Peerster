@@ -1,6 +1,5 @@
 .config/
 client/client
-scripts/
 .DS_Store
 .idea/*
 *.out
