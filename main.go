@@ -21,17 +21,18 @@ func main () {
   	server := flag.Bool("server", false, "runs this node in server mode")
   	rtimer := flag.Int("rtimer", 0, "route rumors sending period in seconds, 0 to disable sending of route rumors.")
 	verbose := flag.Bool("verbose", false, "display additional logs (useful for testing)")
+	separatefs := flag.Bool("separatefs", true, "set to true to use its own _Download and _SharedFile folder")
 
   	flag.Parse()
 
 	var g *gossiper.Gossiper
 
   	if *server {
-		g = gossiper.NewGossiper(*gossipAddr, "",  *name, *peers, *simple, *rtimer)
+		g = gossiper.NewGossiper(*gossipAddr, "",  *name, *peers, *simple, *rtimer, *separatefs)
 		gossiper.StartWebServer(g, *uiPort)
 		common.DebugStartGossiper("no_client_address", g.GossipSocket.Address, g.Name, g.Router.Peers, g.Simple, g.Router.Rtimer)
 	} else {
-		g = gossiper.NewGossiper(*gossipAddr, ":" + *uiPort,  *name, *peers, *simple, *rtimer)
+		g = gossiper.NewGossiper(*gossipAddr, ":" + *uiPort,  *name, *peers, *simple, *rtimer, *separatefs)
 		common.DebugStartGossiper(g.ClientSocket.Address, g.GossipSocket.Address, g.Name, g.Router.Peers, g.Simple, g.Router.Rtimer)
 	}
 

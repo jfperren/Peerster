@@ -41,6 +41,14 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		clientSocket = common.NewUDPSocket(clientAddress)
 	}
 
+	downloadPath := common.DownloadDir
+	sharedPath := common.SharedFilesDir
+
+	if separatefs {
+		downloadPath = downloadPath + name + "/"
+		sharedPath = sharedPath + name + "/"
+	}
+
 	return &Gossiper{
 		Name:          	name,
 		Simple:        	simple,
@@ -48,7 +56,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		ClientSocket:  	clientSocket,
 
 		Rumors:        	NewRumorDatabase(),
-		FileSystem:	   	NewFileSystem(common.SharedFilesDir + name + "/", common.DownloadDir + name + "/"),
+		FileSystem:	   	NewFileSystem(sharedPath, downloadPath),
 		Dispatcher:		NewDispatcher(),
 		Router:			NewRouter(peers, time.Duration(rtimer) * time.Second),
 	}
