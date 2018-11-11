@@ -216,7 +216,7 @@ func (fs *FileSystem) saveMetaFileOnDisk(meta *MetaFile) {
 }
 
 // Prepares a file so as to make it available to send on the network. Chunk + computes hash
-func (fs *FileSystem) ScanFile(fileName string) bool {
+func (fs *FileSystem) ScanFile(fileName string) (*MetaFile, error) {
 
 	// Open file for reading
 	filePath := fs.sharedPath + fileName
