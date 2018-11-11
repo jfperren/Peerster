@@ -24,6 +24,9 @@ function postMessage(message, statuses, callback) {
     },
     success: function(res) {
       callback(JSON.parse(res));
+    },
+    error: function(res) {
+      callback(null, JSON.parse(res));
     }
   });
 };
@@ -68,32 +71,121 @@ function postPrivateMessage(message, destination, callback) {
     });
 };
 
+function getPrivateMessages(callback) {
+  $.ajax({
+    method: "GET",
+    headers: {
+      'x-index': privateMessages.length
+    },
+    url: "/privateMessage",
+    success: function(res) {
+      callback(JSON.parse(res));
+    },
+    error: function(res) {
+      callback(null, JSON.parse(res));
+    }
+  });
+};
+
+function uploadFile(filename, callback) {
+
+  if ($.map(files, (f) => f.Name).includes(filename)) {
+    callback(null, `$filename is already shared onto the network.`)
+  }
+
+  $.ajax({
+    method: "POST",
+    url: "/fileUpload",
+    data: JSON.stringify(filename),
+    success: function(res) {
+      callback(JSON.parse(res));
+    },
+    error: function(res) {
+      callback(null, res);
+    }
+  });
+};
+
+function getUploadedFiles(callback) {
+
+  $.get("/fileUpload", function(res) {
+    callback(JSON.parse(res));
+  });
+}
+
+function downloadFile(filename, hash, destination, callback) {
+
+  if ($.map(files, (f) => f.Name).includes(filename)) {
+    callback(null, `$filename is already in your list of files.`)
+  }
+
+  $.ajax({
+    method: "POST",
+    url: "/fileRequest",
+    data: JSON.stringify({
+      'Destination': destination,
+      'Hash': hash,
+      'Name': filename
+    }),
+    success: function(res) {
+      callback(JSON.parse(res));
+    },
+    error: function(res) {
+      callback(null, res);
+    }
+  });
+};
+
 // --- DOM UPDATE --- //
 
 function enqueueMessages(newMessages) {
 
   newMessages = newMessages.filter(function(message) {
-    return !messages.includes(message) && message.Text != "";
+      return !messages.includes(message) && message.Text != "";
   })
 
   messages = messages.concat(newMessages);
 
   $("#messages").append($.map(newMessages, function(message) {
-    return `<li>${message.Origin}: ${message.Text}</li>`;
+      if (message.Origin == name) {
+        return `<li class="shout" >\<<span style='font-weight:400;'>${message.Origin} (You)</span>\> ${message.Text}</li>`;
+      } else {
+        return `<li class="shout">\<<a class="send-private" href="#" to="${message.Origin}">${message.Origin}</a>\> ${message.Text}</li>`;
+      }
+  }));
+}
+
+function enqueuePrivateMessages(newPrivateMessages) {
+
+  newPrivateMessages = newPrivateMessages.filter(function(privateMessage) {
+    return !privateMessages.includes(privateMessage);
+  })
+
+  privateMessages = privateMessages.concat(newPrivateMessages);
+
+  $("#messages").append($.map(newPrivateMessages, function(privateMessage) {
+
+      if (privateMessage.Origin == name) { // Message from us
+          message = `[ PM to <a class="send-private" href="#" to="${privateMessage.Destination}">${privateMessage.Destination}</a> ] ${privateMessage.Text}`
+      } else { // Message for us
+          message = `[ PM from <a class="send-private" href="#" to="${privateMessage.Origin}">${privateMessage.Origin}</a> ] ${privateMessage.Text}`
+      }
+
+      return `<li class="whisper">${message}</li>`;
   }));
 }
 
 function enqueuePeers(newPeers) {
 
-  newPeers = newPeers.filter(function(peer) {
-    return !peers.includes(peer);
-  })
+    newPeers = newPeers.filter(function(peer) {
+        return !peers.includes(peer);
+    })
 
-  peers = peers + newPeers;
+    peers = peers + newPeers;
 
-  $("#peers").append($.map(newPeers, function(peer) {
-    return `<li>${peer}</li>`
-  }));
+    $("#peers").append($.map(newPeers, function(peer) {
+        return `<li>${peer}</li>`
+    }));
 }
 
 function enqueueUsers(newUsers) {
@@ -105,29 +197,48 @@ function enqueueUsers(newUsers) {
     users = users + newUsers;
 
     $("#users").append($.map(newUsers, function(user) {
-        return `<li><a class="send-private" href="#">${user.Name} @ ${user.Address}</a></li>`
+        return `<li><a class="send-private" href="#" to="${user.Name}">${user.Name}</a> (${user.Address})</li>`
+    }));
+}
+
+function enqueueFiles(newFiles) {
+
+    $("#files").append($.map(newFiles, function(file) {
+      return `<li>${file.Name} (<span class="hash">${file.Hash}</span>)</li>`;
     }));
 }
 
 // --- CONVENIENCE METHODS --- //
 
 function loadNewMessages() {
-  getMessages(statuses, function(res) {
-    enqueueMessages(res["Rumors"])
-    statuses = res["Statuses"]
+    getMessages(statuses, function(res) {
+      enqueueMessages(res["Rumors"])
+      statuses = res["Statuses"]
+    });
+}
+
+function loadNewPrivateMessages() {
+  getPrivateMessages(function(res) {
+    enqueuePrivateMessages(res)
   });
 }
 
 function loadNewPeers() {
-    getNodes(function(res, err) {
-        enqueuePeers(res)
-    });
+  getNodes(function(res, err) {
+    enqueuePeers(res)
+  });
 }
 
 function loadNewUsers() {
-    getUsers(function(res, err) {
-        enqueueUsers(res)
-    });
+  getUsers(function(res, err) {
+      enqueueUsers(res)
+  });
+}
+
+function loadUploadedFiles() {
+  getUploadedFiles(function(res, err) {
+    enqueueFiles(res)
+  });
 }
 
 function isValidIPAddress(address) {
@@ -140,22 +251,29 @@ function isValidIPAddress(address) {
 var statuses = [];
 var peers = [];
 var messages = [];
+var privateMessages = [];
 var users = [];
+var name = "";
+var files = [];
 
 $(function(){
 
   $.get("/id", function(res) {
     var title = JSON.parse(res)
+    name = title
     $("#node-title").html(title)
   });
 
   loadNewPeers()
   loadNewMessages()
   loadNewUsers()
+  loadNewPrivateMessages()
+  loadUploadedFiles()
 
   setInterval(loadNewMessages, 1000)
   setInterval(loadNewPeers, 1000)
   setInterval(loadNewUsers, 1000)
+  setInterval(loadNewPrivateMessages, 1000)
 
   $("#add-peer").on('click', function(e){
     e.preventDefault();
@@ -167,16 +285,10 @@ $(function(){
       return
     }
 
-    // var peer = $("#peer").val()
-    // if (peer == "") { return }
-
     postNode(peer, function(res, err) {
 
       // If there's an error, alert and exit
       if (err != null) { alert(err); return }
-
-      // Reset value in field
-      // $("#peer").val("")
 
       // Add peer to list
       enqueuePeers([peer])
@@ -205,15 +317,74 @@ $(function(){
     });
   });
 
-  $("#users").on('click', '.send-private', function(e) {
+  $("body").on('click', '.send-private', function(e) {
     e.preventDefault();
 
-    var message = prompt(`Send a private message to {"Alice"}`, "Your message here...")
+    to = $(e.target).attr('to')
+
+    if (to == null || to == "") {
+      console.log("Error, 'to' should be defined for .send-private objects")
+      return
+    }
+
+    var message = prompt(`Send a private message to ${to}`, "Your message here...")
 
     if (message == null || message == "") {
       return
     }
 
-    postPrivateMessage(message, "Alice", function(res) { });
+    postPrivateMessage(message, to, function(res) { });
+  });
+
+  $("#upload-file").on('click', function(e){
+    e.preventDefault();
+
+    // Get the peer address, exit if it's empty
+    var filename = prompt("Enter the file name", "myFile.txt")
+
+    if (filename == null || filename == "") {
+      return
+    }
+
+    uploadFile(filename, function(res, err) {
+
+      // If there's an error, alert and exit
+      if (err != null) { alert(err.responseText); return }
+
+      // Add peer to list
+      enqueueFiles([res])
+    });
+  });
+
+  $("#download-file").on('click', function(e){
+    e.preventDefault();
+
+    var hash = prompt("What is the hash of the file you would like to download?",
+      "8b786a45dcdb2db3f321f9cbe5d1126ebc7fd6b4bf5813fb4e8ae8fe6827daf5")
+
+    if (hash == null || hash == "") {
+      return
+    }
+
+    var destination = prompt("Who owns this file?", "Alice")
+
+    if (destination == null || destination == "") {
+      return
+    }
+
+    var filename = prompt("How would you like to name this file?", "myFile.txt")
+
+    if (filename == null || filename == "") {
+      return
+    }
+
+    downloadFile(filename, hash, destination, function(res, err) {
+
+      // If there's an error, alert and exit
+      if (err != null) { alert(err.responseText); return }
+
+      // Add peer to list
+      enqueueFiles([res])
+    });
   });
 });

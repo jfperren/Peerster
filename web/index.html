@@ -6,8 +6,11 @@
     <!-- <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.0/jquery.min.js"></script> -->
     <script src="jquery-3.3.1.min.js"></script>
     <script src="peerster.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="main.css">
   </head>
   <body>
+    <div id="page">
     <div>
       <h1 id="node-title"></h1>
     </div>
@@ -16,23 +19,30 @@
       <button id="add-peer" class="reset">Add</button>
     </form> -->
     <h3>Peers</h3>
-    <p>All node addresses to which you have a direct connection. <a id="add-peer" href="#">Add new peer</a></p>
+    <p class="sub">All node addresses to which you have a direct connection. <a id="add-peer" href="#">Add new peer</a></p>
     <div>
       <ul id="peers">
       </ul>
     </div>
     <h3>Users</h3>
-    <p>All known users on the network</p>
+    <p class="sub">All known users on the network</p>
     <div>
         <ul id="users"></ul>
     </div>
+    <h3>Files</h3>
+    <p class="sub">All files you are sharing with the network. <a id="upload-file" href="#">Share more files</a> | <a id="download-file" href="#">Download files</a></p></p>
+    <div>
+        <ul id="files"></ul>
+    </div>
     <h3>Messages</h3>
-    <form id="message-form" onsubmit="return false;">
-      <input id="message" name="message", type="text", placeholder="Type your message here..."/>
-      <button id="send-message" class="reset">Send</button>
-    </form>
+    <p class="sub">All messages that were shared on the network. This includes broadcasts (gossip) and private messages.</p>
     <div>
       <ul id="messages"></ul>
     </div>
+    <form id="message-form" onsubmit="return false;">
+      <button id="send-message" class="reset">Send</button>
+      <span class="message"><input id="message" autocomplete="off" name="message", type="text", placeholder="Type your message here..."/></span>
+    </form>
+  </div>
   </body>
 </html>
