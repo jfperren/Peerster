@@ -17,6 +17,7 @@ type Gossiper struct {
 	ClientSocket  	*common.UDPSocket					// UDP Socket that connects to the client
 
 	Rumors 			*RumorDatabase						// Database of known Rumors
+	Messages		[]*common.PrivateMessage			// List of Private Messages Received
 
 	FileSystem 		*FileSystem
 	Dispatcher 		*Dispatcher
@@ -199,6 +200,7 @@ func (gossiper *Gossiper) HandleClient(packet *common.GossipPacket) {
 		packet.Private.Origin = gossiper.Name
 
 		destined := gossiper.sendToNode(packet, packet.Private.Destination, nil)
+		gossiper.Messages = append(gossiper.Messages, packet.Private)
 
 		if destined {
 			common.LogPrivate(packet.Private)
@@ -218,11 +220,7 @@ func (gossiper *Gossiper) HandleClient(packet *common.GossipPacket) {
 		// to tell which file should be uploaded onto the network.
 		filename := packet.DataReply.Destination
 
-		ok := gossiper.FileSystem.ScanFile(filename)
-
-		if !ok {
-			common.DebugFileTooBig(filename)
-		}
+		gossiper.FileSystem.ScanFile(filename)
 	}
 }
 
@@ -366,6 +364,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 		destined := gossiper.sendToNode(packet, destination, hopLimit)
 
 		if destined {
+			gossiper.Messages = append(gossiper.Messages, packet.Private)
 			common.LogPrivate(packet.Private)
 		}
 
@@ -696,7 +695,7 @@ func (gossiper *Gossiper) GenerateDataReply(request *common.DataRequest) (*commo
 
 	if found {
 
-		data = metaHash.data
+		data = metaHash.Data
 
 	} else {
 

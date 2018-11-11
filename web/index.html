@@ -11,15 +11,18 @@
     <div>
       <h1 id="node-title"></h1>
     </div>
-    <form id="peer-form" onsubmit="return false;">
+    <!-- <form id="peer-form" onsubmit="return false;">
       <input id="peer" name="peer", type="text", placeholder="Input address here.."/>
       <button id="add-peer" class="reset">Add</button>
-    </form>
+    </form> -->
     <h3>Peers</h3>
+    <p>All node addresses to which you have a direct connection. <a id="add-peer" href="#">Add new peer</a></p>
     <div>
-      <ul id="peers"></ul>
+      <ul id="peers">
+      </ul>
     </div>
     <h3>Users</h3>
+    <p>All known users on the network</p>
     <div>
         <ul id="users"></ul>
     </div>

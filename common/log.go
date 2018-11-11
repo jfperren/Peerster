@@ -185,6 +185,11 @@ func DebugHashNotFound(hash []byte, source string) {
 	fmt.Printf("NOT FOUND hash %v from %v\n", hex.EncodeToString(hash), source)
 }
 
+func DebugFileNotFound(file string) {
+	if !Verbose { return }
+	fmt.Printf("NOT FOUND file %v\n", file)
+}
+
 func DebugCorruptedDataReply(hash []byte, reply *DataReply) {
 	if !Verbose { return }
 

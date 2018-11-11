@@ -19,3 +19,5 @@ const NewDownload = 0
 const MaxDownloadRequests = 10
 const MetaHashChunkId = -1
 const NoChunkId = -2
+const ErrorFileNotFound = 1
+const ErrorFileTooBig = 2

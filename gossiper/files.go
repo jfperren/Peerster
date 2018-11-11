@@ -17,15 +17,34 @@ type FileSystem struct {
 }
 
 type MetaFile struct {
-	name  string
-	size  int
-	hash  []byte
-	data  []byte
+	Name string
+	Size int
+	Hash []byte
+	Data []byte
 }
 
 type Chunk struct {
 	hash  []byte
 	data  []byte
+}
+
+const fileNotFound = 1
+const fileTooBig = 2
+
+type FileSystemError struct {
+	filename string
+	flag int
+}
+
+func (e *FileSystemError) Error() string {
+	switch e.flag {
+	case fileNotFound:
+		return "File not found: " + e.filename
+	case fileTooBig:
+		return "File not found: " + e.filename
+	default:
+		return "Unexpected error"
+	}
 }
 
 func NewFileSystem(sharedPath, downloadPath string) *FileSystem {
@@ -59,11 +78,11 @@ func (fs *FileSystem) getChunk(hash []byte) (*Chunk, bool) {
 }
 
 func (metaFile *MetaFile) countOfChunks() int {
-	return len(metaFile.data) / sha256.Size
+	return len(metaFile.Data) / sha256.Size
 }
 
 func (metaFile *MetaFile) hashAt(index int) []byte {
-	return metaFile.data[index * sha256.Size: (index + 1) * sha256.Size]
+	return metaFile.Data[index * sha256.Size: (index + 1) * sha256.Size]
 }
 
 func (chunk *Chunk) size() int {
@@ -77,7 +96,7 @@ func (chunk *Chunk) isLastIn(metaFile *MetaFile) bool {
 
 func (fs *FileSystem) storeMetaFile(metaFile *MetaFile) bool {
 
-	key := hex.EncodeToString(metaFile.hash)
+	key := hex.EncodeToString(metaFile.Hash)
 
 	fs.metaFiles[key] = metaFile
 
@@ -114,10 +133,10 @@ func (fs *FileSystem) processDataReply(name string, metaHash []byte, reply *comm
 		ok := fs.storeChunk(*chunk)
 
 		if ok {
-			metaFile.size += chunk.size()
+			metaFile.Size += chunk.size()
 
 			if chunk.isLastIn(metaFile) {
-				fs.reconstructFile(metaFile.hash)
+				fs.reconstructFile(metaFile.Hash)
 			}
 		}
 
@@ -147,9 +166,9 @@ func (fs *FileSystem) reconstructFile(metaHash []byte) {
 		data = append(data, chunk.data...)
 	}
 
-	common.LogReconstructed(metaFile.name)
+	common.LogReconstructed(metaFile.Name)
 
-	filePath := fs.downloadPath + metaFile.name
+	filePath := fs.downloadPath + metaFile.Name
 	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil { fmt.Print(err) }
 	file.Write(data)
@@ -189,10 +208,10 @@ func (fs *FileSystem) saveChunkOnDisk(chunk *Chunk) {
 
 func (fs *FileSystem) saveMetaFileOnDisk(meta *MetaFile) {
 
-	metaPath := common.SharedFilesDir + meta.name + common.MetaFileSuffix
+	metaPath := common.SharedFilesDir + meta.Name + common.MetaFileSuffix
 	metaFile, err := os.OpenFile(metaPath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil { fmt.Print(err) }
-	metaFile.Write(meta.data)
+	metaFile.Write(meta.Data)
 
 }
 
@@ -202,7 +221,11 @@ func (fs *FileSystem) ScanFile(fileName string) bool {
 	// Open file for reading
 	filePath := fs.sharedPath + fileName
 	file, err := os.Open(filePath)
-	if err != nil { fmt.Print(err) }
+
+	if err != nil {
+		common.DebugFileNotFound(fileName)
+		return nil, &FileSystemError{fileName, fileNotFound}
+	}
 
 	size := 0
 	hashes := make([]byte, 0)
@@ -225,7 +248,8 @@ func (fs *FileSystem) ScanFile(fileName string) bool {
 		chunks = append(chunks, chunk)
 
 		if len(hashes) > common.FileChunkSize {
-			return false
+			common.DebugFileTooBig(fileName)
+			return nil, &FileSystemError{fileName, fileTooBig}
 		}
 
 		if count < common.FileChunkSize {
@@ -248,5 +272,5 @@ func (fs *FileSystem) ScanFile(fileName string) bool {
 
 	common.DebugScanFile(fileName, size, metaHash[:])
 
-	return true
+	return metaFile, nil
 }

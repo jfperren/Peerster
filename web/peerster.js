@@ -157,11 +157,18 @@ $(function(){
   setInterval(loadNewPeers, 1000)
   setInterval(loadNewUsers, 1000)
 
-  $("#peer-form").submit(function(){
+  $("#add-peer").on('click', function(e){
+    e.preventDefault();
 
     // Get the peer address, exit if it's empty
-    var peer = $("#peer").val()
-    if (peer == "") { return }
+    var peer = prompt(`Connect to a new peer address`, "127.0.0.1:0000")
+
+    if (peer == null || peer == "") {
+      return
+    }
+
+    // var peer = $("#peer").val()
+    // if (peer == "") { return }
 
     postNode(peer, function(res, err) {
 
@@ -169,7 +176,7 @@ $(function(){
       if (err != null) { alert(err); return }
 
       // Reset value in field
-      $("#peer").val("")
+      // $("#peer").val("")
 
       // Add peer to list
       enqueuePeers([peer])
