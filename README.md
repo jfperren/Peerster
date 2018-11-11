@@ -8,26 +8,39 @@ Instead of manually running `go build` in both `/` and `client/` folders, the wh
 scripts/build.sh
 ```
 
-*Note - Even though the assignment mentionned something about renaming the `Peerster` exec into `gossiper`, the files provided with the assignment handout did not. As a result, we will not do it here either and run `Peerster` directy. If the executable **must** be named `gossiper`, it is possible to uncomment the lines in `build.sh`.
+*Note - Even though the assignment mentionned something about renaming the `Peerster` exec into `gossiper`, the files provided with the assignment handout did not. As a result, we will not do it here either and run `Peerster` directy. If the executable **must** be named `gossiper`, it is possible to uncomment the lines in `build.sh`*.
 
 ## Running
 
 #### Via Command-Line
 
-To run a gossiper node in CLI mode, use
+To run a gossiper node in CLI mode, use the following command:
 ```
-./Peerster -gossipAddr=127.0.0.1:5002 -UIPort=8082 -name="Charlie" -peers=127.0.0.1:5000
+./Peerster -gossipAddr=127.0.0.1:5002 -UIPort=8082 -name="Charlie" -peers=127.0.0.1:5000 [-rtimer 1] [-verbose] [-separatefs]
 ```
 
-Alternatively, you can simply use
+Here, `rtimer` is the number of seconds between route rumors, `verbose` allows to display additional information (it is useful for debugging but might clutter the log) and `separatefs` allows the node to use its own subfolder of the `_Download` and `_SharedFiles` folder (Note: the folder is created using the `name` attribute).
+
+
+Alternatively, you can simply use the following command (also works with `bob` instead of `alice`):
 ```
-scripts/run.sh
+scripts/run_alice.sh
 ```
 
 When the gossiper is running, you can send messages to the node directly via the command line `client` executable. To do this, use
 
 ```
+// 1. In order to send a gossip message
 client/client -UIPort=8082 -msg="Your message here"
+
+// 2. In order to send a direct message
+client/client -UIPort=8082 -msg="Your message here" -dest="Bob"
+
+// 3. In order to upload a file (file must be in the correct _SharedFiles subfolder)
+client/client -UIPort=8082 -file="File.txt"
+
+// 4. In order to download a file from someone else
+client/client -UIPort=8082 -request=<hash of file> -file="File.txt" -dest="Bob"
 ```
 
 #### Using the GUI
@@ -35,7 +48,7 @@ client/client -UIPort=8082 -msg="Your message here"
 In order to interact with the gossiper via the GUI, you will need to run the `Peerster` executable with the `-server` mode. For instance,
 
 ```
-./Peerster -gossipAddr=127.0.0.1:5000 -UIPort=8080 -name="Alice" -peers=127.0.0.1:5001 -server
+./Peerster -gossipAddr=127.0.0.1:5000 -UIPort=8080 -name="Alice" -peers=127.0.0.1:5001 -server [-rtimer 1] [-separatefs] [-sharedfs]
 ```
 
 This will start the web server and serve the GUI on `UIPort`. Therefore, simply connect to the GUI by accessing `localhost:8080` in your browser.
@@ -45,15 +58,29 @@ This will start the web server and serve the GUI on `UIPort`. Therefore, simply 
 Alternatively, there are also two pre-written scripts to start two nodes that communicate with each other (and with Charlie from the `run.sh` script!). 
 
 ```
-scripts/run_server.sh
-scripts/run_server_2.sh
+scripts/run_alice_server.sh
+scripts/run_bob_server.sh
 ```
 
 ## Testing
 
-The two testing scripts are available in the `scripts` folder as well.
+The two basic testing scripts, as well as more advanced tests for routing, private messages and file sharing are available in the `tests/sh/` folder:
 
 ```
-scripts/test_1_ring.sh
-scripts/test_2_ring.sh
+tests/sh/test_routing.sh
+tests/sh/test_private.sh
+tests/sh/test_files.sh
+
+tests/sh/test_1_ring.sh
+tests/sh/test_2_ring.sh
 ```
+
+## Notes about Implementation of HW2
+
+Here are relevant details for whoever is reading / testing the code of Homework 2.
+
+- Be careful about the `separatefs` flag explained above, make sure that you don't use it if you use the `_Download` and `_SharedFiles` folders directly. The tests use subfolders as it is easier to keep track of who owns what that way.
+- In this implementation, the gossiper does not write the chunks /metafiles on the disk (my first version did it but I removed it). This is deliberate, as it added some overhead to write / read / cleanup etc... and is not necessary. Since the files will never go above 2Mb, I think it's fine to keep them in memory for now. Maybe I will write it on disk later again if we decide to allow larger files with a more complex (e.g. hierarchical) chunking algorithm.
+- Since I used a lot more logs for debugging, I added the `verbose` tag which you can set to false or remove if you strictly need to see the output as required in the assignment. 
+- The server / front-end could probably be optimized (for instance with web sockets) but since it is not the focus of this assignment I decided to leave it like this for now. It still does the job nicely though.
+- When using the GUI, you can click on the usernames to send direct messages. Also you can upload / download files using the button-links in blue.
