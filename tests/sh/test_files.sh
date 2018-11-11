@@ -49,7 +49,7 @@ do
   sharedDirName="$sharedDir/$name/"
   downloadDirName="$downloadDir/$name/"
 
-	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose > $outFileName &
+	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose -separatefs > $outFileName &
 
   rm -rf $downloadDirName && mkdir $downloadDirName
   rm -rf $sharedDirName && mkdir $sharedDirName
