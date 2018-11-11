@@ -8,6 +8,12 @@ import (
 	"time"
 )
 
+// Root class of the Peerster program. It represents a "node" in the network. In this file, the more
+// complex functions are implemented (rumor-mongering, downloading, handling packets,etc...).
+//
+// Lower-level functions are implemented in FileSystem (slicing and storing files & hashes), Dispatcher
+// (dispatching packets to correct goroutines), Router (keep track of peers & routing table), RumorsDB
+// (store rumors and compute vector clocks), on all of which Gossiper relies on.
 type Gossiper struct {
 
 	Name          	string								// Name of this node
@@ -19,9 +25,9 @@ type Gossiper struct {
 	Rumors 			*RumorDatabase						// Database of known Rumors
 	Messages		[]*common.PrivateMessage			// List of Private Messages Received
 
-	FileSystem 		*FileSystem
-	Dispatcher 		*Dispatcher
-	Router			*Router
+	FileSystem 		*FileSystem							// Stores and serves shared files
+	Dispatcher 		*Dispatcher							// Dispatches incoming messages to expecting processes
+	Router			*Router								// Handles routing to neighboring and non-neighboring nodes.
 }
 
 const (
@@ -30,9 +36,19 @@ const (
 )
 
 
-// Create a new Gossiper using the given addresses. Use gossiper.Start()
-// to Start listening for messages
-func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool, rtimer int) *Gossiper {
+// Create a new Gossiper using the given addresses.
+//
+//  - gossipAddress: Address on which the gossiper listens to other gossipers
+//  - clientAddress: Address on which the gossiper listens for commands from the CLI
+//  - name: Name of this gossiper (it will appear in this node's messages, should be unique).
+//  - peers: list of IP addresses to which this gossiper is connected at start. More can be added later on.
+//  - simple: Start this gossiper in simple mode (i.e. no gossip, only simple messages)
+//  - rtimer: Time in seconds between route rumors. Set to 0 for not sending route rumors at all.
+//  - separatefs: True if this gossiper uses its own subfolder for _Download and _SharedFiles.
+//
+// Note - Use gossiper.Start() to Start listening for messages.
+//
+func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool, rtimer int, separatefs bool) *Gossiper {
 
 	gossipSocket := common.NewUDPSocket(gossipAddress)
 	var clientSocket *common.UDPSocket
@@ -86,6 +102,16 @@ func (gossiper *Gossiper) Start() {
 	wg.Wait()
 }
 
+// Unbind from all ports, stop processes.
+func (gossiper *Gossiper) Stop() {
+	gossiper.ClientSocket.Unbind()
+	gossiper.GossipSocket.Unbind()
+}
+
+// --
+// --  EVENT LOOPS
+// --
+
 // Main loop for handling gossip packets from other nodes.
 func (gossiper *Gossiper) receiveGossip() {
 	for {
@@ -124,7 +150,7 @@ func (gossiper *Gossiper) antiEntropy() {
 // Main loop for sending route rumors
 func (gossiper *Gossiper) sendRouteRumors() {
 
-	if gossiper.Router.Rtimer == common.DontSendRouteRumor {
+	if gossiper.Router.Rtimer == common.NoRouteRumor {
 		return
 	}
 
@@ -162,11 +188,6 @@ func (gossiper *Gossiper) receiveClient(){
 	}
 }
 
-// Unbind from all ports, stop processes.
-func (gossiper *Gossiper) Stop() {
-	gossiper.ClientSocket.Unbind()
-	gossiper.GossipSocket.Unbind()
-}
 
 // --
 // --  HANDLING NEW PACKETS
@@ -230,75 +251,6 @@ func (gossiper *Gossiper) HandleClient(packet *common.GossipPacket) {
 
 		gossiper.FileSystem.ScanFile(filename)
 	}
-}
-
-func (gossiper *Gossiper) StartDownload(name string, metaHash []byte, peer string, counter int) {
-
-	if counter > common.MaxDownloadRequests {
-		// Probably print some stuff
-		common.DebugDownloadTimeout(name, metaHash, peer)
-		return
-	}
-
-	nextHash, chunkId, completed := gossiper.FileSystem.downloadStatus(metaHash)
-
-	if completed {
-		common.DebugDownloadCompleted(name, metaHash, peer)
-		return
-	}
-
-	common.DebugStartDownload(name, nextHash, peer)
-
-	go func() {
-
-		ticker := time.NewTicker(common.DonwloadTimeout)
-		defer ticker.Stop()
-
-		select {
-		case packet := <-gossiper.Dispatcher.dataReplies(nextHash):
-
-			reply := packet.DataReply
-
-			if reply == nil {
-				// Error, we expect only a data reply from this
-				return
-			}
-
-			if !reply.VerifyHash(nextHash) {
-				// Unexpected hash or incorrect data, retry
-				common.DebugCorruptedDataReply(nextHash, reply)
-				go gossiper.StartDownload(name, metaHash, peer, counter+1)
-				return
-			}
-
-			stored := gossiper.FileSystem.processDataReply(name, metaHash, reply)
-
-			if !stored {
-				// There was an error,
-				panic("Error storing data")
-			}
-
-			// At this point, the download is successful, so we can log it
-
-			if chunkId == common.MetaHashChunkId {
-				common.LogDownloadingMetafile(name, packet.DataReply.Origin)
-			} else {
-				common.LogDownloadingChunk(name, chunkId, packet.DataReply.Origin)
-			}
-
-			// Then we start downloading the next chunk
-			go gossiper.StartDownload(name, metaHash, peer, 0)
-
-		case <-ticker.C: // Timeout
-			go gossiper.StartDownload(name, metaHash, peer, counter+1)
-		}
-
-		gossiper.Dispatcher.stopWaitingOnDataReply(nextHash)
-	}()
-
-	request := gossiper.GenerateDataRequest(peer, nextHash)
-	gossiper.sendToNode(request.Packed(), request.Destination, nil)
-
 }
 
 // Handle packet from another node.
@@ -410,7 +362,6 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 	}
 }
 
-
 // --
 // -- SEND PACKETS TO OTHER NODES
 // --
@@ -480,6 +431,10 @@ func (gossiper *Gossiper) broadcastToNeighbors(packet *common.GossipPacket, setN
 		}
 	}
 }
+
+// --
+// -- RUMORS, STATUS & DOWNLOAD
+// --
 
 // Start or continue to propagate a given rumor, by using the rumormongering algorithm
 // and sending the given rumor to the given node.
@@ -557,9 +512,83 @@ func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
 	}
 }
 
-// --
-// -- HANDLING STATUS PACKETS AND VECTOR CLOCKS
-// --
+// Start a new download process. As long as there are missing chunks related to the metahash provided, it will
+// continue to download the remaining ones. If there is a timeout or the response does not match the data requested,
+// it will restart evert 5 seconds, up to a total of 10 tries before stopping.
+//
+//  - name: Name of the file as it will appear in the file system later on
+//  - metaHash: Hash of the requested file
+//  - peer: Name of the peer from which we want to download the file
+//  - counter: Set to 0 for new downloads, it will increase up to 10 until timing out.
+//
+func (gossiper *Gossiper) StartDownload(name string, metaHash []byte, peer string, counter int) {
+
+	if counter > common.MaxDownloadRequests {
+		// Probably print some stuff
+		common.DebugDownloadTimeout(name, metaHash, peer)
+		return
+	}
+
+	nextHash, chunkId, completed := gossiper.FileSystem.downloadStatus(metaHash)
+
+	if completed {
+		common.DebugDownloadCompleted(name, metaHash, peer)
+		return
+	}
+
+	common.DebugStartDownload(name, nextHash, peer)
+
+	go func() {
+
+		ticker := time.NewTicker(common.DownloadTimeout)
+		defer ticker.Stop()
+
+		select {
+		case packet := <-gossiper.Dispatcher.dataReplies(nextHash):
+
+			reply := packet.DataReply
+
+			if reply == nil {
+				// Error, we expect only a data reply from this
+				return
+			}
+
+			if !reply.VerifyHash(nextHash) {
+				// Unexpected hash or incorrect data, retry
+				common.DebugCorruptedDataReply(nextHash, reply)
+				go gossiper.StartDownload(name, metaHash, peer, counter+1)
+				return
+			}
+
+			stored := gossiper.FileSystem.processDataReply(name, metaHash, reply)
+
+			if !stored {
+				// There was an error,
+				panic("Error storing data")
+			}
+
+			// At this point, the download is successful, so we can log it
+
+			if chunkId == common.MetaHashChunkId {
+				common.LogDownloadingMetafile(name, packet.DataReply.Origin)
+			} else {
+				common.LogDownloadingChunk(name, chunkId, packet.DataReply.Origin)
+			}
+
+			// Then we start downloading the next chunk
+			go gossiper.StartDownload(name, metaHash, peer, 0)
+
+		case <-ticker.C: // Timeout
+			go gossiper.StartDownload(name, metaHash, peer, counter+1)
+		}
+
+		gossiper.Dispatcher.stopWaitingOnDataReply(nextHash)
+	}()
+
+	request := gossiper.GenerateDataRequest(peer, nextHash)
+	gossiper.sendToNode(request.Packed(), request.Destination, nil)
+
+}
 
 // Compare the gossiper's vector clock with another one. There are two possible modes for this:
 //
@@ -684,6 +713,11 @@ func (gossiper *Gossiper) CompareStatus(statuses []common.PeerStatus, mode int) 
 	}
 }
 
+// --
+// -- GENERATING NEW PACKETS
+// --
+
+// Generate a status packet with the current vector clock.
 func (gossiper *Gossiper) GenerateStatusPacket() *common.StatusPacket {
 
 	peerStatuses := make([]common.PeerStatus, 0)
@@ -695,6 +729,8 @@ func (gossiper *Gossiper) GenerateStatusPacket() *common.StatusPacket {
 	return &common.StatusPacket{peerStatuses}
 }
 
+
+// Generate a data reply to a given request
 func (gossiper *Gossiper) GenerateDataReply(request *common.DataRequest) (*common.DataReply, bool) {
 
 	var data []byte
@@ -726,6 +762,7 @@ func (gossiper *Gossiper) GenerateDataReply(request *common.DataRequest) (*commo
 	}, true
 }
 
+// Generate a data request to a given file
 func (gossiper *Gossiper) GenerateDataRequest(destination string, hash []byte) *common.DataRequest {
 	return &common.DataRequest{
 		gossiper.Name,
@@ -733,14 +770,6 @@ func (gossiper *Gossiper) GenerateDataRequest(destination string, hash []byte) *
 		common.InitialHopLimit,
 		hash,
 	}
-}
-
-// --
-// -- RUMORS
-// --
-
-func (gossiper *Gossiper) GenerateRouteRumor() *common.RumorMessage {
-	return gossiper.generateRumor("")
 }
 
 // Generate a new Rumor based on the string.
@@ -755,4 +784,9 @@ func (gossiper *Gossiper) generateRumor(message string) *common.RumorMessage {
 	gossiper.Rumors.Put(rumor)
 
 	return rumor
+}
+
+// Generate a route rumor
+func (gossiper *Gossiper) GenerateRouteRumor() *common.RumorMessage {
+	return gossiper.generateRumor("")
 }

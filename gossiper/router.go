@@ -7,7 +7,8 @@ import (
 	"time"
 )
 
-
+// A Router is responsible for handling the neighbors (Peers) for gossip communication as well
+// as a DSDV table (NextHop) for the more complex routing of private messages and downloads.
 type Router struct {
 	NextHop		 	map[string]string	// Routing Table
 	Peers         	[]string			// List of known peer IP addresses

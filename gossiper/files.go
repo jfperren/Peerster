@@ -39,7 +39,7 @@ type FileSystemError struct {
 func (e *FileSystemError) Error() string {
 	switch e.flag {
 	case fileNotFound:
-		return "File not found: " + e.filename
+		return "File is too big: " + e.filename + " (max. 2Mb)"
 	case fileTooBig:
 		return "File not found: " + e.filename
 	default:
@@ -100,8 +100,6 @@ func (fs *FileSystem) storeMetaFile(metaFile *MetaFile) bool {
 
 	fs.metaFiles[key] = metaFile
 
-	go fs.saveMetaFileOnDisk(metaFile)
-
 	return true
 }
 
@@ -110,8 +108,6 @@ func (fs *FileSystem) storeChunk(chunk Chunk) bool {
 	key := hex.EncodeToString(chunk.hash)
 
 	fs.chunks[key] = &chunk
-
-	go fs.saveChunkOnDisk(&chunk)
 
 	return true
 }
@@ -195,24 +191,6 @@ func (fs *FileSystem) downloadStatus(metaHash []byte) ([]byte, int, bool) {
 	}
 
 	return make([]byte, 0), common.NoChunkId, true
-}
-
-func (fs *FileSystem) saveChunkOnDisk(chunk *Chunk) {
-
-	chunkPath := common.SharedFilesDir + hex.EncodeToString(chunk.hash) + common.ChunkFileSuffix
-	chunkFile, err := os.OpenFile(chunkPath, os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil { fmt.Print(err) }
-	chunkFile.Write(chunk.data)
-
-}
-
-func (fs *FileSystem) saveMetaFileOnDisk(meta *MetaFile) {
-
-	metaPath := common.SharedFilesDir + meta.Name + common.MetaFileSuffix
-	metaFile, err := os.OpenFile(metaPath, os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil { fmt.Print(err) }
-	metaFile.Write(meta.Data)
-
 }
 
 // Prepares a file so as to make it available to send on the network. Chunk + computes hash
