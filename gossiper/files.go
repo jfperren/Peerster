@@ -8,7 +8,8 @@ import (
 	"github.com/jfperren/Peerster/common"
 	"os"
 	"regexp"
-	"strings"
+	"sync"
+	"time"
 )
 
 // File System handles the low-level complexity of chunking (scanning) existing files, storing file hashes,
@@ -18,6 +19,8 @@ type FileSystem struct {
 	downloadPath string
 	chunks       map[string]*Chunk
 	metaFiles    map[string]*MetaFile
+	history   	 map[string]int64
+	lock	 	 *sync.RWMutex
 }
 
 type MetaFile struct {
@@ -59,6 +62,8 @@ func NewFileSystem(sharedPath, downloadPath string) *FileSystem {
 		downloadPath,
 		make(map[string]*Chunk),
 		make(map[string]*MetaFile),
+		make(map[string]int64),
+		&sync.RWMutex{},
 	}
 }
 
@@ -273,11 +278,49 @@ func (fs *FileSystem) ScanFile(fileName string) (*MetaFile, error) {
 	return metaFile, nil
 }
 
-func (metaFile *MetaFile) match(query string) bool {
+// --
+// -- SEARCH QUERIES AND RESULTS
+// --
 
-	keywords := strings.Split(query, common.SearchSeparator)
+func (fs *FileSystem) shouldProcessRequest(request *common.SearchRequest) bool {
 
-	for _, keyword := range(keywords) {
+	now := time.Now().Unix()
+
+	fs.lock.RLock()
+
+	prev, found := fs.history[request.Key()]
+
+	fs.lock.RUnlock()
+
+	if found && (now - prev) < common.SearchRequestTimeThreshold {
+		// Do not process
+		return false
+	}
+
+	fs.lock.Lock()
+	defer fs.lock.Unlock()
+
+	fs.history[request.Key()] = now
+
+	return true
+}
+
+func (fs *FileSystem) Search(keywords []string) []*common.SearchResult {
+
+	results := make([]*common.SearchResult, 0)
+
+	for _, metaFile := range fs.metaFiles {
+		if metaFile.match(keywords) {
+			results = append(results, fs.newSearchResult(metaFile))
+		}
+	}
+
+	return results
+}
+
+func (metaFile *MetaFile) match(keywords []string) bool {
+
+	for _, keyword := range keywords {
 
 		match, _ := regexp.MatchString(keyword, metaFile.Name)
 
@@ -289,24 +332,11 @@ func (metaFile *MetaFile) match(query string) bool {
 	return false
 }
 
-func (fs *FileSystem) searchResult(metaFile *MetaFile) *common.SearchResult {
+func (fs *FileSystem) newSearchResult(metaFile *MetaFile) *common.SearchResult {
 	return &common.SearchResult{
 		metaFile.Name,
 		metaFile.Hash,
 		make([]uint64, 0),
 		10,
 	}
-}
-
-func (fs *FileSystem) Search(keywords string) []*common.SearchResult {
-
-	results := make([]*common.SearchResult, 0)
-
-	for _, metaFile := range(fs.metaFiles) {
-		if metaFile.match(keywords) {
-			results = append(results, fs.searchResult(metaFile))
-		}
-	}
-
-	return results
 }
