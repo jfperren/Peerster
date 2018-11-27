@@ -360,6 +360,23 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 				gossiper.sendToNode(reply.Packed(), reply.Destination, nil)
 			}
 		}
+
+	case packet.SearchRequest != nil:
+
+		if packet.SearchRequest.Budget <= 0 {
+			return
+		}
+
+		if !gossiper.FileSystem.shouldProcessRequest(packet.SearchRequest) {
+			return
+		}
+
+		go gossiper.floodNeighbors(packet.SearchRequest)
+
+		results := gossiper.FileSystem.Search(packet.SearchRequest.Keywords)
+		reply := common.NewSearchReply(gossiper.Name, packet.SearchRequest.Origin, results)
+
+		go gossiper.sendToNode(reply.Packed(), reply.Destination, &(reply.HopLimit))
 	}
 }
 

@@ -18,4 +18,5 @@ const MetaHashChunkId = -1
 const NoChunkId = -2
 const DefaultSearchBudget = 2
 const MaxSearchBudget = 32
-const SearchSeparator = ","
+const SearchKeywordSeparator = ","
+const SearchRequestTimeThreshold = int64(500)

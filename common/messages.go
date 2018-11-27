@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"crypto/sha256"
+	"strings"
 )
 
 // --
@@ -98,6 +99,26 @@ func NewPrivateMessage(origin, destination, contents string) *PrivateMessage {
 		HopLimit:    InitialHopLimit,
 	}
 }
+
+func NewSearchReply(origin, destination string, results []*SearchResult) *SearchReply {
+
+	return &SearchReply{
+		Origin:      origin,
+		Destination: destination,
+		HopLimit:    InitialHopLimit,
+		Results:	 results,
+	}
+}
+
+func CopySearchRequest(request *SearchRequest, budget uint64) *SearchRequest {
+
+	return &SearchRequest{
+		Origin: request.Origin,
+		Budget:	budget,
+		Keywords: request.Keywords,
+	}
+}
+
 
 // --
 // -- CONVENIENCE METHODS
@@ -195,7 +216,8 @@ func (reply *SearchReply) Packed() *GossipPacket {
 func (packet *GossipPacket) IsValid() bool {
 	return boolCount(packet.Rumor != nil)+boolCount(packet.Simple != nil)+
 		boolCount(packet.Status != nil)+boolCount(packet.Private != nil)+
-		boolCount(packet.DataReply != nil)+boolCount(packet.DataRequest != nil) == 1
+		boolCount(packet.DataReply != nil)+boolCount(packet.DataRequest != nil)+
+		boolCount(packet.SearchReply != nil)+boolCount(packet.SearchRequest != nil) == 1
 }
 
 func (reply *DataReply) VerifyHash(expected []byte) bool {
@@ -205,6 +227,10 @@ func (reply *DataReply) VerifyHash(expected []byte) bool {
 	hashIsExpected := bytes.Compare(reply.HashValue, expected) == 0
 
 	return dataIsConsistent && hashIsExpected
+}
+
+func (request *SearchRequest) Key() string {
+	return request.Origin + ":" + strings.Join(request.Keywords, SearchKeywordSeparator)
 }
 
 func boolCount(b bool) int {
