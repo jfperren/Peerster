@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"github.com/jfperren/Peerster/common"
 	"os"
+	"regexp"
+	"strings"
 )
 
 // File System handles the low-level complexity of chunking (scanning) existing files, storing file hashes,
@@ -269,4 +271,42 @@ func (fs *FileSystem) ScanFile(fileName string) (*MetaFile, error) {
 	common.DebugScanFile(fileName, size, metaHash[:])
 
 	return metaFile, nil
+}
+
+func (metaFile *MetaFile) match(query string) bool {
+
+	keywords := strings.Split(query, common.SearchSeparator)
+
+	for _, keyword := range(keywords) {
+
+		match, _ := regexp.MatchString(keyword, metaFile.Name)
+
+		if match {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (fs *FileSystem) searchResult(metaFile *MetaFile) *common.SearchResult {
+	return &common.SearchResult{
+		metaFile.Name,
+		metaFile.Hash,
+		make([]uint64, 0),
+		10,
+	}
+}
+
+func (fs *FileSystem) Search(keywords string) []*common.SearchResult {
+
+	results := make([]*common.SearchResult, 0)
+
+	for _, metaFile := range(fs.metaFiles) {
+		if metaFile.match(keywords) {
+			results = append(results, fs.searchResult(metaFile))
+		}
+	}
+
+	return results
 }
