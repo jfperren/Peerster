@@ -53,17 +53,6 @@ type StatusPacket struct {
 	Want []PeerStatus
 }
 
-type GossipPacket struct {
-	Simple      	*SimpleMessage
-	Rumor       	*RumorMessage
-	Status      	*StatusPacket
-	Private     	*PrivateMessage
-	DataRequest 	*DataRequest
-	DataReply   	*DataReply
-	SearchRequest	*SearchRequest
-	SearchReply   	*SearchReply
-}
-
 type SearchRequest struct {
 	Origin   string
 	Budget   uint64
@@ -82,6 +71,17 @@ type SearchResult struct {
 	MetafileHash []byte
 	ChunkMap     []uint64
 	ChunkCount   uint64
+}
+
+type GossipPacket struct {
+	Simple      	*SimpleMessage
+	Rumor       	*RumorMessage
+	Status      	*StatusPacket
+	Private     	*PrivateMessage
+	DataRequest 	*DataRequest
+	DataReply   	*DataReply
+	SearchRequest	*SearchRequest
+	SearchReply   	*SearchReply
 }
 
 // --

@@ -403,6 +403,34 @@ func (gossiper *Gossiper) sendToNode(packet *common.GossipPacket, destination st
 	return false
 }
 
+// Forward a GossipPacket
+func (gossiper *Gossiper) floodNeighbors(packet *common.GossipPacket, budget *uint32) bool {
+
+	*budget--;
+
+	if hopLimit != nil {
+
+		// This is in forwarding mode, so we need to decrease the count and verify that we should still continue
+		*hopLimit--
+
+		// If it's non-zero, we forward according to the NextHop table
+		if *hopLimit <= 0 {
+			return false
+		}
+	}
+
+	nextPeer, found := gossiper.Router.NextHop[destination]
+
+	if found {
+		common.DebugForwardPointToPoint(destination, nextPeer)
+		go gossiper.sendToNeighbor(nextPeer, packet)
+	} else {
+		common.DebugUnknownDestination(destination)
+	}
+
+	return false
+}
+
 // Send a GossipPacket to a given neighboring node identified by IP address
 func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.GossipPacket) {
 

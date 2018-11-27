@@ -16,3 +16,6 @@ const DownloadDir = "_Downloads/"
 const MaxDownloadRequests = 10
 const MetaHashChunkId = -1
 const NoChunkId = -2
+const DefaultSearchBudget = 2
+const MaxSearchBudget = 32
+const SearchSeparator = ","
