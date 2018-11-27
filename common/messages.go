@@ -54,12 +54,34 @@ type StatusPacket struct {
 }
 
 type GossipPacket struct {
-	Simple      *SimpleMessage
-	Rumor       *RumorMessage
-	Status      *StatusPacket
-	Private     *PrivateMessage
-	DataRequest *DataRequest
-	DataReply   *DataReply
+	Simple      	*SimpleMessage
+	Rumor       	*RumorMessage
+	Status      	*StatusPacket
+	Private     	*PrivateMessage
+	DataRequest 	*DataRequest
+	DataReply   	*DataReply
+	SearchRequest	*SearchRequest
+	SearchReply   	*SearchReply
+}
+
+type SearchRequest struct {
+	Origin   string
+	Budget   uint64
+	Keywords []string
+}
+
+type SearchReply struct {
+	Origin      string
+	Destination string
+	HopLimit    uint32
+	Results     []*SearchResult
+}
+
+type SearchResult struct {
+	FileName     string
+	MetafileHash []byte
+	ChunkMap     []uint64
+	ChunkCount   uint64
 }
 
 // --
@@ -88,7 +110,8 @@ func (simple *SimpleMessage) Packed() *GossipPacket {
 		panic("Cannot pack <nil> Simple into a GossipPacket")
 	}
 
-	return &GossipPacket{simple, nil, nil, nil, nil, nil}
+	return &GossipPacket{simple, nil, nil, nil,
+		nil, nil, nil, nil}
 }
 
 // Pack a RumorMessage into a GossipPacket
@@ -98,7 +121,8 @@ func (rumor *RumorMessage) Packed() *GossipPacket {
 		panic("Cannot pack <nil> rumor into a GossipPacket")
 	}
 
-	return &GossipPacket{nil, rumor, nil, nil, nil, nil}
+	return &GossipPacket{nil, rumor, nil, nil,
+		nil, nil, nil, nil}
 }
 
 // Pack a StatusPacket into a GossipPacket
@@ -108,7 +132,8 @@ func (status *StatusPacket) Packed() *GossipPacket {
 		panic("Cannot pack <nil> status into a GossipPacket")
 	}
 
-	return &GossipPacket{nil, nil, status, nil, nil, nil}
+	return &GossipPacket{nil, nil, status, nil,
+		nil, nil, nil, nil}
 }
 
 // Pack a PrivateMessage into a GossipPacket
@@ -118,7 +143,8 @@ func (private *PrivateMessage) Packed() *GossipPacket {
 		panic("Cannot pack <nil> private message into a GossipPacket")
 	}
 
-	return &GossipPacket{nil, nil, nil, private, nil, nil}
+	return &GossipPacket{nil, nil, nil, private,
+		nil, nil, nil, nil}
 }
 
 // Pack a DataRequest into a GossipPacket
@@ -128,7 +154,8 @@ func (request *DataRequest) Packed() *GossipPacket {
 		panic("Cannot pack <nil> data request into a GossipPacket")
 	}
 
-	return &GossipPacket{nil, nil, nil, nil, request, nil}
+	return &GossipPacket{nil, nil, nil, nil,
+		request, nil, nil, nil}
 }
 
 // Pack a DataReply into a GossipPacket
@@ -138,7 +165,30 @@ func (reply *DataReply) Packed() *GossipPacket {
 		panic("Cannot pack <nil> data reply into a GossipPacket")
 	}
 
-	return &GossipPacket{nil, nil, nil, nil, nil, reply}
+	return &GossipPacket{nil, nil, nil, nil,
+		nil, reply, nil, nil}
+}
+
+// Pack a SearchRequest into a GossipPacket
+func (request *SearchRequest) Packed() *GossipPacket {
+
+	if request == nil {
+		panic("Cannot pack <nil> search request into a GossipPacket")
+	}
+
+	return &GossipPacket{nil, nil, nil, nil,
+		nil, nil, request, nil}
+}
+
+// Pack a SearchReply into a GossipPacket
+func (reply *SearchReply) Packed() *GossipPacket {
+
+	if reply == nil {
+		panic("Cannot pack <nil> search reply into a GossipPacket")
+	}
+
+	return &GossipPacket{nil, nil, nil, nil,
+		nil, nil, nil, reply}
 }
 
 // Checks if a given GossipPacket is valid. It is only valid if exactly one of its 6 fields is non-nil.
