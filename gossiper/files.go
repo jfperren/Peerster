@@ -7,9 +7,7 @@ import (
 	"fmt"
 	"github.com/jfperren/Peerster/common"
 	"os"
-	"regexp"
 	"sync"
-	"time"
 )
 
 // File System handles the low-level complexity of chunking (scanning) existing files, storing file hashes,
@@ -19,15 +17,14 @@ type FileSystem struct {
 	downloadPath string
 	chunks       map[string]*Chunk
 	metaFiles    map[string]*MetaFile
-	history   	 map[string]int64
 	lock	 	 *sync.RWMutex
 }
 
 type MetaFile struct {
-	Name string
-	Size int
-	Hash []byte
-	Data []byte
+	Name 	string
+	Size 	int
+	Hash 	[]byte
+	Data 	[]byte
 }
 
 type Chunk struct {
@@ -62,7 +59,6 @@ func NewFileSystem(sharedPath, downloadPath string) *FileSystem {
 		downloadPath,
 		make(map[string]*Chunk),
 		make(map[string]*MetaFile),
-		make(map[string]int64),
 		&sync.RWMutex{},
 	}
 }
@@ -276,67 +272,4 @@ func (fs *FileSystem) ScanFile(fileName string) (*MetaFile, error) {
 	common.DebugScanFile(fileName, size, metaHash[:])
 
 	return metaFile, nil
-}
-
-// --
-// -- SEARCH QUERIES AND RESULTS
-// --
-
-func (fs *FileSystem) shouldProcessRequest(request *common.SearchRequest) bool {
-
-	now := time.Now().Unix()
-
-	fs.lock.RLock()
-
-	prev, found := fs.history[request.Key()]
-
-	fs.lock.RUnlock()
-
-	if found && (now - prev) < common.SearchRequestTimeThreshold {
-		// Do not process
-		return false
-	}
-
-	fs.lock.Lock()
-	defer fs.lock.Unlock()
-
-	fs.history[request.Key()] = now
-
-	return true
-}
-
-func (fs *FileSystem) Search(keywords []string) []*common.SearchResult {
-
-	results := make([]*common.SearchResult, 0)
-
-	for _, metaFile := range fs.metaFiles {
-		if metaFile.match(keywords) {
-			results = append(results, fs.newSearchResult(metaFile))
-		}
-	}
-
-	return results
-}
-
-func (metaFile *MetaFile) match(keywords []string) bool {
-
-	for _, keyword := range keywords {
-
-		match, _ := regexp.MatchString(keyword, metaFile.Name)
-
-		if match {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (fs *FileSystem) newSearchResult(metaFile *MetaFile) *common.SearchResult {
-	return &common.SearchResult{
-		metaFile.Name,
-		metaFile.Hash,
-		make([]uint64, 0),
-		10,
-	}
 }

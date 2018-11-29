@@ -27,6 +27,7 @@ type Gossiper struct {
 	FileSystem *FileSystem // Stores and serves shared files
 	Dispatcher *Dispatcher // Dispatches incoming messages to expecting processes
 	Router     *Router     // Handles routing to neighboring and non-neighboring nodes.
+	SearchEngine *SearchEngine //
 }
 
 const (
@@ -69,10 +70,11 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		GossipSocket: gossipSocket,
 		ClientSocket: clientSocket,
 
-		Rumors:     NewRumorDatabase(),
-		FileSystem: NewFileSystem(sharedPath, downloadPath),
-		Dispatcher: NewDispatcher(),
-		Router:     NewRouter(peers, time.Duration(rtimer)*time.Second),
+		Rumors:     	NewRumorDatabase(),
+		FileSystem: 	NewFileSystem(sharedPath, downloadPath),
+		Dispatcher: 	NewDispatcher(),
+		Router:     	NewRouter(peers, time.Duration(rtimer)*time.Second),
+		SearchEngine: 	NewSearchEngine(),
 	}
 }
 
@@ -367,16 +369,27 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 			return
 		}
 
-		if !gossiper.FileSystem.shouldProcessRequest(packet.SearchRequest) {
+		if !gossiper.SearchEngine.shouldProcessRequest(packet.SearchRequest) {
 			return
 		}
 
-		go gossiper.floodNeighbors(packet.SearchRequest)
+		go gossiper.forwardSearchRequest(packet.SearchRequest)
 
 		results := gossiper.FileSystem.Search(packet.SearchRequest.Keywords)
 		reply := common.NewSearchReply(gossiper.Name, packet.SearchRequest.Origin, results)
 
 		go gossiper.sendToNode(reply.Packed(), reply.Destination, &(reply.HopLimit))
+
+	case packet.SearchReply != nil:
+
+		destination := packet.SearchReply.Destination
+		hopLimit := &packet.SearchReply.HopLimit
+
+		destined := gossiper.sendToNode(packet, destination, hopLimit)
+
+		if destined {
+			go gossiper.SearchEngine.StoreResults(packet.SearchReply.Results, source)
+		}
 	}
 }
 
@@ -418,24 +431,6 @@ func (gossiper *Gossiper) sendToNode(packet *common.GossipPacket, destination st
 	}
 
 	return false
-}
-
-// Forward a GossipPacket
-func (gossiper *Gossiper) floodNeighbors(searchRequest *common.SearchRequest) {
-
-	searchRequest.Budget--;
-
-	budgets := common.SplitBudget(searchRequest.Budget, len(gossiper.Router.Peers))
-
-	for i, budget := range budgets {
-
-		if budget != 0 {
-			request := common.CopySearchRequest(searchRequest, budget).Packed()
-			peer := gossiper.Router.Peers[i]
-
-			go gossiper.sendToNeighbor(peer, request)
-		}
-	}
 }
 
 // Send a GossipPacket to a given neighboring node identified by IP address
