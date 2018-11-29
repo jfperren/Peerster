@@ -114,7 +114,7 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 
 		_, rumors, myStatuses := g.CompareStatus(theirStatuses, ComparisonModeAllNew)
 		body := &RumorsAndStatuses{rumors, myStatuses}
-		
+
 		json.NewEncoder(res).Encode(body)
 
 	case "GET":

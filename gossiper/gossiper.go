@@ -27,6 +27,7 @@ type Gossiper struct {
 	FileSystem *FileSystem // Stores and serves shared files
 	Dispatcher *Dispatcher // Dispatches incoming messages to expecting processes
 	Router     *Router     // Handles routing to neighboring and non-neighboring nodes.
+	SpamDetector *SpamDetector
 	SearchEngine *SearchEngine //
 }
 
@@ -74,6 +75,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		FileSystem: 	NewFileSystem(sharedPath, downloadPath),
 		Dispatcher: 	NewDispatcher(),
 		Router:     	NewRouter(peers, time.Duration(rtimer)*time.Second),
+		SpamDetector:   NewSpamDetector(),
 		SearchEngine: 	NewSearchEngine(),
 	}
 }
@@ -369,7 +371,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 			return
 		}
 
-		if !gossiper.SearchEngine.shouldProcessRequest(packet.SearchRequest) {
+		if !gossiper.SpamDetector.shouldProcessSearchRequest(packet.SearchRequest) {
 			return
 		}
 

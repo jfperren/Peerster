@@ -3,7 +3,6 @@ package common
 import (
 	"bytes"
 	"crypto/sha256"
-	"strings"
 )
 
 // --
@@ -235,10 +234,6 @@ func (reply *DataReply) VerifyHash(expected []byte) bool {
 	hashIsExpected := bytes.Compare(reply.HashValue, expected) == 0
 
 	return dataIsConsistent && hashIsExpected
-}
-
-func (request *SearchRequest) Key() string {
-	return request.Origin + ":" + strings.Join(request.Keywords, SearchKeywordSeparator)
 }
 
 func (rumor *RumorMessage) IsRouteRumor() bool {

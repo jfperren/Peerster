@@ -10,9 +10,7 @@ import (
 
 type SearchEngine struct {
 
-    lastSeen   	 map[string]int64
     history      []*SearchLog
-
     lock	 	 *sync.RWMutex
 }
 
@@ -34,33 +32,9 @@ type FileMap struct {
 
 func NewSearchEngine() *SearchEngine {
     return &SearchEngine{
-        make(map[string]int64),
         make([]*SearchLog, 0),
         &sync.RWMutex{},
     }
-}
-
-func (se *SearchEngine) shouldProcessRequest(request *common.SearchRequest) bool {
-
-    now := time.Now().Unix()
-
-    se.lock.RLock()
-
-    prev, found := se.lastSeen[request.Key()]
-
-    se.lock.RUnlock()
-
-    if found && (now - prev) < common.SearchRequestTimeThreshold {
-        // Do not process
-        return false
-    }
-
-    se.lock.Lock()
-    defer se.lock.Unlock()
-
-    se.lastSeen[request.Key()] = now
-
-    return true
 }
 
 //
@@ -110,6 +84,15 @@ func (fs *FileSystem) Search(keywords []string) []*common.SearchResult {
     return results
 }
 
+func (fs *FileSystem) newSearchResult(metaFile *MetaFile) *common.SearchResult {
+    return &common.SearchResult{
+        metaFile.Name,
+        metaFile.Hash,
+        make([]uint64, 0),
+        uint64(metaFile.countOfChunks()),
+    }
+}
+
 func match(name string, keywords []string) bool {
 
     for _, keyword := range keywords {
@@ -122,15 +105,6 @@ func match(name string, keywords []string) bool {
     }
 
     return false
-}
-
-func (fs *FileSystem) newSearchResult(metaFile *MetaFile) *common.SearchResult {
-    return &common.SearchResult{
-        metaFile.Name,
-        metaFile.Hash,
-        make([]uint64, 0),
-        10,
-    }
 }
 
 //
