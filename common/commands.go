@@ -123,12 +123,7 @@ func NewSearchCommand(query *string, budget uint64) (*Command, *CommandError) {
     keywords := strings.Split(*query, SearchKeywordSeparator)
     var searchCommand *SearchCommand
 
-    if budget == SearchNoBudget {
-        searchCommand = &SearchCommand{nil, keywords}
-    } else {
-        searchCommand = &SearchCommand{budget, keywords}
-    }
-
+    searchCommand = &SearchCommand{budget, keywords}
     return &Command{nil, nil, nil, nil, searchCommand}, nil
 }
 

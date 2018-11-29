@@ -196,14 +196,14 @@ func (se *SearchEngine) getFileMap(fileHash []byte) (bool, *FileMap) {
 
 // func (fs *FileSystem)
 
-func (gossiper *Gossiper) RingSearch(keywords []string, budget *uint64) {
+func (gossiper *Gossiper) RingSearch(keywords []string, budget uint64) {
 
     timestamp := time.Now().Unix()
 
-    if budget == nil {
+    if budget == common.SearchNoBudget {
         gossiper.ringSearchInternal(keywords, common.DefaultSearchBudget, timestamp, true)
     } else {
-        gossiper.ringSearchInternal(keywords, *budget, timestamp, false)
+        gossiper.ringSearchInternal(keywords, budget, timestamp, false)
     }
 }
 

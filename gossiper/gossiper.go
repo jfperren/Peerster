@@ -249,6 +249,10 @@ func (gossiper *Gossiper) HandleClient(command *common.Command) {
 	case command.Upload != nil:
 
 		gossiper.FileSystem.ScanFile(command.Upload.FileName)
+
+	case command.Search != nil:
+
+		gossiper.RingSearch(command.Search.Keywords, command.Search.Budget)
 	}
 }
 
