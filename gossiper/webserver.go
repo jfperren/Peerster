@@ -93,12 +93,6 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		if message == "" {
-			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode("Message cannot be an empty string.")
-			return
-		}
-
 		var theirStatuses []common.PeerStatus
 		err = json.Unmarshal([]byte(req.Header.Get("x-statuses")), &theirStatuses)
 
@@ -108,13 +102,19 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		simpleMessage := &common.SimpleMessage{"", "", message}
-		g.HandleClient(simpleMessage.Packed())
+		command, err := common.NewMessageCommand(message)
+
+		if err != nil {
+			res.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(res).Encode(err)
+			return
+		}
+
+		g.HandleClient(command)
 
 		_, rumors, myStatuses := g.CompareStatus(theirStatuses, ComparisonModeAllNew)
 		body := &RumorsAndStatuses{rumors, myStatuses}
-
-		//res.WriteHeader(http.StatusOK)
+		
 		json.NewEncoder(res).Encode(body)
 
 	case "GET":
@@ -202,20 +202,15 @@ func handlePrivateMessage(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		if message.Text == "" {
+		command, err := common.NewPrivateMessageCommand(message.Text, message.Destination)
+
+		if err != nil {
 			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode("Message cannot be an empty string.")
+			json.NewEncoder(res).Encode(err)
 			return
 		}
 
-		if message.Destination == "" {
-			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode("Message destination be an empty string.")
-			return
-		}
-
-		privateMessage := common.NewPrivateMessage("", message.Destination, message.Text)
-		g.HandleClient(privateMessage.Packed())
+		g.HandleClient(command)
 
 		res.WriteHeader(http.StatusOK)
 
@@ -320,13 +315,7 @@ func handleFileRequest(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		if request.Name == "" || request.Hash == "" || request.Destination == "" {
-			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode("Fields cannot be blank")
-			return
-		}
-
-		hash, err := hex.DecodeString(request.Hash)
+		command, err := common.NewDownloadCommand(request.Hash, request.Name, request.Destination)
 
 		if err != nil {
 			res.WriteHeader(http.StatusBadRequest)
@@ -334,14 +323,7 @@ func handleFileRequest(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		dataRequest := &common.DataRequest{
-			request.Name,
-			request.Destination,
-			common.InitialHopLimit,
-			hash,
-		}
-
-		g.HandleClient(dataRequest.Packed())
+		g.HandleClient(command)
 
 		res.WriteHeader(http.StatusOK)
 

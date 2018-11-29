@@ -50,21 +50,38 @@ type CommandError struct {
 }
 
 const (
-    downloadNoHash = iota
+    messageNoContent = iota
+
+    privateMessageNoContent
+    privateMessageNoDest
+
+    uploadNoName
+
+    downloadNoHash
     downloadNoName
     downloadNoDest
     downloadInvalidHash
+
     searchNoKeywords
 )
 
 func (e *CommandError) Error() string {
     switch e.flag {
-    case downloadNoHash:        return "Cannot request a file without giving a hash"
-    case downloadNoName:        return "Cannot request a file without giving a name"
-    case downloadNoDest:        return "Cannot request a file without specifying the destination node"
-    case downloadInvalidHash:   return "Error decoding hash specified in 'request'"
-    case searchNoKeywords:      return "Cannot search without providing keywords"
-    default:                    return "Unexpected error"
+
+    case messageNoContent:          return "Cannot send a message without content"
+
+    case privateMessageNoContent:   return "Cannot send a private message without content"
+    case privateMessageNoDest:      return "Cannot send a private message without destination"
+
+    case uploadNoName:              return "Cannot upload a file without a name"
+
+    case downloadNoHash:            return "Cannot request a file without giving a hash"
+    case downloadNoName:            return "Cannot request a file without giving a name"
+    case downloadNoDest:            return "Cannot request a file without specifying the destination node"
+    case downloadInvalidHash:       return "Error decoding hash specified in 'request'"
+
+    case searchNoKeywords:          return "Cannot search without providing keywords"
+    default:                        return "Unexpected error"
     }
 }
 
@@ -72,45 +89,57 @@ func (e *CommandError) Error() string {
 // -- CONSTRUCTORS
 // --
 
-func NewMessageCommand(content *string) (*Command, *CommandError) {
+func NewMessageCommand(content string) (*Command, *CommandError) {
 
-    privateMessageCommand := &MessageCommand{*content}
+    if content == "" {
+        return nil, &CommandError{messageNoContent}
+    }
+
+    privateMessageCommand := &MessageCommand{content}
     return &Command{privateMessageCommand, nil, nil, nil, nil}, nil
 }
 
-func NewPrivateMessageCommand(content, destination *string) (*Command, *CommandError) {
+func NewPrivateMessageCommand(content, destination string) (*Command, *CommandError) {
 
-    privateMessageCommand := &PrivateMessageCommand{*content, *destination}
+    if content == "" {
+        return nil, &CommandError{privateMessageNoContent}
+    }
+
+    if destination == "" {
+        return nil, &CommandError{privateMessageNoDest}
+    }
+
+    privateMessageCommand := &PrivateMessageCommand{content, destination}
     return &Command{nil, privateMessageCommand, nil, nil, nil}, nil
 }
 
-func NewUploadCommand(file *string) (*Command, *CommandError) {
+func NewUploadCommand(file string) (*Command, *CommandError) {
 
-    uploadCommand := &UploadCommand{*file}
+    uploadCommand := &UploadCommand{file}
     return &Command{nil, nil, uploadCommand, nil, nil}, nil
 }
 
-func NewDownloadCommand(request, file, dest *string) (*Command, *CommandError) {
+func NewDownloadCommand(request, file, dest string) (*Command, *CommandError) {
 
-    if *request == "" {
+    if request == "" {
         return nil, &CommandError{downloadNoHash}
     }
 
-    if *file == "" {
+    if file == "" {
         return nil, &CommandError{downloadNoName}
     }
 
-    if *dest == "" {
+    if dest == "" {
         return nil, &CommandError{downloadNoDest}
     }
 
-    hash, err := hex.DecodeString(*request)
+    hash, err := hex.DecodeString(request)
 
     if err != nil {
         return nil, &CommandError{downloadInvalidHash}
     }
 
-    downloadCommand := &DownloadCommand{*file, *dest, hash}
+    downloadCommand := &DownloadCommand{file, dest, hash}
     return &Command{nil, nil, nil, downloadCommand, nil}, nil
 }
 

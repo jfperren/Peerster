@@ -32,19 +32,19 @@ func main() {
 
 	case *request != "":
 
-		command, commandError = common.NewDownloadCommand(request, file, dest)
+		command, commandError = common.NewDownloadCommand(*request, *file, *dest)
 
 	case *file != "":
 
-		command, commandError = common.NewUploadCommand(file)
+		command, commandError = common.NewUploadCommand(*file)
 
 	case *dest != "":
 
-		command, commandError = common.NewPrivateMessageCommand(message, dest)
+		command, commandError = common.NewPrivateMessageCommand(*message, *dest)
 
 	case *message != "":
 
-		command, commandError = common.NewMessageCommand(message)
+		command, commandError = common.NewMessageCommand(*message)
 
 	default:
 
