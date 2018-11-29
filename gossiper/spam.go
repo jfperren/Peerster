@@ -27,7 +27,7 @@ func searchRequestID(request *common.SearchRequest) string {
 
 func (sd *SpamDetector) shouldProcessSearchRequest(request *common.SearchRequest) bool {
 
-    now := time.Now().Unix()
+    now := time.Now().UnixNano()
 
     sd.lock.RLock()
 
