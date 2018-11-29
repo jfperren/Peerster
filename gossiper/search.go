@@ -79,9 +79,26 @@ func (fs *FileSystem) newSearchResult(metaFile *MetaFile) *common.SearchResult {
     return &common.SearchResult{
         metaFile.Name,
         metaFile.Hash,
-        make([]uint64, 0),
+        fs.chunkMap(metaFile),
         uint64(metaFile.countOfChunks()),
     }
+}
+
+func (fs *FileSystem) chunkMap(metaFile *MetaFile) []uint64 {
+
+    chunkMap := make([]uint64, 0)
+
+    for i := 0; i < metaFile.countOfChunks(); i++ {
+
+        hash := metaFile.hashAt(i)
+        _, found  := fs.getChunk(hash)
+
+        if found {
+            chunkMap = append(chunkMap, uint64(i))
+        }
+    }
+
+    return chunkMap
 }
 
 func Match(name string, keywords []string) bool {
