@@ -41,18 +41,6 @@ func NewSearchEngine() *SearchEngine {
 //
 //
 
-func (fs *FileSystem) StartSearch(request *common.SearchRequest) {
-
-    fs.lock.Lock()
-    defer fs.lock.Unlock()
-
-
-}
-
-//
-//
-//
-
 /// Process results from a current or previous search.
 func (se *SearchEngine) StoreResults(results []*common.SearchResult, origin string) {
 
@@ -61,6 +49,7 @@ func (se *SearchEngine) StoreResults(results []*common.SearchResult, origin stri
 
     for _, result := range results {
 
+        common.LogMatch(result.FileName, origin, result.MetafileHash, result.ChunkMap)
         log := &SearchLog{result, origin, time.Now().Unix()}
         se.history = append(se.history, log)
 
@@ -80,6 +69,8 @@ func (fs *FileSystem) Search(keywords []string) []*common.SearchResult {
             results = append(results, fs.newSearchResult(metaFile))
         }
     }
+
+    common.DebugSearchResults(keywords, results)
 
     return results
 }
@@ -191,24 +182,20 @@ func (gossiper *Gossiper) newSearchRequest(budget uint64, keywords []string) *co
 
 func (gossiper *Gossiper) ringSearchInternal(keywords []string, budget uint64, timestamp int64, increasing bool) {
 
-    if budget > common.MaxSearchBudget {
-
-        if increasing {
-            // Timeout
-        } else {
-            // Error budget too high
-        }
-
+    if budget > common.MaxSearchBudget && increasing {
+        common.DebugSearchTimeout(keywords)
         return
     }
 
     if gossiper.SearchEngine.shouldStopSearch(keywords, timestamp) {
-        //
+        common.LogSearchFinished()
         return
     }
 
-    request := gossiper.newSearchRequest(budget, keywords).Packed()
-    gossiper.broadcastToNeighbors(request, false)
+    common.DebugStartSearch(keywords, budget, increasing)
+
+    request := gossiper.newSearchRequest(budget, keywords)
+    gossiper.broadcastSearchRequest(request)
 
     if !increasing {
         return
@@ -219,20 +206,28 @@ func (gossiper *Gossiper) ringSearchInternal(keywords []string, budget uint64, t
     gossiper.ringSearchInternal(keywords, budget * 2, timestamp, true)
 }
 
-// Forward a GossipPacket
-func (gossiper *Gossiper) forwardSearchRequest(searchRequest *common.SearchRequest) {
+// Forward a Search request
+func (gossiper *Gossiper) forwardSearchRequest(searchRequest *common.SearchRequest, origin string) {
+
 
     searchRequest.Budget--;
+    budgets := common.SplitBudget(searchRequest.Budget, len(gossiper.Router.Peers) - 1)
 
-    budgets := common.SplitBudget(searchRequest.Budget, len(gossiper.Router.Peers))
+    i := 0
 
-    for i, budget := range budgets {
+    for _, peer := range gossiper.Router.Peers {
 
-        if budget != 0 {
-            request := common.CopySearchRequest(searchRequest, budget).Packed()
-            peer := gossiper.Router.Peers[i]
-
-            go gossiper.sendToNeighbor(peer, request)
+        if origin == peer {
+            continue
         }
+
+        request := common.CopySearchRequest(searchRequest, budgets[i])
+        go gossiper.sendToNeighbor(peer, request.Packed())
+
+        i++
     }
+}
+
+func (gossiper *Gossiper) broadcastSearchRequest(searchRequest *common.SearchRequest) {
+    gossiper.broadcastToNeighbors(searchRequest.Packed())
 }

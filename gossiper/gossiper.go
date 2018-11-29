@@ -15,20 +15,20 @@ import (
 // (dispatching packets to correct goroutines), Router (keep track of peers & routing table), RumorsDB
 // (store rumors and compute vector clocks), on all of which Gossiper relies on.
 type Gossiper struct {
-	Name   string // Name of this node
-	Simple bool   // Stores if gossiper runs in simple mode.
+	Name   			string // Name of this node
+	Simple 			bool   // Stores if gossiper runs in simple mode.
 
-	GossipSocket *common.UDPSocket // UDP Socket that connects to other nodes
-	ClientSocket *common.UDPSocket // UDP Socket that connects to the client
+	GossipSocket 	*common.UDPSocket // UDP Socket that connects to other nodes
+	ClientSocket 	*common.UDPSocket // UDP Socket that connects to the client
 
-	Rumors   *RumorDatabase           // Database of known Rumors
-	Messages []*common.PrivateMessage // List of Private Messages Received
+	Rumors   		*RumorDatabase           // Database of known Rumors
+	Messages 		[]*common.PrivateMessage // List of Private Messages Received
 
-	FileSystem *FileSystem // Stores and serves shared files
-	Dispatcher *Dispatcher // Dispatches incoming messages to expecting processes
-	Router     *Router     // Handles routing to neighboring and non-neighboring nodes.
-	SpamDetector *SpamDetector
-	SearchEngine *SearchEngine //
+	FileSystem 		*FileSystem 	// Stores and serves shared files
+	Dispatcher 		*Dispatcher 	// Dispatches incoming messages to expecting processes
+	Router     		*Router     	// Handles routing to neighboring and non-neighboring nodes.
+	SpamDetector 	*SpamDetector
+	SearchEngine 	*SearchEngine 	//
 }
 
 const (
@@ -210,7 +210,7 @@ func (gossiper *Gossiper) HandleClient(command *common.Command) {
 		if gossiper.Simple {
 
 			message := common.NewSimpleMessage(gossiper.Name, gossiper.GossipSocket.Address, content)
-			go gossiper.broadcastToNeighbors(message.Packed(), true)
+			go gossiper.broadcastToNeighbors(message.Packed())
 
 		} else {
 
@@ -262,6 +262,7 @@ func (gossiper *Gossiper) HandleClient(command *common.Command) {
 func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source string) {
 
 	if packet == nil || !packet.IsValid() {
+		common.DebugInvalidPacket(packet)
 		return // Fail gracefully
 	}
 
@@ -272,7 +273,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 		common.LogSimpleMessage(packet.Simple)
 		common.LogPeers(gossiper.Router.Peers)
 
-		go gossiper.broadcastToNeighbors(packet, false)
+		go gossiper.broadcastToNeighbors(packet)
 
 	case packet.Rumor != nil:
 
@@ -375,7 +376,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 			return
 		}
 
-		go gossiper.forwardSearchRequest(packet.SearchRequest)
+		go gossiper.forwardSearchRequest(packet.SearchRequest, source)
 
 		results := gossiper.FileSystem.Search(packet.SearchRequest.Keywords)
 		reply := common.NewSearchReply(gossiper.Name, packet.SearchRequest.Origin, results)
@@ -451,22 +452,24 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
 }
 
 // Broadcast a GossipPacket containing a Simple message to every neighboring node.
-func (gossiper *Gossiper) broadcastToNeighbors(packet *common.GossipPacket, setName bool) {
+func (gossiper *Gossiper) broadcastToNeighborsExcept(packet *common.GossipPacket, except *[]string) {
 
-	if packet.Simple == nil {
-		panic("Cannot broadcastToNeighbors GossipPacker that does not contain SimpleMessage.")
-	}
-
-	packet.Simple.RelayPeerAddr = gossiper.GossipSocket.Address
-	if setName {
-		packet.Simple.OriginalName = gossiper.Name
+	if packet.Simple == nil && packet.SearchRequest == nil {
+		panic("Cannot broadcastToNeighbors GossipPacket that does not contain SimpleMessage or SearchRequest.")
 	}
 
 	for i := 0; i < len(gossiper.Router.Peers); i++ {
-		if gossiper.Router.Peers[i] != packet.Simple.RelayPeerAddr {
-			gossiper.sendToNeighbor(gossiper.Router.Peers[i], packet)
+
+		peer := gossiper.Router.Peers[i]
+
+		if except == nil || !common.Contains(*except, peer) {
+			gossiper.sendToNeighbor(peer, packet)
 		}
 	}
+}
+
+func (gossiper *Gossiper) broadcastToNeighbors(packet *common.GossipPacket) {
+	gossiper.broadcastToNeighborsExcept(packet, nil)
 }
 
 // --

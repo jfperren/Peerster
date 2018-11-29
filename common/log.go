@@ -76,6 +76,15 @@ func LogReconstructed(filename string) {
 	fmt.Printf("RECONSTRUCTED file %v\n", filename)
 }
 
+func LogMatch(filename, origin string, metahash []byte, chunks []uint64) {
+	fmt.Printf("FOUND match %v at %v metafile=%v chunks=%v\n", filename, origin,
+		hex.EncodeToString(metahash), chunks)
+}
+
+func LogSearchFinished() {
+	fmt.Printf("SEARCH FINISHED\n")
+}
+
 // --
 // -- DEBUG MESSAGES
 // --
@@ -229,5 +238,25 @@ func DebugStartGossiper(clientAddress, gossipAddress, name string, peers []strin
 
 func DebugStopGossiper() {
 	if !Verbose { return }
-	fmt.Printf("STOP GOSSIPER")
+	fmt.Printf("STOP GOSSIPER\n")
+}
+
+func DebugStartSearch(keywords []string, budget uint64, increasing bool) {
+	if !Verbose { return }
+	fmt.Printf("START search %v budget %v increasing %v\n", keywords, budget, increasing)
+}
+
+func DebugSearchTimeout(keywords []string) {
+	if !Verbose { return }
+	fmt.Printf("TIMEOUT search %v\n", keywords)
+}
+
+func DebugSearchResults(keywords []string, results []*SearchResult) {
+	if !Verbose { return }
+	fmt.Printf("FOUND %v results for keywords %v\n", len(results), keywords)
+}
+
+func DebugInvalidPacket(packet *GossipPacket) {
+	if !Verbose { return }
+	fmt.Printf("WARNING received invalid packet %v\n", packet)
 }
