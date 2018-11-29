@@ -229,7 +229,7 @@ func (gossiper *Gossiper) ringSearchInternal(keywords []string, budget uint64, t
 func (gossiper *Gossiper) forwardSearchRequest(searchRequest *common.SearchRequest, origin string) {
 
 
-    searchRequest.Budget--;
+    searchRequest.Budget--
     budgets := common.SplitBudget(searchRequest.Budget, len(gossiper.Router.Peers) - 1)
 
     i := 0

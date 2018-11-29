@@ -266,3 +266,18 @@ func DebugInvalidPacket(packet *GossipPacket) {
 	if !Verbose { return }
 	fmt.Printf("WARNING received invalid packet %v\n", packet)
 }
+
+func DebugSearchStatus(count int, keywords []string) {
+	if !Verbose { return }
+	fmt.Printf("SEARCH STATUS %v full results for search %v\n", count, strings.Join(keywords, SearchKeywordSeparator))
+}
+
+func DebugProcessSearchRequest(origin string, keywords []string) {
+	if !Verbose { return }
+	fmt.Printf("PROCESS search request from %v keywords %v\n", origin, strings.Join(keywords, SearchKeywordSeparator))
+}
+
+func DebugIgnoreSpam(origin string, keywords []string) {
+	if !Verbose { return }
+	fmt.Printf("IGNORE SPAM from %v keywords %v\n", origin, strings.Join(keywords, SearchKeywordSeparator))
+}

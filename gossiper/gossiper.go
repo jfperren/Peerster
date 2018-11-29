@@ -367,14 +367,17 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 		}
 
 	case packet.SearchRequest != nil:
-
+		
 		if packet.SearchRequest.Budget <= 0 {
 			return
 		}
 
 		if !gossiper.SpamDetector.shouldProcessSearchRequest(packet.SearchRequest) {
+			common.DebugIgnoreSpam(packet.SearchRequest.Origin, packet.SearchRequest.Keywords)
 			return
 		}
+
+		common.DebugProcessSearchRequest(packet.SearchRequest.Origin, packet.SearchRequest.Keywords)
 
 		go gossiper.forwardSearchRequest(packet.SearchRequest, source)
 
