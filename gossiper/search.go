@@ -76,7 +76,7 @@ func (fs *FileSystem) Search(keywords []string) []*common.SearchResult {
     results := make([]*common.SearchResult, 0)
 
     for _, metaFile := range fs.metaFiles {
-        if match(metaFile.Name, keywords) {
+        if Match(metaFile.Name, keywords) {
             results = append(results, fs.newSearchResult(metaFile))
         }
     }
@@ -93,11 +93,11 @@ func (fs *FileSystem) newSearchResult(metaFile *MetaFile) *common.SearchResult {
     }
 }
 
-func match(name string, keywords []string) bool {
+func Match(name string, keywords []string) bool {
 
     for _, keyword := range keywords {
 
-        match, _ := regexp.MatchString("*" + keyword + "*", name)
+        match, _ := regexp.MatchString(keyword, name)
 
         if match {
             return true
