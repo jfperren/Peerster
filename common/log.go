@@ -77,8 +77,14 @@ func LogReconstructed(filename string) {
 }
 
 func LogMatch(filename, origin string, metahash []byte, chunks []uint64) {
-	fmt.Printf("FOUND match %v at %v metafile=%v chunks=%v\n", filename, origin,
-		hex.EncodeToString(metahash), chunks)
+	fmt.Printf("FOUND match %v at %v metafile=%v chunks=%v", filename, origin,
+		hex.EncodeToString(metahash), chunks[0])
+
+	for i := 1; i < len(chunks); i++ {
+		fmt.Printf(",%v", chunks[i])
+	}
+
+	fmt.Printf("\n")
 }
 
 func LogSearchFinished() {
