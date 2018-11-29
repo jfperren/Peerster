@@ -7,7 +7,6 @@ import (
 
 func TestSplitsDeterministic(t *testing.T) {
 
-
     splits := common.SplitBudget(0, 1)
 
     if len(splits) != 1 {
@@ -22,16 +21,6 @@ func TestSplitsDeterministic(t *testing.T) {
 
 	if len(splits) != 0 {
 		t.Errorf("SplitBudget (0, 0) has wrong length %v, should be 0", len(splits))
-	}
-
-	splits = common.SplitBudget(-1, 4)
-
-	if len(splits) != 4 {
-		t.Errorf("SplitBudget (-1, 4) has wrong length %v, should be 4", len(splits))
-	}
-
-	if splits[2] != 0 {
-		t.Errorf("SplitBudget (-1, 4) has wrong value %v, should be 0", splits[2])
 	}
 
 	splits = common.SplitBudget(6, 3)
@@ -56,14 +45,14 @@ func TestSplitsDeterministic(t *testing.T) {
 func TestSplitsRandom(t *testing.T) {
 
 	splits := common.SplitBudget(2, 4)
-	results := make(map[int]map[int64]bool)
+	results := make(map[int]map[uint64]bool)
 
 	if len(splits) != 4 {
 		t.Errorf("SplitBudget (2, 4) has wrong length %v, should be 4", len(splits))
 	}
 
 	for i, _ := range (splits) {
-		results[i] = make(map[int64]bool)
+		results[i] = make(map[uint64]bool)
 	}
 
 	for i := 0; i < 10; i++ {
@@ -86,14 +75,14 @@ func TestSplitsRandom(t *testing.T) {
 	}
 
 	splits = common.SplitBudget(13, 3)
-	results = make(map[int]map[int64]bool)
+	results = make(map[int]map[uint64]bool)
 
 	if len(splits) != 3 {
 		t.Errorf("SplitBudget (13, 3) has wrong length %v, should be 3", len(splits))
 	}
 
 	for i, _ := range (splits) {
-		results[i] = make(map[int64]bool)
+		results[i] = make(map[uint64]bool)
 	}
 
 	for i := 0; i < 10; i++ {
