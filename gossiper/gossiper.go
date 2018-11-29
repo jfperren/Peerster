@@ -391,7 +391,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 		destined := gossiper.sendToNode(packet, destination, hopLimit)
 
 		if destined {
-			go gossiper.SearchEngine.StoreResults(packet.SearchReply.Results, source)
+			go gossiper.SearchEngine.StoreResults(packet.SearchReply.Results, packet.SearchReply.Origin)
 		}
 	}
 }
