@@ -134,10 +134,12 @@ func (se *SearchEngine) countOfResults(keywords []string, since int64) int {
 
         result := se.history[i].result
 
-        if result.ChunkMap[len(result.ChunkMap) - 1] == result.ChunkCount {
+        if result.ChunkMap[len(result.ChunkMap) - 1] == result.ChunkCount - 1 {
             count++
         }
     }
+
+    common.DebugSearchStatus(count, keywords)
 
     return count
 }
