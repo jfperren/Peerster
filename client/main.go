@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/hex"
 	"flag"
 	"github.com/dedis/protobuf"
 	"github.com/jfperren/Peerster/common"
@@ -16,57 +15,50 @@ func main() {
 	dest := flag.String("dest", "", "destination for the private message")
 	file := flag.String("file", "", "file to be indexed by the gossiper, or filename of the requested file")
 	request := flag.String("request", "", "request a chunk or metafile of this hash")
+	keywords := flag.String("keywords", "", "comma-separated list of keywords for search")
+	budget := flag.Uint64("budget", common.SearchNoBudget, "budget for file search (optional)")
 
 	flag.Parse()
 
 	// Packet to send
-	var packet *common.GossipPacket
+	var command *common.Command
+	var commandError *common.CommandError
 
 	switch {
 
+	case *keywords != "":
+
+		command, commandError = common.NewSearchCommand(keywords, *budget)
+
 	case *request != "":
 
-		if *file == "" {
-			panic("Cannot request a file without giving a name")
-		}
-
-		if *dest == "" {
-			panic("Cannot request a file without specifying the destination node")
-		}
-
-		hash, err := hex.DecodeString(*request)
-
-		if err != nil {
-			panic("Error decoding hash specified in 'request'")
-		}
-
-		request := &common.DataRequest{*file, *dest, common.InitialHopLimit, hash}
-		packet = request.Packed()
+		command, commandError = common.NewDownloadCommand(request, file, dest)
 
 	case *file != "":
 
-		reply := &common.DataReply{"client", *file, 0, make([]byte, 0), make([]byte, 0)}
-		packet = reply.Packed()
+		command, commandError = common.NewUploadCommand(file)
 
 	case *dest != "":
 
-		private := &common.PrivateMessage{"client", 0, *message, *dest, common.InitialHopLimit}
-		packet = private.Packed()
+		command, commandError = common.NewPrivateMessageCommand(message, dest)
 
 	case *message != "":
 
-		simple := &common.SimpleMessage{"client", "", *message}
-		packet = simple.Packed()
+		command, commandError = common.NewMessageCommand(message)
 
 	default:
 
 		panic("No message specified, unclear instructions.")
 	}
 
+	if commandError != nil {
+		panic(commandError)
+	}
+
 	// Encodes message
-	bytes, err := protobuf.Encode(packet)
-	if err != nil {
-		panic(err)
+	bytes, encodeError := protobuf.Encode(command)
+	if encodeError != nil {
+		panic(encodeError)
 	}
 
 	// Send

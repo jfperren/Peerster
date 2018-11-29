@@ -17,8 +17,8 @@ var Verbose = true
 //
 // These are log messages to be used in the assignment.
 
-func LogClientMessage(message *SimpleMessage) {
-	fmt.Printf("CLIENT MESSAGE %v\n", message.Contents)
+func LogClientMessage(message string) {
+	fmt.Printf("CLIENT MESSAGE %v\n", message)
 }
 
 func LogSimpleMessage(message *SimpleMessage) {

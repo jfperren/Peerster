@@ -174,21 +174,15 @@ func (gossiper *Gossiper) receiveClient() {
 
 	for {
 
-		var packet common.GossipPacket
+		var command common.Command
 		bytes, _, alive := gossiper.ClientSocket.Receive()
 
 		if !alive {
 			break
 		}
 
-		protobuf.Decode(bytes, &packet)
-
-		if !packet.IsValid() {
-			// Fail gracefully
-			continue
-		}
-
-		go gossiper.HandleClient(&packet)
+		protobuf.Decode(bytes, &command)
+		go gossiper.HandleClient(&command)
 	}
 }
 
@@ -197,25 +191,28 @@ func (gossiper *Gossiper) receiveClient() {
 // --
 
 //  Handle new packet from client
-func (gossiper *Gossiper) HandleClient(packet *common.GossipPacket) {
+func (gossiper *Gossiper) HandleClient(command *common.Command) {
 
-	if packet == nil || !packet.IsValid() {
+	if command == nil || !command.IsValid() {
 		return // Fail gracefully
 	}
 
 	switch {
 
-	case packet.Simple != nil:
+	case command.Message != nil:
 
-		common.LogClientMessage(packet.Simple)
+
+		content := command.Message.Content
+		common.LogClientMessage(content)
 
 		if gossiper.Simple {
 
-			go gossiper.broadcastToNeighbors(packet, true)
+			message := common.NewSimpleMessage(gossiper.Name, gossiper.GossipSocket.Address, content)
+			go gossiper.broadcastToNeighbors(message.Packed(), true)
 
 		} else {
 
-			rumor := gossiper.generateRumor(packet.Simple.Contents)
+			rumor := gossiper.generateRumor(content)
 
 			gossiper.Rumors.Put(rumor)
 
@@ -226,33 +223,32 @@ func (gossiper *Gossiper) HandleClient(packet *common.GossipPacket) {
 			}
 		}
 
-	case packet.Private != nil:
+	case command.PrivateMessage != nil:
 
-		// Replace origin with gossiper's name
-		packet.Private.Origin = gossiper.Name
 
-		destined := gossiper.sendToNode(packet, packet.Private.Destination, nil)
-		gossiper.Messages = append(gossiper.Messages, packet.Private)
+		destination := command.PrivateMessage.Destination
+		content := command.PrivateMessage.Content
+
+		private := common.NewPrivateMessage(gossiper.Name,destination, content)
+
+		destined := gossiper.sendToNode(private.Packed(), destination, nil)
+		gossiper.Messages = append(gossiper.Messages, private)
 
 		if destined {
-			common.LogPrivate(packet.Private)
+			common.LogPrivate(private)
 		}
 
-	case packet.DataRequest != nil:
+	case command.Download != nil:
 
-		destination := packet.DataRequest.Destination
-		filename := packet.DataRequest.Origin
-		hash := packet.DataRequest.HashValue
+		destination := command.Download.Destination
+		filename := command.Download.FileName
+		hash := command.Download.Hash
 
 		go gossiper.StartDownload(filename, hash, destination, 0)
 
-	case packet.DataReply != nil:
+	case command.Upload != nil:
 
-		// By convention, we use DataReply objects with destination set as filename as a way for the client
-		// to tell which file should be uploaded onto the network.
-		filename := packet.DataReply.Destination
-
-		gossiper.FileSystem.ScanFile(filename)
+		gossiper.FileSystem.ScanFile(command.Upload.FileName)
 	}
 }
 

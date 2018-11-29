@@ -17,6 +17,14 @@ func Contains(array []string, element string) bool {
 	return false
 }
 
+func boolCount(b bool) int {
+	if b {
+		return 1
+	} else {
+		return 0
+	}
+}
+
 func SplitBudget(budget uint64, into int) []uint64 {
 
 	splits := make([]uint64, 0)

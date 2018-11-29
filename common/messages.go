@@ -89,6 +89,14 @@ type GossipPacket struct {
 // -- INITIALIZERS
 // --
 
+func NewSimpleMessage(origin, address, contents string) *SimpleMessage {
+	return &SimpleMessage{
+		origin,
+		address,
+		contents,
+	}
+}
+
 func NewPrivateMessage(origin, destination, contents string) *PrivateMessage {
 
 	return &PrivateMessage{
@@ -231,14 +239,6 @@ func (reply *DataReply) VerifyHash(expected []byte) bool {
 
 func (request *SearchRequest) Key() string {
 	return request.Origin + ":" + strings.Join(request.Keywords, SearchKeywordSeparator)
-}
-
-func boolCount(b bool) int {
-	if b {
-		return 1
-	} else {
-		return 0
-	}
 }
 
 func (rumor *RumorMessage) IsRouteRumor() bool {
