@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 )
 
 // --
@@ -73,15 +74,39 @@ type SearchResult struct {
 	ChunkCount   uint64
 }
 
+type TxPublish struct {
+	File     File
+	HopLimit uint32
+}
+
+type BlockPublish struct {
+	Block    Block
+	HopLimit uint32
+}
+
+type File struct {
+	Name          string
+	Size          int64
+	MetafileHash  []byte
+}
+
+type Block struct {
+	PrevHash     [32]byte
+	Nonce        [32]byte
+	Transactions []TxPublish
+}
+
 type GossipPacket struct {
-	Simple      	*SimpleMessage
-	Rumor       	*RumorMessage
-	Status      	*StatusPacket
-	Private     	*PrivateMessage
-	DataRequest 	*DataRequest
-	DataReply   	*DataReply
-	SearchRequest	*SearchRequest
-	SearchReply   	*SearchReply
+	Simple        *SimpleMessage
+	Rumor         *RumorMessage
+	Status        *StatusPacket
+	Private       *PrivateMessage
+	DataRequest   *DataRequest
+	DataReply     *DataReply
+	SearchRequest *SearchRequest
+	SearchReply   *SearchReply
+	TxPublish     *TxPublish
+	BlockPublish  *BlockPublish
 }
 
 // --
@@ -138,8 +163,7 @@ func (simple *SimpleMessage) Packed() *GossipPacket {
 		panic("Cannot pack <nil> Simple into a GossipPacket")
 	}
 
-	return &GossipPacket{simple, nil, nil, nil,
-		nil, nil, nil, nil}
+	return &GossipPacket{Simple: simple}
 }
 
 // Pack a RumorMessage into a GossipPacket
@@ -149,8 +173,7 @@ func (rumor *RumorMessage) Packed() *GossipPacket {
 		panic("Cannot pack <nil> rumor into a GossipPacket")
 	}
 
-	return &GossipPacket{nil, rumor, nil, nil,
-		nil, nil, nil, nil}
+	return &GossipPacket{Rumor: rumor}
 }
 
 // Pack a StatusPacket into a GossipPacket
@@ -160,8 +183,7 @@ func (status *StatusPacket) Packed() *GossipPacket {
 		panic("Cannot pack <nil> status into a GossipPacket")
 	}
 
-	return &GossipPacket{nil, nil, status, nil,
-		nil, nil, nil, nil}
+	return &GossipPacket{Status: status}
 }
 
 // Pack a PrivateMessage into a GossipPacket
@@ -171,8 +193,7 @@ func (private *PrivateMessage) Packed() *GossipPacket {
 		panic("Cannot pack <nil> private message into a GossipPacket")
 	}
 
-	return &GossipPacket{nil, nil, nil, private,
-		nil, nil, nil, nil}
+	return &GossipPacket{Private: private}
 }
 
 // Pack a DataRequest into a GossipPacket
@@ -182,8 +203,7 @@ func (request *DataRequest) Packed() *GossipPacket {
 		panic("Cannot pack <nil> data request into a GossipPacket")
 	}
 
-	return &GossipPacket{nil, nil, nil, nil,
-		request, nil, nil, nil}
+	return &GossipPacket{DataRequest:request}
 }
 
 // Pack a DataReply into a GossipPacket
@@ -193,8 +213,7 @@ func (reply *DataReply) Packed() *GossipPacket {
 		panic("Cannot pack <nil> data reply into a GossipPacket")
 	}
 
-	return &GossipPacket{nil, nil, nil, nil,
-		nil, reply, nil, nil}
+	return &GossipPacket{DataReply: reply}
 }
 
 // Pack a SearchRequest into a GossipPacket
@@ -204,8 +223,7 @@ func (request *SearchRequest) Packed() *GossipPacket {
 		panic("Cannot pack <nil> search request into a GossipPacket")
 	}
 
-	return &GossipPacket{nil, nil, nil, nil,
-		nil, nil, request, nil}
+	return &GossipPacket{SearchRequest: request}
 }
 
 // Pack a SearchReply into a GossipPacket
@@ -215,8 +233,27 @@ func (reply *SearchReply) Packed() *GossipPacket {
 		panic("Cannot pack <nil> search reply into a GossipPacket")
 	}
 
-	return &GossipPacket{nil, nil, nil, nil,
-		nil, nil, nil, reply}
+	return &GossipPacket{SearchReply: reply}
+}
+
+// Pack a SearchReply into a GossipPacket
+func (publish *TxPublish) Packed() *GossipPacket {
+
+	if publish == nil {
+		panic("Cannot pack <nil> transaction into a GossipPacket")
+	}
+
+	return &GossipPacket{TxPublish: publish}
+}
+
+// Pack a SearchReply into a GossipPacket
+func (publish *BlockPublish) Packed() *GossipPacket {
+
+	if publish == nil {
+		panic("Cannot pack <nil> block into a GossipPacket")
+	}
+
+	return &GossipPacket{BlockPublish: publish}
 }
 
 // Checks if a given GossipPacket is valid. It is only valid if exactly one of its 6 fields is non-nil.
@@ -238,4 +275,32 @@ func (reply *DataReply) VerifyHash(expected []byte) bool {
 
 func (rumor *RumorMessage) IsRouteRumor() bool {
 	return rumor.Text == ""
+}
+
+//
+//
+//
+
+func (b *Block) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write(b.PrevHash[:])
+	h.Write(b.Nonce[:])
+	binary.Write(h,binary.LittleEndian,
+		uint32(len(b.Transactions)))
+	for _, t := range b.Transactions {
+		th := t.Hash()
+		h.Write(th[:])
+	}
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (t *TxPublish) Hash() (out [32]byte) {
+	h := sha256.New()
+	binary.Write(h,binary.LittleEndian,
+		uint32(len(t.File.Name)))
+	h.Write([]byte(t.File.Name))
+	h.Write(t.File.MetafileHash)
+	copy(out[:], h.Sum(nil))
+	return
 }
