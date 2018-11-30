@@ -32,6 +32,17 @@ func NewBlockChain() *BlockChain {
     }
 }
 
+func NewTransaction(metaFile *MetaFile) *common.TxPublish {
+    return &common.TxPublish{
+        common.File{
+            metaFile.Name,
+            int64(metaFile.Size),
+            metaFile.Hash,
+        },
+        common.TransactionHopLimit,
+    }
+}
+
 func (gossiper *Gossiper) waitForNewBlocks() {
 
     go func() {
@@ -52,7 +63,7 @@ func (gossiper *Gossiper) waitForNewBlocks() {
 }
 
 // Atomically test and append transaction
-func (bc *BlockChain) tryAddTransaction(candidate *common.TxPublish) bool {
+func (bc *BlockChain) tryAddFile(candidate *common.TxPublish) bool {
 
     bc.lock.Lock()
     defer bc.lock.Unlock()

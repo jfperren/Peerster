@@ -250,7 +250,16 @@ func (gossiper *Gossiper) HandleClient(command *common.Command) {
 
 	case command.Upload != nil:
 
-		gossiper.FileSystem.ScanFile(command.Upload.FileName)
+		metaFile, err := gossiper.FileSystem.ScanFile(command.Upload.FileName)
+
+		if err != nil {
+
+			transaction := NewTransaction(metaFile)
+
+			if gossiper.BlockChain.tryAddFile(transaction) {
+				gossiper.broadcastToNeighbors(transaction.Packed())
+			}
+		}
 
 	case command.Search != nil:
 
@@ -403,7 +412,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 	case packet.TxPublish != nil:
 
-		if gossiper.BlockChain.tryAddTransaction(packet.TxPublish) {
+		if gossiper.BlockChain.tryAddFile(packet.TxPublish) {
 
 			packet.TxPublish.HopLimit--
 
