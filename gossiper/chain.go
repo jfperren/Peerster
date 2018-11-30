@@ -110,7 +110,7 @@ func (bc *BlockChain) tryAddBlock(candidate *common.Block) bool {
     bc.Blocks[hex.EncodeToString(hash[:])] = candidate
     bc.Latest = hash
     bc.IsNew = true
-    common.LogChain(bc)
+    common.LogChain(bc.Latest, bc.Blocks)
 
     return true
 }

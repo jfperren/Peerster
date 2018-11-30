@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/jfperren/Peerster/gossiper"
 	"net/http"
 	"strings"
 	"time"
@@ -93,19 +92,19 @@ func LogSearchFinished() {
 }
 
 func LogFoundBlock(block *Block) {
-	fmt.Printf("FOUND-BLOCK %v\n", hex.EncodeToString(block.Hash()[:]))
+	hash := block.Hash()
+	fmt.Printf("FOUND-BLOCK %v\n", hex.EncodeToString(hash[:]))
 }
 
-func LogChain(blockChain *gossiper.BlockChain) {
+func LogChain(latest [32]byte, blocks map[string]*Block) {
 
 	fmt.Printf("CHAIN")
 
-	hash := hex.EncodeToString(blockChain.Latest[:])
-
-
+	hash := hex.EncodeToString(latest[:])
+	
 	for {
 
-		block, found := blockChain.Blocks[hash]
+		block, found := blocks[hash]
 
 		if !found {
 			fmt.Printf("\n")
