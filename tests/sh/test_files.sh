@@ -3,17 +3,14 @@
 # This script tests the simple case of 5 gossipers sending each other files.
 # The setup is a line A - B - C - D - E
 
-go build
-cd client
-go build
-cd ..
+# Build
 
-# Variables
+if [[ $* != *--package* ]]; then
+	source ./scripts/build.sh
+	source ./tests/sh/helpers.sh
+fi
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m'
-DEBUG="false"
+# Preparation
 
 UIPort=8080
 gossipPort=5000
@@ -123,22 +120,9 @@ pkill -f Peerster
 
 # Tests
 
-failed="F"
-
 echo -e "${NC}# CHECK that files are scanned correctly${NC}"
 
-expect_contains() {
-
-  file="logs/${1}.out"
-  regex=${2}
-
-  if (grep -q "$regex" ${file}) ; then
-    echo -e "${GREEN}- ${file} : <CONTAINS> ${regex}${GREEN}"
-  else
-    failed="T"
-    echo -e "${RED}- ${file} : <MISSING> ${regex}${RED}"
-  fi
-}
+# Nothing here
 
 echo -e "${NC}# Check that E received the file from A${NC}"
 
@@ -185,8 +169,6 @@ echo -e "${NC}# Check that D looked and did not find file asked by A${NC}"
 expect_contains D "RECEIVE DATA REQUEST from A to D metahash $hash_file_d_inexistant"
 expect_contains D "NOT FOUND hash $hash_file_d_inexistant from A"
 
-if [[ "$failed" == "T" ]] ; then
-	echo -e "${RED}***FAILED***${NC}"
-else
-	echo -e "${GREEN}***PASSED***${NC}"
+if [[ $* != *--package* ]]; then
+	print_test_results
 fi

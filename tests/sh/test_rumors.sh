@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 
-go build
-cd client
-go build
-cd ..
+# Build
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m'
-DEBUG="false"
+if [[ $* != *--package* ]]; then
+	source ./scripts/build.sh
+	source ./tests/sh/helpers.sh
+fi
+
+# Preparation
 
 outputFiles=()
 message_c1_1=Weather_is_clear
@@ -17,13 +16,9 @@ message_c1_2=No_clouds_really
 message_c2_2=Let\'s_go_skiing
 message_c3=Is_anybody_here?
 
-
 UIPort=12345
 gossipPort=5000
 name='A'
-
-# General peerster (gossiper) command
-#./Peerster -UIPort=12345 -gossipAddr=127.0.0.1:5001 -name=A -peers=127.0.0.1:5002 > A.out &
 
 for i in `seq 1 10`;
 do
@@ -52,9 +47,7 @@ sleep 1
 sleep 5
 pkill -f Peerster
 
-
-#testing
-failed="F"
+# Testing
 
 echo -e "${RED}###CHECK that client messages arrived${NC}"
 

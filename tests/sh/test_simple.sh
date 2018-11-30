@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 
-go build
-cd client
-go build
-cd ..
+# Build
 
-RED='\033[0;31m'
-NC='\033[0m'
-DEBUG="false"
+if [[ $* != *--package* ]]; then
+	source ./scripts/build.sh
+	source ./tests/sh/helpers.sh
+fi
+
+# Preparation
 
 outputFiles=()
 message=Weather_is_clear
 message2=Winter_is_coming
-
 
 UIPort=12345
 gossipPort=5000
@@ -42,9 +41,7 @@ done
 sleep 3
 pkill -f Peerster
 
-
-#testing
-failed="F"
+# Testing
 
 if !(grep -q "CLIENT MESSAGE $message" "E.out") ; then
 	failed="T"
@@ -57,8 +54,6 @@ fi
 if [[ "$failed" == "T" ]] ; then
 	echo -e "${RED}FAILED${NC}"
 fi
-
-# echo "${outputFiles[@]}"
 
 gossipPort=5000
 for i in `seq 0 9`;
@@ -93,7 +88,3 @@ if [[ "$failed" == "T" ]] ; then
 else
 	echo "***PASSED***"
 fi
-
-
-
-#sleep 2

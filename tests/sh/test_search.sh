@@ -2,18 +2,12 @@
 
 # Build
 
-source ./scripts/build.sh
+if [[ $* != *--package* ]]; then
+	source ./scripts/build.sh
+	source ./tests/sh/helpers.sh
+fi
 
-# Load helpers
-
-source ./tests/sh/helpers.sh
-
-# Variables
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m'
-DEBUG="false"
+# Preparation
 
 UIPort=8080
 gossipPort=5000
@@ -112,8 +106,6 @@ do
   echo $line >> "$sharedDir/E/$file_e"
 done
 
-
-
 # Upload files & start downloading
 
 ./client/client -UIPort=8080 -file="$file_a"
@@ -134,8 +126,6 @@ pkill -f Peerster
 
 # Tests
 
-failed="F"
-
 echo -e "${NC}# Check that regular searches are started${NC}"
 
 expect_contains A "START search inexistant budget 2 increasing true"
@@ -154,9 +144,6 @@ echo -e "${NC}# Check that D's search got the expected results${NC}"
 
 expect_contains D "FOUND match $file_c at C metafile=$hash_c chunks=$chunks_c"
 expect_contains D "FOUND match $file_b at E metafile=$hash_b chunks=$chunks_b"
-
-# FOUND match another_hello.txt at C metafile=99a5021f52ad2c8981b9caacf1afb48f86d7276d80e0b3636ad92bb08f548fb0 chunks=0,1,2,3,4,5,6,7
-# FOUND match poem.txt at E metafile=7995e2cec0eb89ddc7e3642c740d2b4a49de8760d93ccea61e577829b4114369
 
 echo -e "${NC}# Check that C and D's search completed${NC}"
 
@@ -190,8 +177,6 @@ expect_missing A "START search inexistant budget 64 increasing true"
 
 # CHECK THAT NODES WITH HALF OF THINGS CAN STILL REPLY
 
-if [[ "$failed" == "T" ]] ; then
-	echo -e "${RED}***FAILED***${NC}"
-else
-	echo -e "${GREEN}***PASSED***${NC}"
+if [[ $* != *--package* ]]; then
+	print_test_results
 fi

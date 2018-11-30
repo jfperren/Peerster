@@ -1,18 +1,13 @@
 #!/usr/bin/env bash
 
-# Same setup as test_routing.sh
+# Build
 
-go build
-cd client
-go build
-cd ..
+if [[ $* != *--package* ]]; then
+	source ./scripts/build.sh
+	source ./tests/sh/helpers.sh
+fi
 
 # Variables
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m'
-DEBUG="false"
 
 outputFiles=()
 
@@ -82,34 +77,6 @@ pkill -f Peerster
 
 # Tests
 
-failed="F"
-
-expect_contains() {
-
-  file="logs/${1}.out"
-  regex=${2}
-
-  if (grep -q "$regex" ${file}) ; then
-    echo -e "${GREEN}- ${file} : <CONTAINS> ${regex}${GREEN}"
-  else
-    failed="T"
-    echo -e "${RED}- ${file} : <SHOULD CONTAIN> ${regex}${RED}"
-  fi
-}
-
-expect_missing() {
-
-  file="logs/${1}.out"
-  regex=${2}
-
-  if !(grep -q "$regex" ${file}) ; then
-    echo -e "${GREEN}- ${file} : <DOES NOT CONTAIN> ${regex}${GREEN}"
-  else
-    failed="T"
-    echo -e "${RED}- ${file} : <SHOULD NOT CONTAIN> ${regex}${RED}"
-  fi
-}
-
 echo -e "${NC}# CHECK that valid recipients got their message${NC}"
 
 expect_contains C "PRIVATE origin A hop-limit "
@@ -139,8 +106,6 @@ echo -e "${NC}# CHECK that nodes handle unknown routes well${NC}"
 expect_contains A "UNKNOWN DESTINATION D"
 expect_contains J "UNKNOWN DESTINATION B"
 
-if [[ "$failed" == "T" ]] ; then
-	echo -e "${RED}***FAILED***${NC}"
-else
-	echo -e "${GREEN}***PASSED***${NC}"
+if [[ $* != *--package* ]]; then
+	print_test_results
 fi

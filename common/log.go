@@ -249,17 +249,17 @@ func DebugStopGossiper() {
 
 func DebugStartSearch(keywords []string, budget uint64, increasing bool) {
 	if !Verbose { return }
-	fmt.Printf("START search %v budget %v increasing %v\n", keywords, budget, increasing)
+	fmt.Printf("START search %v budget %v increasing %v\n", strings.Join(keywords, SearchKeywordSeparator), budget, increasing)
 }
 
 func DebugSearchTimeout(keywords []string) {
 	if !Verbose { return }
-	fmt.Printf("TIMEOUT search %v\n", keywords)
+	fmt.Printf("TIMEOUT search %v\n", strings.Join(keywords, SearchKeywordSeparator))
 }
 
 func DebugSearchResults(keywords []string, results []*SearchResult) {
 	if !Verbose { return }
-	fmt.Printf("FOUND %v results for keywords %v\n", len(results), keywords)
+	fmt.Printf("FOUND %v results for keywords %v\n", len(results), strings.Join(keywords, SearchKeywordSeparator))
 }
 
 func DebugInvalidPacket(packet *GossipPacket) {
