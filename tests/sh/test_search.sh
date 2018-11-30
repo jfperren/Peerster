@@ -120,7 +120,7 @@ sleep 3
 ./client/client -UIPort=8080 -keywords="inexistant"
 ./client/client -UIPort=8083 -keywords="txt" -budget 1
 
-sleep 6
+sleep 8
 
 pkill -f Peerster
 

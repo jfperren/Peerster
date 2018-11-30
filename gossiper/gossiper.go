@@ -29,6 +29,7 @@ type Gossiper struct {
 	Router     		*Router     	// Handles routing to neighboring and non-neighboring nodes.
 	SpamDetector 	*SpamDetector
 	SearchEngine 	*SearchEngine 	//
+	BlockChain		*BlockChain
 }
 
 const (
@@ -77,6 +78,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		Router:     	NewRouter(peers, time.Duration(rtimer)*time.Second),
 		SpamDetector:   NewSpamDetector(),
 		SearchEngine: 	NewSearchEngine(),
+		BlockChain:		NewBlockChain(),
 	}
 }
 
@@ -203,7 +205,6 @@ func (gossiper *Gossiper) HandleClient(command *common.Command) {
 
 	case command.Message != nil:
 
-
 		content := command.Message.Content
 		common.LogClientMessage(content)
 
@@ -226,7 +227,6 @@ func (gossiper *Gossiper) HandleClient(command *common.Command) {
 		}
 
 	case command.PrivateMessage != nil:
-
 
 		destination := command.PrivateMessage.Destination
 		content := command.PrivateMessage.Content
@@ -399,6 +399,17 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 		if destined {
 			go gossiper.SearchEngine.StoreResults(packet.SearchReply.Results, packet.SearchReply.Origin)
+		}
+
+	case packet.TxPublish != nil:
+
+		if gossiper.BlockChain.tryAddTransaction(packet.TxPublish) {
+
+			packet.TxPublish.HopLimit--
+
+			if packet.TxPublish.HopLimit > 0 {
+				gossiper.broadcastToNeighborsExcept(packet.TxPublish.Packed(), &[]string{source})
+			}
 		}
 	}
 }
