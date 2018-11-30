@@ -2,6 +2,7 @@ package gossiper
 
 import (
     "bytes"
+    "encoding/hex"
     "github.com/jfperren/Peerster/common"
     "regexp"
     "sync"
@@ -11,6 +12,7 @@ import (
 type SearchEngine struct {
 
     history      []*SearchLog
+    fileMaps     map[string]*FileMap
     lock	 	 *sync.RWMutex
 }
 
@@ -23,16 +25,17 @@ type SearchLog struct {
 
 type FileMap struct {
 
-    FileName     string
-    FileHash    []byte
-    chunkCount  uint64
-    origins     map[string]uint64
+    FileName        string
+    FileHash        []byte
+    chunkCount      uint64
+    chunkMap        map[string]uint64
 
 }
 
 func NewSearchEngine() *SearchEngine {
     return &SearchEngine{
         make([]*SearchLog, 0),
+        make(map[string]*FileMap),
         &sync.RWMutex{},
     }
 }
@@ -40,6 +43,28 @@ func NewSearchEngine() *SearchEngine {
 //
 //
 //
+
+func (se *SearchEngine) FileMap(hash []byte) (*FileMap, bool) {
+
+    se.lock.RLock()
+    defer se.lock.RUnlock()
+
+    fileMap, found := se.fileMaps[hex.EncodeToString(hash)]
+
+    return fileMap, found
+}
+
+func (fileMap *FileMap) peerForChunk(chunkId uint64, counter int) (string, bool) {
+
+    for peer, highestChunk := range fileMap.chunkMap {
+
+        if highestChunk == fileMap.chunkCount - 1 {
+            return peer, true
+        }
+    }
+
+    return "", false
+}
 
 /// Process results from a current or previous search.
 func (se *SearchEngine) StoreResults(results []*common.SearchResult, origin string) {
@@ -53,6 +78,19 @@ func (se *SearchEngine) StoreResults(results []*common.SearchResult, origin stri
         log := &SearchLog{result, origin, time.Now().Unix()}
         se.history = append(se.history, log)
 
+        fileMap, found := se.fileMaps[hex.EncodeToString(result.MetafileHash)]
+
+        if !found {
+            fileMap = &FileMap{
+                result.FileName,
+                result.MetafileHash,
+                result.ChunkCount,
+                make(map[string]uint64),
+            }
+            se.fileMaps[hex.EncodeToString(result.MetafileHash)] = fileMap
+        }
+
+        fileMap.chunkMap[origin] = result.ChunkMap[len(result.ChunkMap) - 1]
     }
 }
 
@@ -144,7 +182,7 @@ func (se *SearchEngine) countOfResults(keywords []string, since int64) int {
     return count
 }
 
-func (se *SearchEngine) getFileMap(fileHash []byte) (bool, *FileMap) {
+func (se *SearchEngine) buildFileMap(fileHash []byte) (bool, *FileMap) {
 
     origins := make(map[string]uint64)
     found := false
@@ -241,6 +279,7 @@ func (gossiper *Gossiper) forwardSearchRequest(searchRequest *common.SearchReque
         }
 
         request := common.CopySearchRequest(searchRequest, budgets[i])
+        common.DebugForwardSearchRequest(request, peer)
         go gossiper.sendToNeighbor(peer, request.Packed())
 
         i++

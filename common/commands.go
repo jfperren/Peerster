@@ -59,7 +59,6 @@ const (
 
     downloadNoHash
     downloadNoName
-    downloadNoDest
     downloadInvalidHash
 
     searchNoKeywords
@@ -77,7 +76,6 @@ func (e *CommandError) Error() string {
 
     case downloadNoHash:            return "Cannot request a file without giving a hash"
     case downloadNoName:            return "Cannot request a file without giving a name"
-    case downloadNoDest:            return "Cannot request a file without specifying the destination node"
     case downloadInvalidHash:       return "Error decoding hash specified in 'request'"
 
     case searchNoKeywords:          return "Cannot search without providing keywords"
@@ -127,10 +125,6 @@ func NewDownloadCommand(request, file, dest string) (*Command, *CommandError) {
 
     if file == "" {
         return nil, &CommandError{downloadNoName}
-    }
-
-    if dest == "" {
-        return nil, &CommandError{downloadNoDest}
     }
 
     hash, err := hex.DecodeString(request)

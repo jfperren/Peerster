@@ -120,60 +120,23 @@ sleep 3
 ./client/client -UIPort=8080 -keywords="inexistant"
 ./client/client -UIPort=8083 -keywords="txt" -budget 1
 
-sleep 6
+sleep 3
+
+./client/client -UIPort=8082 -request=$hash_a -file="hello.txt"
+
+sleep 3
 
 pkill -f Peerster
 
 # Tests
 
-echo -e "${NC}# Check that regular searches are started${NC}"
+echo -e "${NC}# Check that C is able to download${NC}"
 
-expect_contains A "START search inexistant budget 2 increasing true"
-expect_contains C "START search hell budget 2 increasing true"
-
-echo -e "${NC}# Check that D's budget-specific search is started${NC}"
-
-expect_contains D "START search txt budget 1 increasing false"
-
-echo -e "${NC}# Check that C's search got the expected results${NC}"
-
-expect_contains C "FOUND match $file_a at A metafile=$hash_a chunks=$chunks_a"
-expect_contains C "FOUND match $file_e at E metafile=$hash_e chunks=$chunks_e"
-
-echo -e "${NC}# Check that D's search got the expected results${NC}"
-
-expect_contains D "FOUND match $file_c at C metafile=$hash_c chunks=$chunks_c"
-expect_contains D "FOUND match $file_b at E metafile=$hash_b chunks=$chunks_b"
-
-echo -e "${NC}# Check that C and D's search completed${NC}"
-
-expect_contains C "SEARCH FINISHED"
-expect_contains D "SEARCH FINISHED"
-
-echo -e "${NC}# Check that C's search does not match itself${NC}"
-
-expect_missing A "FOUND match $file_c at C"
-
-echo -e "${NC}# Check that D's search did not match A's file (too far)${NC}"
-
-expect_contains C "FOUND match $file_a at A metafile=$hash_a chunks=$chunks_a"
-expect_contains C "FOUND match $file_e at E metafile=$hash_e chunks=$chunks_e"
-
-echo -e "${NC}# Check that A's inexistant search does not match anything${NC}"
-
-expect_missing A "FOUND match"
-
-echo -e "${NC}# Check that A's search increases as expected${NC}"
-
-expect_contains A "START search inexistant budget 4 increasing true"
-expect_contains A "START search inexistant budget 8 increasing true"
-expect_contains A "START search inexistant budget 16 increasing true"
-expect_contains A "START search inexistant budget 32 increasing true"
-
-echo -e "${NC}# Check that A's search stops after 32${NC}"
-
-expect_contains A "TIMEOUT search inexistant"
-expect_missing A "START search inexistant budget 64 increasing true"
+expect_contains C "START DOWNLOADING file $file_a from A metahash $hash_a"
+expect_contains C "DOWNLOADING metafile of $file_a from A"
+expect_contains C "DOWNLOADING $file_a chunk 0 from A"
+expect_contains C "RECONSTRUCTED file $file_a"
+expect_contains C "DOWNLOAD COMPLETED file $file_a from A metahash $hash_a"
 
 # CHECK THAT NODES WITH HALF OF THINGS CAN STILL REPLY
 

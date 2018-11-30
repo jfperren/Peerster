@@ -377,6 +377,10 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 			return
 		}
 
+		if packet.SearchRequest.Origin == gossiper.Name {
+			return
+		}
+
 		common.DebugProcessSearchRequest(packet.SearchRequest.Origin, packet.SearchRequest.Keywords)
 
 		go gossiper.forwardSearchRequest(packet.SearchRequest, source)
@@ -577,6 +581,23 @@ func (gossiper *Gossiper) StartDownload(name string, metaHash []byte, peer strin
 	if completed {
 		common.DebugDownloadCompleted(name, metaHash, peer)
 		return
+	}
+
+	if peer == "" {
+
+		fileMap, found := gossiper.SearchEngine.FileMap(metaHash)
+
+		if !found {
+			common.DebugDownloadUnknownFile(metaHash)
+			return
+		}
+
+		peer, found = fileMap.peerForChunk(uint64(chunkId), counter)
+
+		if !found {
+			common.DebugNoKnownOwnerForFile(metaHash)
+			return
+		}
 	}
 
 	common.DebugStartDownload(name, nextHash, peer)

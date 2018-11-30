@@ -281,3 +281,17 @@ func DebugIgnoreSpam(origin string, keywords []string) {
 	if !Verbose { return }
 	fmt.Printf("IGNORE SPAM from %v keywords %v\n", origin, strings.Join(keywords, SearchKeywordSeparator))
 }
+
+func DebugDownloadUnknownFile(hash []byte) {
+	if !Verbose { return }
+	fmt.Printf("WARNING cannot download unknown file %v\n", hex.EncodeToString(hash))
+}
+
+func DebugNoKnownOwnerForFile(hash []byte) {
+	if !Verbose { return }
+	fmt.Printf("WARNING cannot download file %v has no owner", hex.EncodeToString(hash))
+}
+
+func DebugForwardSearchRequest(request *SearchRequest, next string) {
+	fmt.Printf("FORWARD search request %v from %v to %v budget %v\n", strings.Join(request.Keywords, SearchKeywordSeparator), request.Origin, next, request.Budget)
+}
