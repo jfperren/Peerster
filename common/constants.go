@@ -26,3 +26,4 @@ const SearchRequestResultsThreshold = 2
 const SearchTimeout = 1 * time.Second
 const TransactionHopLimit = 10
 const BlockHopLimit = 20
+const FileNameSeparator = ","

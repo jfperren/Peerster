@@ -10,13 +10,13 @@ import (
 
 type BlockChain struct {
 
-    candidates []common.TxPublish
+    Candidates []common.TxPublish
 
-    files       map[string]*common.File
-    blocks      map[string]*common.Block
-    previous    [32]byte
-    isNew       bool
-    minedBlocks chan *common.Block
+    Files       map[string]*common.File
+    Blocks      map[string]*common.Block
+    Latest      [32]byte
+    IsNew       bool
+    MinedBlocks chan *common.Block
 
     lock        *sync.RWMutex
 }
@@ -24,10 +24,10 @@ type BlockChain struct {
 func NewBlockChain() *BlockChain {
 
     return &BlockChain{
-        candidates:     make([]common.TxPublish, 0),
-        files:          make(map[string]*common.File),
-        blocks:         make(map[string]*common.Block),
-        isNew:          true,
+        Candidates:     make([]common.TxPublish, 0),
+        Files:          make(map[string]*common.File),
+        Blocks:         make(map[string]*common.Block),
+        IsNew:          true,
         lock:           &sync.RWMutex{},
     }
 }
@@ -50,7 +50,7 @@ func (gossiper *Gossiper) waitForNewBlocks() {
         for {
 
             // Wait for blocks
-            block := <- gossiper.BlockChain.minedBlocks
+            block := <- gossiper.BlockChain.MinedBlocks
 
             publish := &common.BlockPublish{
                 Block:    *block,
@@ -68,19 +68,19 @@ func (bc *BlockChain) tryAddFile(candidate *common.TxPublish) bool {
     bc.lock.Lock()
     defer bc.lock.Unlock()
 
-    _, found := bc.files[candidate.File.Name]
+    _, found := bc.Files[candidate.File.Name]
 
     if found {
         return false
     }
 
-    for _, candidate := range bc.candidates {
+    for _, candidate := range bc.Candidates {
         if candidate.File.Name == candidate.File.Name {
             return false
         }
     }
 
-    bc.candidates = append(bc.candidates, *candidate)
+    bc.Candidates = append(bc.Candidates, *candidate)
 
     return true
 }
@@ -97,19 +97,20 @@ func (bc *BlockChain) tryAddBlock(candidate *common.Block) bool {
         return false
     }
 
-    _, found := bc.blocks[hex.EncodeToString(hash[:])]
+    _, found := bc.Blocks[hex.EncodeToString(hash[:])]
 
     if found {
         return false
     }
 
-    if bytes.Compare(candidate.PrevHash[:], bc.previous[:]) != 0 && !bc.isNew {
+    if bytes.Compare(candidate.PrevHash[:], bc.Latest[:]) != 0 && !bc.IsNew {
         return false
     }
 
-    bc.blocks[hex.EncodeToString(hash[:])] = candidate
-    bc.previous = hash
-    bc.isNew = true
+    bc.Blocks[hex.EncodeToString(hash[:])] = candidate
+    bc.Latest = hash
+    bc.IsNew = true
+    common.LogChain(bc)
 
     return true
 }
@@ -131,9 +132,9 @@ func (bc *BlockChain) startMining() {
             bc.lock.RLock()
 
             candidate := &common.Block {
-                bc.previous,
+                bc.Latest,
                 nonce,
-                bc.candidates,
+                bc.Candidates,
             }
 
             bc.lock.RUnlock()
@@ -144,7 +145,7 @@ func (bc *BlockChain) startMining() {
 
                 if bc.tryAddBlock(candidate) {
 
-                    bc.minedBlocks <- candidate
+                    bc.MinedBlocks <- candidate
                 }
             }
         }
