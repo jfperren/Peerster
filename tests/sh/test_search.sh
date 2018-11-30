@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-# This script tests the simple case of 5 gossipers sending each other files.
-# The setup is a line A - B - C - D - E
+# Build
 
-go build
-cd client
-go build
-cd ..
+source ./scripts/build.sh
+
+# Load helpers
+
+source ./tests/sh/helpers.sh
 
 # Variables
 
@@ -28,9 +28,20 @@ file_d="my presentation.pdf"
 file_e="highway_to_hell.mp3"
 
 hash_a="690b8ffe922437a30cb89cab868aee4d1571e625c608f89cec8b6d6380b85af6"
+hash_b="7995e2cec0eb89ddc7e3642c740d2b4a49de8760d93ccea61e577829b4114369"
+hash_c="99a5021f52ad2c8981b9caacf1afb48f86d7276d80e0b3636ad92bb08f548fb0"
 hash_e="2730f375e4cfbb397bc0f74924ce01f08fc22cd8c5d6df65e1d094a409ebcb97"
 
 chunks_a="0"
+chunks_b="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,
+26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,
+52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,
+78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,
+103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,
+122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,
+141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,
+160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179"
+chunks_c="0,1,2,3,4,5,6,7"
 chunks_e="0,1,2,3"
 
 downloadDir="_Downloads"
@@ -114,8 +125,10 @@ done
 sleep 3
 
 ./client/client -UIPort=8082 -keywords="hell"
+./client/client -UIPort=8080 -keywords="inexistant"
+./client/client -UIPort=8083 -keywords="txt" -budget 1
 
-sleep 5
+sleep 8
 
 pkill -f Peerster
 
@@ -123,27 +136,59 @@ pkill -f Peerster
 
 failed="F"
 
-expect_contains() {
+echo -e "${NC}# Check that regular searches are started${NC}"
 
-  file="logs/${1}.out"
-  regex=${2}
+expect_contains A "START search inexistant budget 2 increasing true"
+expect_contains C "START search hell budget 2 increasing true"
 
-  if (grep -q "$regex" ${file}) ; then
-    echo -e "${GREEN}- ${file} : <CONTAINS> ${regex}${GREEN}"
-  else
-    failed="T"
-    echo -e "${RED}- ${file} : <MISSING> ${regex}${RED}"
-  fi
-}
+echo -e "${NC}# Check that D's budget-specific search is started${NC}"
+
+expect_contains D "START search txt budget 1 increasing false"
 
 echo -e "${NC}# Check that C's search got the expected results${NC}"
 
 expect_contains C "FOUND match $file_a at A metafile=$hash_a chunks=$chunks_a"
 expect_contains C "FOUND match $file_e at E metafile=$hash_e chunks=$chunks_e"
 
-echo -e "${NC}# Check that C's search completed${NC}"
+echo -e "${NC}# Check that D's search got the expected results${NC}"
+
+expect_contains D "FOUND match $file_c at C metafile=$hash_c chunks=$chunks_c"
+expect_contains D "FOUND match $file_b at E metafile=$hash_b chunks=$chunks_b"
+
+# FOUND match another_hello.txt at C metafile=99a5021f52ad2c8981b9caacf1afb48f86d7276d80e0b3636ad92bb08f548fb0 chunks=0,1,2,3,4,5,6,7
+# FOUND match poem.txt at E metafile=7995e2cec0eb89ddc7e3642c740d2b4a49de8760d93ccea61e577829b4114369
+
+echo -e "${NC}# Check that C and D's search completed${NC}"
 
 expect_contains C "SEARCH FINISHED"
+expect_contains D "SEARCH FINISHED"
+
+echo -e "${NC}# Check that C's search does not match itself${NC}"
+
+expect_missing A "FOUND match $file_c at C"
+
+echo -e "${NC}# Check that D's search did not match A's file (too far)${NC}"
+
+expect_contains C "FOUND match $file_a at A metafile=$hash_a chunks=$chunks_a"
+expect_contains C "FOUND match $file_e at E metafile=$hash_e chunks=$chunks_e"
+
+echo -e "${NC}# Check that A's inexistant search does not match anything${NC}"
+
+expect_missing A "FOUND match"
+
+echo -e "${NC}# Check that A's search increases as expected${NC}"
+
+expect_contains A "START search inexistant budget 4 increasing true"
+expect_contains A "START search inexistant budget 8 increasing true"
+expect_contains A "START search inexistant budget 16 increasing true"
+expect_contains A "START search inexistant budget 32 increasing true"
+
+echo -e "${NC}# Check that A's search stops after 32${NC}"
+
+expect_contains A "TIMEOUT search inexistant"
+expect_missing A "START search inexistant budget 64 increasing true"
+
+# CHECK THAT NODES WITH HALF OF THINGS CAN STILL REPLY
 
 if [[ "$failed" == "T" ]] ; then
 	echo -e "${RED}***FAILED***${NC}"
