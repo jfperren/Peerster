@@ -11,16 +11,19 @@ import (
 
 type BlockChain struct {
 
-    Candidates []common.TxPublish
+    Candidates []common.TxPublish           // Current transactions to be included in next block
 
-    Files       map[string]*common.File
-    Blocks      map[string]*common.Block
-    Latest      [32]byte
-    IsNew       bool
-    MinedBlocks chan *common.Block
-    MiningTime  int64
+    Files       map[string]*common.File     // Current state of the chain: mapping of name to file
+    Blocks      map[string]*common.Block    // All chain blocks, mapped by hash
+    Length      map[string]int              // Length of chain at each block
 
-    lock        *sync.RWMutex
+    IsNew       bool                        // If true, we accept any block from other peers (only true at init)
+    MinedBlocks chan *common.Block          // Channel that publishes found blocks to be broadcasted
+    MiningTime  int64                       // Timestamp of when the gossiper start mining a new block
+
+    Latest      [32]byte                    // Current hash on the longest chain
+
+    lock        *sync.RWMutex               // Mutex to synchronize access to the chain
 }
 
 func NewBlockChain() *BlockChain {
@@ -29,6 +32,7 @@ func NewBlockChain() *BlockChain {
         Candidates:     make([]common.TxPublish, 0),
         Files:          make(map[string]*common.File),
         Blocks:         make(map[string]*common.Block),
+        Length:         make(map[string]int),
         IsNew:          true,
         MinedBlocks:    make(chan *common.Block, 2),
         MiningTime:     0,
@@ -112,34 +116,48 @@ func (bc *BlockChain) tryAddBlock(candidate *common.Block) bool {
         return false
     }
 
-    if !bc.IsNew && bytes.Compare(candidate.PrevHash[:], bc.Latest[:]) != 0 {
-        common.DebugIgnoreBlockPrevDoesntMatch(candidate, bc.Latest)
-        return false
+    // All good, store block
+
+    hashStr := hex.EncodeToString(hash[:])
+    bc.Blocks[hashStr] = candidate
+    bc.Length[hashStr] = bc.Length[hex.EncodeToString(candidate.PrevHash[:])] + 1
+
+    if bc.IsNew || bytes.Compare(candidate.PrevHash[:], bc.Latest[:]) == 0 {
+
+        // Append on the longest chain
+
+        bc.Latest = hash
+
+        for _, transaction := range candidate.Transactions {
+            bc.Files[transaction.File.Name] = &transaction.File
+        }
+
+        newCandidates := make([]common.TxPublish, 0)
+
+        for _, transaction := range bc.Candidates {
+            _, found := bc.Files[transaction.File.Name]
+
+            if !found {
+                newCandidates = append(newCandidates, transaction)
+            }
+        }
+
+        bc.Candidates = newCandidates
+
+        common.LogChain(bc.allBlocks())
+
+    } else if bc.Length[hashStr] > bc.Length[hex.EncodeToString(bc.Latest[:])] {
+
+        // Need to Rollback
+
+        fmt.Printf("ROLLBACK TIME\n")
+
     }
 
-    bc.Blocks[hex.EncodeToString(hash[:])] = candidate
-    bc.Latest = hash
     bc.IsNew = false
 
-    for _, transaction := range candidate.Transactions {
-        bc.Files[transaction.File.Name] = &transaction.File
-    }
-
-    newCandidates := make([]common.TxPublish, 0)
-
-    for _, transaction := range bc.Candidates {
-        _, found := bc.Files[transaction.File.Name]
-
-        if !found {
-            newCandidates = append(newCandidates, transaction)
-        }
-    }
-
-    bc.Candidates = newCandidates
-
-    common.LogChain(bc.allBlocks())
-
     return true
+
 }
 
 func (bc *BlockChain) mine() {
