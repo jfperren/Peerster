@@ -109,14 +109,14 @@ func (bc *BlockChain) tryAddBlock(candidate *common.Block) bool {
         return false
     }
 
-    if bytes.Compare(candidate.PrevHash[:], bc.Latest[:]) != 0 && !bc.IsNew {
+    if !bc.IsNew && bytes.Compare(candidate.PrevHash[:], bc.Latest[:]) != 0 {
         common.DebugIgnoreBlockPrevDoesntMatch(candidate, bc.Latest)
         return false
     }
 
     bc.Blocks[hex.EncodeToString(hash[:])] = candidate
     bc.Latest = hash
-    bc.IsNew = true
+    bc.IsNew = false
 
     for _, transaction := range candidate.Transactions {
         bc.Files[transaction.File.Name] = &transaction.File
