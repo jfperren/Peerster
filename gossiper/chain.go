@@ -2,10 +2,11 @@ package gossiper
 
 import (
     "bytes"
-    "crypto/rand"
     "encoding/hex"
     "github.com/jfperren/Peerster/common"
     "sync"
+    "crypto/rand"
+    "time"
 )
 
 type BlockChain struct {
@@ -17,6 +18,7 @@ type BlockChain struct {
     Latest      [32]byte
     IsNew       bool
     MinedBlocks chan *common.Block
+    MiningTime  int64
 
     lock        *sync.RWMutex
 }
@@ -29,6 +31,7 @@ func NewBlockChain() *BlockChain {
         Blocks:         make(map[string]*common.Block),
         IsNew:          true,
         MinedBlocks:    make(chan *common.Block, 2),
+        MiningTime:     0,
         lock:           &sync.RWMutex{},
     }
 }
@@ -144,6 +147,7 @@ func (bc *BlockChain) mine() {
     for {
 
         var nonce [32]byte
+        bc.MiningTime = time.Now().UnixNano()
 
         _, err := rand.Read(nonce[:])
 
@@ -163,9 +167,12 @@ func (bc *BlockChain) mine() {
 
         hash := candidate.Hash()
 
-        if hash[0] == 0 && hash[1] == 0 && hash[2] < 50 {
+        if hash[0] == 0 && hash[1] == 0 {
 
             if bc.tryAddBlock(candidate) {
+
+                nanoSeconds := time.Duration(2 * (time.Now().UnixNano() - bc.MiningTime))
+                time.Sleep(nanoSeconds * time.Nanosecond)
 
                 bc.MinedBlocks <- candidate
             }
