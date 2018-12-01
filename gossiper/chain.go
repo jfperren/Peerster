@@ -71,7 +71,7 @@ func (gossiper *Gossiper) waitForNewBlocks() {
 }
 
 // Atomically test and append transaction
-func (bc *BlockChain) tryAddFile(candidate *common.TxPublish) bool {
+func (bc *BlockChain) TryAddFile(candidate *common.TxPublish) bool {
 
     bc.lock.Lock()
     defer bc.lock.Unlock()
@@ -97,7 +97,7 @@ func (bc *BlockChain) tryAddFile(candidate *common.TxPublish) bool {
 }
 
 // Atomically test and append block
-func (bc *BlockChain) tryAddBlock(candidate *common.Block) bool {
+func (bc *BlockChain) TryAddBlock(candidate *common.Block) bool {
 
     bc.lock.Lock()
     defer bc.lock.Unlock()
@@ -186,7 +186,7 @@ func (bc *BlockChain) mine() {
 
         if hash[0] == 0 && hash[1] == 0 {
 
-            if bc.tryAddBlock(candidate) {
+            if bc.TryAddBlock(candidate) {
 
                 nanoSeconds := time.Duration(2 * (time.Now().UnixNano() - bc.MiningTime))
                 time.Sleep(nanoSeconds * time.Nanosecond)
@@ -213,3 +213,91 @@ func (bc *BlockChain) allBlocks() []*common.Block {
         hash = block.PrevHash
     }
 }
+
+func (bc *BlockChain) FirstCommonAncestor(current, new *common.Block) (*common.Block, bool, []*common.Block, []*common.Block) {
+
+    // Initialize map with parents seen
+    visited := make(map[[32]byte]*common.Block)
+    var zero [32]byte
+
+    currentHash := current.Hash()
+    newHash := new.Hash()
+
+    var ancestor *common.Block
+    hasCommonAncestor := false
+
+    // Will use these to store path to the common ancestor
+    currentChain := make([]*common.Block, 0)
+    newChain := make([]*common.Block, 0)
+
+    hash := currentHash
+
+    for {
+
+        if bytes.Equal(hash[:], zero[:]){
+            break
+        }
+
+        block, found := bc.Blocks[hash]
+
+        if !found {
+            break
+        }
+
+        // Climb up the chain
+        visited[hash] = block
+        hash = block.PrevHash
+    }
+
+    hash = newHash
+
+    for {
+
+        block, found := visited[hash]
+
+        if found {
+            // Found common ancestor
+            ancestor = block
+            hasCommonAncestor = true
+            break
+        }
+
+        block, found = bc.Blocks[hash]
+
+        if !found {
+            // There is no common ancestor. Chains have different genesis block
+            ancestor = nil
+            break
+        }
+
+        // Add block to the list
+        newChain = append(newChain, block)
+
+        // Climb up the chain
+        visited[hash] = block
+        hash = block.PrevHash
+    }
+
+    hash = currentHash
+
+    for {
+
+        block, found := bc.Blocks[hash]
+
+        if !found {
+            // Finished going up the chain, there was no common ancestor
+            break
+        }
+
+        if ancestor != nil && ancestor.Hash() == hash {
+            // We are at the ancestor
+            break
+        }
+
+        currentChain = append(currentChain, block)
+        hash = block.PrevHash
+    }
+
+    return ancestor, hasCommonAncestor, currentChain, newChain
+}
+

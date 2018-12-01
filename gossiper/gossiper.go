@@ -261,7 +261,7 @@ func (gossiper *Gossiper) HandleClient(command *common.Command) {
 
 		transaction := NewTransaction(metaFile)
 
-		if gossiper.BlockChain.tryAddFile(transaction) {
+		if gossiper.BlockChain.TryAddFile(transaction) {
 			gossiper.broadcastToNeighbors(transaction.Packed())
 			common.DebugBroadcastTransaction(transaction)
 		}
@@ -419,7 +419,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 		common.DebugReceiveTransaction(packet.TxPublish)
 
-		if gossiper.BlockChain.tryAddFile(packet.TxPublish) {
+		if gossiper.BlockChain.TryAddFile(packet.TxPublish) {
 
 			packet.TxPublish.HopLimit--
 
@@ -430,7 +430,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 	case packet.BlockPublish != nil:
 
-		if gossiper.BlockChain.tryAddBlock(&packet.BlockPublish.Block) {
+		if gossiper.BlockChain.TryAddBlock(&packet.BlockPublish.Block) {
 
 			packet.BlockPublish.HopLimit--
 
