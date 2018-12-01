@@ -313,7 +313,7 @@ func (t *TxPublish) Hash() (out [32]byte) {
 	return
 }
 
-func (block *Block) str() string {
+func (block *Block) Str() string {
 
 	hash := block.Hash()
 	prev := block.PrevHash

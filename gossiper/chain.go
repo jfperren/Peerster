@@ -122,13 +122,17 @@ func (bc *BlockChain) tryAddBlock(candidate *common.Block) bool {
         bc.Files[transaction.File.Name] = &transaction.File
     }
 
+    newCandidates := make([]common.TxPublish, 0)
+
     for _, transaction := range bc.Candidates {
         _, found := bc.Files[transaction.File.Name]
 
-        if found {
-            delete(bc.Files, transaction.File.Name)
+        if !found {
+            newCandidates = append(newCandidates, transaction)
         }
     }
+
+    bc.Candidates = newCandidates
 
     common.LogChain(bc.allBlocks())
 

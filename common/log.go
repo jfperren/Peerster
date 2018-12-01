@@ -101,7 +101,7 @@ func LogChain(blocks []*Block) {
 	blocksStr := make([]string, 0)
 
 	for _, block := range blocks {
-		blocksStr = append(blocksStr, block.str())
+		blocksStr = append(blocksStr, block.Str())
 	}
 
 	fmt.Printf("CHAIN %v\n", strings.Join(blocksStr, " "))
