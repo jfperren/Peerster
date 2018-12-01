@@ -1,40 +1,81 @@
 package gossiper
 
 import (
-    "bytes"
     "encoding/hex"
+    "fmt"
     "github.com/jfperren/Peerster/common"
     "regexp"
+    "strings"
     "sync"
     "time"
 )
 
 type SearchEngine struct {
 
-    history      []*SearchLog
-    fileMaps     map[string]*FileMap
-    lock	 	 *sync.RWMutex
+    activeSearches  map[string]*ActiveSearch
+    fileMaps        map[string]*FileMap
+    lock            *sync.RWMutex
 }
 
-type SearchLog struct {
+type ActiveSearch struct {
 
-    result      *common.SearchResult
-    origin      string
+    id          string
+    keywords    []string
+    matches     []*common.SearchResult
+}
+
+type SearchRequestHistory struct {
+
+    keywords    []string
     timestamp   int64
 }
+
 
 type FileMap struct {
 
     FileName        string
     FileHash        []byte
     chunkCount      uint64
-    chunkMap        map[string]uint64
+    chunkMap        map[uint64]map[string]bool
 
+}
+
+func (fileMap *FileMap) isComplete() bool {
+
+    for i := uint64(0); i < fileMap.chunkCount; i++ {
+        if len(fileMap.chunkMap[i]) == 0 {
+            return false
+        }
+    }
+
+    return true
+}
+
+func (fileMap *FileMap) peerForChunk(chunkId uint64, counter int) (string, bool) {
+
+    potentialPeers, found := fileMap.chunkMap[chunkId]
+
+    if !found { return "", false }
+
+    index := counter % len(potentialPeers)
+
+    i := 0
+
+    for peer, _ := range potentialPeers {
+
+        if i == index {
+            return peer, true
+        }
+
+        i++
+    }
+
+    return "", false
 }
 
 func NewSearchEngine() *SearchEngine {
     return &SearchEngine{
-        make([]*SearchLog, 0),
+        make(map[string]*ActiveSearch),
         make(map[string]*FileMap),
         &sync.RWMutex{},
     }
@@ -54,16 +95,21 @@ func (se *SearchEngine) FileMap(hash []byte) (*FileMap, bool) {
     return fileMap, found
 }
 
-func (fileMap *FileMap) peerForChunk(chunkId uint64, counter int) (string, bool) {
+func (se *SearchEngine) createNewActiveSearch(keywords []string) string {
 
-    for peer, highestChunk := range fileMap.chunkMap {
-
-        if highestChunk == fileMap.chunkCount - 1 {
-            return peer, true
-        }
+    searchRequest := &ActiveSearch{
+        id: fmt.Sprintf("%v:%v", time.Now().UnixNano(), time.Now().UnixNano(),
+            strings.Join(keywords,common.SearchKeywordSeparator)),
+        keywords: keywords,
+        matches: make([]*common.SearchResult, 0),
     }
 
-    return "", false
+    se.lock.Lock()
+    defer se.lock.Unlock()
+
+    se.activeSearches[searchRequest.id] = searchRequest
+
+    return searchRequest.id
 }
 
 /// Process results from a current or previous search.
@@ -75,8 +121,13 @@ func (se *SearchEngine) StoreResults(results []*common.SearchResult, origin stri
     for _, result := range results {
 
         common.LogMatch(result.FileName, origin, result.MetafileHash, result.ChunkMap)
-        log := &SearchLog{result, origin, time.Now().Unix()}
-        se.history = append(se.history, log)
+
+        for _, search := range se.activeSearches {
+
+            if Match(result.FileName, search.keywords) {
+                search.matches = append(search.matches, result)
+            }
+        }
 
         fileMap, found := se.fileMaps[hex.EncodeToString(result.MetafileHash)]
 
@@ -85,12 +136,20 @@ func (se *SearchEngine) StoreResults(results []*common.SearchResult, origin stri
                 result.FileName,
                 result.MetafileHash,
                 result.ChunkCount,
-                make(map[string]uint64),
+                make(map[uint64]map[string]bool),
             }
             se.fileMaps[hex.EncodeToString(result.MetafileHash)] = fileMap
         }
 
-        fileMap.chunkMap[origin] = result.ChunkMap[len(result.ChunkMap) - 1]
+        fillChunkMap(fileMap.chunkMap, result, origin)
+    }
+
+    for searchId, _ := range se.activeSearches {
+
+        if se.hasCompleted(searchId, false) {
+            common.LogSearchFinished()
+            delete(se.activeSearches, searchId)
+        }
     }
 }
 
@@ -157,60 +216,15 @@ func Match(name string, keywords []string) bool {
 //
 //
 
-func (se *SearchEngine) shouldStopSearch(keywords []string, since int64) bool {
-    return se.countOfResults(keywords, since) >= 2
-}
-
-func (se *SearchEngine) countOfResults(keywords []string, since int64) int {
-
-    se.lock.RLock()
-    defer se.lock.RUnlock()
-
-    count := 0
-
-    for i := len(se.history) - 1; i >= 0; i-- {
-
-        result := se.history[i].result
-
-        if result.ChunkMap[len(result.ChunkMap) - 1] == result.ChunkCount - 1 {
-            count++
-        }
-    }
-
-    common.DebugSearchStatus(count, keywords)
-
-    return count
-}
-
-func (se *SearchEngine) buildFileMap(fileHash []byte) (bool, *FileMap) {
-
-    origins := make(map[string]uint64)
-    found := false
-
-    var count uint64
-    var fileName string
-
-    for _, log := range se.history {
-
-        if bytes.Compare(log.result.MetafileHash, fileHash) == 0 {
-
-            count = log.result.ChunkCount
-            fileName = log.result.FileName
-
-            origins[log.origin] = log.result.ChunkCount
-
-            if log.result.ChunkCount == log.result.ChunkMap[len(log.result.ChunkMap) - 1] {
-                found = true
-            }
-        }
-    }
-
-    if !found {
-        return false, nil
-    }
-
-    return true, &FileMap{fileName, fileHash, count, origins}
-}
+// func (se *SearchEngine) shouldStopSearch(search *ActiveSearch) bool {
+//
+//     se.lock.RLock()
+//     defer se.lock.RUnlock()
+//
+//     _, found := se.activeSearches[search.id]
+//
+//     return !found
+// }
 
 // --
 // -- Locations
@@ -222,10 +236,12 @@ func (gossiper *Gossiper) RingSearch(keywords []string, budget uint64) {
 
     timestamp := time.Now().Unix()
 
+    searchId := gossiper.SearchEngine.createNewActiveSearch(keywords)
+
     if budget == common.SearchNoBudget {
-        gossiper.ringSearchInternal(keywords, common.DefaultSearchBudget, timestamp, true)
+        gossiper.ringSearchInternal(searchId, keywords, common.DefaultSearchBudget, timestamp, true)
     } else {
-        gossiper.ringSearchInternal(keywords, budget, timestamp, false)
+        gossiper.ringSearchInternal(searchId, keywords, budget, timestamp, false)
     }
 }
 
@@ -237,15 +253,14 @@ func (gossiper *Gossiper) newSearchRequest(budget uint64, keywords []string) *co
     }
 }
 
-func (gossiper *Gossiper) ringSearchInternal(keywords []string, budget uint64, timestamp int64, increasing bool) {
+func (gossiper *Gossiper) ringSearchInternal(searchId string, keywords []string, budget uint64, timestamp int64, increasing bool) {
 
     if budget > common.MaxSearchBudget && increasing {
         common.DebugSearchTimeout(keywords)
         return
     }
 
-    if gossiper.SearchEngine.shouldStopSearch(keywords, timestamp) {
-        common.LogSearchFinished()
+    if gossiper.SearchEngine.hasCompleted(searchId, true) {
         return
     }
 
@@ -260,7 +275,7 @@ func (gossiper *Gossiper) ringSearchInternal(keywords []string, budget uint64, t
 
     time.Sleep(common.SearchRequestBudgetIncreaseDT)
 
-    gossiper.ringSearchInternal(keywords, budget * 2, timestamp, true)
+    gossiper.ringSearchInternal(searchId, keywords, budget * 2, timestamp, true)
 }
 
 // Forward a Search request
@@ -289,3 +304,77 @@ func (gossiper *Gossiper) forwardSearchRequest(searchRequest *common.SearchReque
 func (gossiper *Gossiper) broadcastSearchRequest(searchRequest *common.SearchRequest) {
     gossiper.broadcastToNeighbors(searchRequest.Packed())
 }
+
+func (se *SearchEngine) hasCompleted(searchId string, lock bool) bool {
+
+    if lock {
+        se.lock.RLock()
+        defer se.lock.RUnlock()
+    }
+
+    search, found := se.activeSearches[searchId]
+
+    if !found {
+        return true
+    }
+
+    chunkMaps := make(map[string]map[uint64]bool)
+    sizes := make(map[string]uint64)
+
+    for _, result := range search.matches {
+
+        chunkMap, found := chunkMaps[result.FileName]
+
+        if !found {
+            chunkMap = make(map[uint64]bool)
+            chunkMaps[result.FileName] = chunkMap
+        }
+
+        for _, chunkId := range result.ChunkMap {
+            chunkMap[chunkId] = true
+        }
+
+        sizes[result.FileName] = result.ChunkCount
+    }
+
+    count := 0
+
+    FILE_LOOP:
+    for name, chunkMap := range chunkMaps {
+
+        size, found := sizes[name]
+
+        if !found {
+            continue FILE_LOOP
+        }
+
+        for i := uint64(0); i < size; i++ {
+
+            _, found := chunkMap[i]
+
+            if !found {
+                continue FILE_LOOP
+            }
+        }
+
+        count++
+    }
+
+    return count >= 2
+}
+
+func fillChunkMap(chunkMap map[uint64]map[string]bool, result *common.SearchResult, origin string) {
+
+    for _, chunk := range result.ChunkMap {
+
+        seeds, found := chunkMap[chunk]
+
+        if !found {
+            seeds = make(map[string]bool)
+            chunkMap[chunk] = seeds
+        }
+
+        seeds[origin] = true
+    }
+}
+
