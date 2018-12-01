@@ -75,8 +75,8 @@ func (bc *BlockChain) tryAddFile(candidate *common.TxPublish) bool {
         return false
     }
 
-    for _, candidate := range bc.Candidates {
-        if candidate.File.Name == candidate.File.Name {
+    for _, otherCandidates := range bc.Candidates {
+        if candidate.File.Name == otherCandidates.File.Name {
             return false
         }
     }
