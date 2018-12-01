@@ -96,32 +96,15 @@ func LogFoundBlock(block *Block) {
 	fmt.Printf("FOUND-BLOCK %v\n", hex.EncodeToString(hash[:]))
 }
 
-func LogChain(latest [32]byte, blocks map[string]*Block) {
+func LogChain(blocks []*Block) {
 
-	fmt.Printf("CHAIN")
+	blocksStr := make([]string, 0)
 
-	hash := hex.EncodeToString(latest[:])
-	
-	for {
-
-		block, found := blocks[hash]
-
-		if !found {
-			fmt.Printf("\n")
-			return
-		}
-
-		prev := hex.EncodeToString(block.PrevHash[:])
-
-		files := make([]string, 0)
-
-		for _, transaction := range block.Transactions {
-			files = append(files, transaction.File.Name)
-		}
-
-		fmt.Printf(" %v:%v:%v", hash, prev, strings.Join(files, FileNameSeparator))
-		hash = prev
+	for _, block := range blocks {
+		blocksStr = append(blocksStr, block.str())
 	}
+
+	fmt.Printf("CHAIN %v\n", strings.Join(blocksStr, " "))
 }
 
 // --
@@ -322,9 +305,54 @@ func DebugDownloadUnknownFile(hash []byte) {
 
 func DebugNoKnownOwnerForFile(hash []byte) {
 	if !Verbose { return }
-	fmt.Printf("WARNING cannot download file %v has no owner", hex.EncodeToString(hash))
+	fmt.Printf("WARNING cannot download file %v has no owner\n", hex.EncodeToString(hash))
 }
 
 func DebugForwardSearchRequest(request *SearchRequest, next string) {
+	if !Verbose { return }
 	fmt.Printf("FORWARD search request %v from %v to %v budget %v\n", strings.Join(request.Keywords, SearchKeywordSeparator), request.Origin, next, request.Budget)
+}
+
+func DebugIgnoreBlockIsNotValid(block *Block) {
+	if !Verbose { return }
+	hash := block.Hash()
+	fmt.Printf("IGNORE block %v is invalid\n", hex.EncodeToString(hash[:]))
+}
+
+func DebugIgnoreBlockAlreadyPresent(block *Block) {
+	if !Verbose { return }
+	hash := block.Hash()
+	fmt.Printf("IGNORE block %v is already in chain\n", hex.EncodeToString(hash[:]))
+}
+
+func DebugIgnoreBlockPrevDoesntMatch(block *Block, prev [32]byte) {
+	if !Verbose { return }
+	hash := block.Hash()
+	fmt.Printf("IGNORE block %v prev hash %v does not match chain end %v\n", hex.EncodeToString(hash[:]),
+		hex.EncodeToString(block.PrevHash[:]), hex.EncodeToString(prev[:]))
+}
+
+func DebugIgnoreTransactionAlreadyInChain(transaction *TxPublish) {
+	if !Verbose { return }
+	fmt.Printf("IGNORE transaction %v already in chain\n", transaction.File.Name)
+}
+
+func DebugIgnoreTransactionAlreadyCandidate(transaction *TxPublish) {
+	if !Verbose { return }
+	fmt.Printf("IGNORE transaction %v already candidate\n", transaction.File.Name)
+}
+
+func DebugAddCandidateTransaction(transaction *TxPublish) {
+	if !Verbose { return }
+	fmt.Printf("CANDIDATE transaction %v successfily added\n", transaction.File.Name)
+}
+
+func DebugBroadcastTransaction(transaction *TxPublish) {
+	if !Verbose { return }
+	fmt.Printf("BROADCAST transaction %v\n", transaction.File.Name)
+}
+
+func DebugReceiveTransaction(transaction *TxPublish) {
+	if !Verbose { return }
+	fmt.Printf("RECEIVE transaction %v\n", transaction.File.Name)
 }

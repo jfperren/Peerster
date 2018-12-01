@@ -72,16 +72,19 @@ func (bc *BlockChain) tryAddFile(candidate *common.TxPublish) bool {
     _, found := bc.Files[candidate.File.Name]
 
     if found {
+        common.DebugIgnoreTransactionAlreadyInChain(candidate)
         return false
     }
 
     for _, otherCandidates := range bc.Candidates {
         if candidate.File.Name == otherCandidates.File.Name {
+            common.DebugIgnoreTransactionAlreadyCandidate(candidate)
             return false
         }
     }
 
     bc.Candidates = append(bc.Candidates, *candidate)
+    common.DebugAddCandidateTransaction(candidate)
 
     return true
 }
@@ -165,4 +168,20 @@ func (bc *BlockChain) mine() {
         }
     }
 }
+
+func (bc *BlockChain) allBlocks() []*common.Block {
+
+    hash := bc.Latest
+    allBlocks := make([]*common.Block, 0)
+
+    for {
+        block, found := bc.Blocks[hex.EncodeToString(hash[:])]
+
+        if !found {
+            return allBlocks
+        }
+
+        allBlocks = append(allBlocks, block)
+        hash = block.PrevHash
+    }
 }

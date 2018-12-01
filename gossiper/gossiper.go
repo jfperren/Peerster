@@ -417,6 +417,8 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 	case packet.TxPublish != nil:
 
+		common.DebugReceiveTransaction(packet.TxPublish)
+
 		if gossiper.BlockChain.tryAddFile(packet.TxPublish) {
 
 			packet.TxPublish.HopLimit--

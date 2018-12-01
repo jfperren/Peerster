@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
+	"fmt"
+	"strings"
 )
 
 // --
@@ -308,4 +311,17 @@ func (t *TxPublish) Hash() (out [32]byte) {
 	h.Write(t.File.MetafileHash)
 	copy(out[:], h.Sum(nil))
 	return
+}
+
+func (block *Block) str() string {
+
+	hash := block.Hash()
+	prev := block.PrevHash
+	files := make([]string, 0)
+
+	for _, transaction := range block.Transactions {
+		files = append(files, transaction.File.Name)
+	}
+
+	return fmt.Sprintf("%v:%v:%v", hex.EncodeToString(hash[:]), hex.EncodeToString(prev[:]), strings.Join(files, FileNameSeparator))
 }
