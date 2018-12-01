@@ -95,23 +95,39 @@ func (bc *BlockChain) tryAddBlock(candidate *common.Block) bool {
     hash := candidate.Hash()
 
     if !(hash[0] == 0 && hash[1] == 0) {
+        common.DebugIgnoreBlockIsNotValid(candidate)
         return false
     }
 
     _, found := bc.Blocks[hex.EncodeToString(hash[:])]
 
     if found {
+        common.DebugIgnoreBlockAlreadyPresent(candidate)
         return false
     }
 
     if bytes.Compare(candidate.PrevHash[:], bc.Latest[:]) != 0 && !bc.IsNew {
+        common.DebugIgnoreBlockPrevDoesntMatch(candidate, bc.Latest)
         return false
     }
 
     bc.Blocks[hex.EncodeToString(hash[:])] = candidate
     bc.Latest = hash
     bc.IsNew = true
-    common.LogChain(bc.Latest, bc.Blocks)
+
+    for _, transaction := range candidate.Transactions {
+        bc.Files[transaction.File.Name] = &transaction.File
+    }
+
+    for _, transaction := range bc.Candidates {
+        _, found := bc.Files[transaction.File.Name]
+
+        if found {
+            delete(bc.Files, transaction.File.Name)
+        }
+    }
+
+    common.LogChain(bc.allBlocks())
 
     return true
 }
