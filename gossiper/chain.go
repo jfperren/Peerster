@@ -11,11 +11,11 @@ import (
 
 type BlockChain struct {
 
-    Candidates []common.TxPublish           // Current transactions to be included in next block
-
+    Candidates  []common.TxPublish          // Current transactions to be included in next block
     Files       map[string]*common.File     // Current state of the chain: mapping of name to file
-    Blocks      map[string]*common.Block    // All chain blocks, mapped by hash
-    Length      map[string]int              // Length of chain at each block
+
+    Blocks      map[[32]byte]*common.Block  // All chain blocks, mapped by hash
+    Length      map[[32]byte]int            // Length of chain at each block
 
     IsNew       bool                        // If true, we accept any block from other peers (only true at init)
     MinedBlocks chan *common.Block          // Channel that publishes found blocks to be broadcasted
@@ -31,8 +31,8 @@ func NewBlockChain() *BlockChain {
     return &BlockChain{
         Candidates:     make([]common.TxPublish, 0),
         Files:          make(map[string]*common.File),
-        Blocks:         make(map[string]*common.Block),
-        Length:         make(map[string]int),
+        Blocks:         make(map[[32]byte]*common.Block),
+        Length:         make(map[[32]byte]int),
         IsNew:          true,
         MinedBlocks:    make(chan *common.Block, 2),
         MiningTime:     0,
@@ -109,7 +109,7 @@ func (bc *BlockChain) tryAddBlock(candidate *common.Block) bool {
         return false
     }
 
-    _, found := bc.Blocks[hex.EncodeToString(hash[:])]
+    _, found := bc.Blocks[hash]
 
     if found {
         common.DebugIgnoreBlockAlreadyPresent(candidate)
@@ -118,9 +118,8 @@ func (bc *BlockChain) tryAddBlock(candidate *common.Block) bool {
 
     // All good, store block
 
-    hashStr := hex.EncodeToString(hash[:])
-    bc.Blocks[hashStr] = candidate
-    bc.Length[hashStr] = bc.Length[hex.EncodeToString(candidate.PrevHash[:])] + 1
+    bc.Blocks[hash] = candidate
+    bc.Length[hash] = bc.Length[candidate.PrevHash] + 1
 
     if bc.IsNew || bytes.Compare(candidate.PrevHash[:], bc.Latest[:]) == 0 {
 
@@ -146,7 +145,7 @@ func (bc *BlockChain) tryAddBlock(candidate *common.Block) bool {
 
         common.LogChain(bc.allBlocks())
 
-    } else if bc.Length[hashStr] > bc.Length[hex.EncodeToString(bc.Latest[:])] {
+    } else if bc.Length[hash] > bc.Length[bc.Latest] {
 
         // Need to Rollback
 
@@ -204,7 +203,7 @@ func (bc *BlockChain) allBlocks() []*common.Block {
     allBlocks := make([]*common.Block, 0)
 
     for {
-        block, found := bc.Blocks[hex.EncodeToString(hash[:])]
+        block, found := bc.Blocks[hash]
 
         if !found {
             return allBlocks
