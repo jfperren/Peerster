@@ -28,6 +28,7 @@ func NewBlockChain() *BlockChain {
         Files:          make(map[string]*common.File),
         Blocks:         make(map[string]*common.Block),
         IsNew:          true,
+        MinedBlocks:    make(chan *common.Block, 2),
         lock:           &sync.RWMutex{},
     }
 }
@@ -45,21 +46,21 @@ func NewTransaction(metaFile *MetaFile) *common.TxPublish {
 
 func (gossiper *Gossiper) waitForNewBlocks() {
 
-    go func() {
+    for {
 
-        for {
 
-            // Wait for blocks
-            block := <- gossiper.BlockChain.MinedBlocks
+        // Wait for blocks
+        block := <- gossiper.BlockChain.MinedBlocks
 
-            publish := &common.BlockPublish{
-                Block:    *block,
-                HopLimit: common.BlockHopLimit,
-            }
 
-            gossiper.broadcastToNeighbors(publish.Packed())
+        publish := &common.BlockPublish{
+            Block:    *block,
+            HopLimit: common.BlockHopLimit,
         }
-    }()
+
+        gossiper.broadcastToNeighbors(publish.Packed())
+        common.LogFoundBlock(block)
+    }
 }
 
 // Atomically test and append transaction
@@ -115,39 +116,37 @@ func (bc *BlockChain) tryAddBlock(candidate *common.Block) bool {
     return true
 }
 
-func (bc *BlockChain) startMining() {
+func (bc *BlockChain) mine() {
 
-    go func() {
+    for {
 
-        for {
+        var nonce [32]byte
 
-            var nonce [32]byte
+        _, err := rand.Read(nonce[:])
 
-            _, err := rand.Read(nonce[:])
+        if err != nil {
+            continue
+        }
 
-            if err != nil {
-                continue
-            }
+        bc.lock.RLock()
 
-            bc.lock.RLock()
+        candidate := &common.Block {
+            bc.Latest,
+            nonce,
+            bc.Candidates,
+        }
 
-            candidate := &common.Block {
-                bc.Latest,
-                nonce,
-                bc.Candidates,
-            }
+        bc.lock.RUnlock()
 
-            bc.lock.RUnlock()
+        hash := candidate.Hash()
 
-            hash := candidate.Hash()
+        if hash[0] == 0 && hash[1] == 0 && hash[2] < 50 {
 
-            if hash[0] == 0 && hash[1] == 0 {
+            if bc.tryAddBlock(candidate) {
 
-                if bc.tryAddBlock(candidate) {
-
-                    bc.MinedBlocks <- candidate
-                }
+                bc.MinedBlocks <- candidate
             }
         }
-    }()
+    }
+}
 }

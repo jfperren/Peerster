@@ -100,9 +100,12 @@ func (gossiper *Gossiper) Start() {
 		go gossiper.receiveClient()
 	}
 
+	go gossiper.waitForNewBlocks()
+	go gossiper.BlockChain.mine()
+
 	// Allows the loops to run indefinitely after the main code is completed.
 	wg := new(sync.WaitGroup)
-	wg.Add(4)
+	wg.Add(6)
 	wg.Wait()
 }
 
@@ -253,12 +256,14 @@ func (gossiper *Gossiper) HandleClient(command *common.Command) {
 		metaFile, err := gossiper.FileSystem.ScanFile(command.Upload.FileName)
 
 		if err != nil {
+			return
+		}
 
-			transaction := NewTransaction(metaFile)
+		transaction := NewTransaction(metaFile)
 
-			if gossiper.BlockChain.tryAddFile(transaction) {
-				gossiper.broadcastToNeighbors(transaction.Packed())
-			}
+		if gossiper.BlockChain.tryAddFile(transaction) {
+			gossiper.broadcastToNeighbors(transaction.Packed())
+			common.DebugBroadcastTransaction(transaction)
 		}
 
 	case command.Search != nil:
@@ -420,6 +425,17 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 				gossiper.broadcastToNeighborsExcept(packet.TxPublish.Packed(), &[]string{source})
 			}
 		}
+
+	case packet.BlockPublish != nil:
+
+		if gossiper.BlockChain.tryAddBlock(&packet.BlockPublish.Block) {
+
+			packet.BlockPublish.HopLimit--
+
+			if packet.BlockPublish.HopLimit > 0 {
+				gossiper.broadcastToNeighborsExcept(packet.BlockPublish.Packed(), &[]string{source})
+			}
+		}
 	}
 }
 
@@ -481,8 +497,8 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
 // Broadcast a GossipPacket containing a Simple message to every neighboring node.
 func (gossiper *Gossiper) broadcastToNeighborsExcept(packet *common.GossipPacket, except *[]string) {
 
-	if packet.Simple == nil && packet.SearchRequest == nil {
-		panic("Cannot broadcastToNeighbors GossipPacket that does not contain SimpleMessage or SearchRequest.")
+	if !packet.IsElligibleForBroadcast() {
+		log.Panicf("Cannot broadcast packet %v.", packet)
 	}
 
 	for i := 0; i < len(gossiper.Router.Peers); i++ {

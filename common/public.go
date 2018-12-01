@@ -256,12 +256,17 @@ func (publish *BlockPublish) Packed() *GossipPacket {
 	return &GossipPacket{BlockPublish: publish}
 }
 
-// Checks if a given GossipPacket is valid. It is only valid if exactly one of its 6 fields is non-nil.
+// Checks if a given GossipPacket is valid. It is only valid if exactly one of its 10 fields is non-nil.
 func (packet *GossipPacket) IsValid() bool {
 	return boolCount(packet.Rumor != nil)+boolCount(packet.Simple != nil)+
 		boolCount(packet.Status != nil)+boolCount(packet.Private != nil)+
 		boolCount(packet.DataReply != nil)+boolCount(packet.DataRequest != nil)+
-		boolCount(packet.SearchReply != nil)+boolCount(packet.SearchRequest != nil) == 1
+		boolCount(packet.SearchReply != nil)+boolCount(packet.SearchRequest != nil)+
+		boolCount(packet.TxPublish != nil)+boolCount(packet.BlockPublish != nil) == 1
+}
+
+func (packet *GossipPacket) IsElligibleForBroadcast() bool {
+	return !(packet.Simple == nil && packet.SearchRequest == nil && packet.TxPublish == nil && packet.BlockPublish == nil)
 }
 
 func (reply *DataReply) VerifyHash(expected []byte) bool {
