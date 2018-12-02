@@ -205,7 +205,7 @@ func (fs *FileSystem) downloadStatus(metaHash []byte) ([]byte, int, bool) {
 		_, found := fs.getChunk(hash)
 
 		if !found {
-			return hash, i, false
+			return hash, i + 1, false
 		}
 	}
 

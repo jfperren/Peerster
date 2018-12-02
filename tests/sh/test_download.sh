@@ -134,7 +134,7 @@ echo -e "${NC}# Check that C is able to download${NC}"
 
 expect_contains C "START DOWNLOADING file $file_a from A metahash $hash_a"
 expect_contains C "DOWNLOADING metafile of $file_a from A"
-expect_contains C "DOWNLOADING $file_a chunk 0 from A"
+expect_contains C "DOWNLOADING $file_a chunk 1 from A"
 expect_contains C "RECONSTRUCTED file $file_a"
 expect_contains C "DOWNLOAD COMPLETED file $file_a from A metahash $hash_a"
 

@@ -42,13 +42,18 @@ type FileMap struct {
 
 func (fileMap *FileMap) isComplete() bool {
 
-    for i := uint64(0); i < fileMap.chunkCount; i++ {
+    for i := uint64(1); i <= fileMap.chunkCount; i++ {
         if len(fileMap.chunkMap[i]) == 0 {
             return false
         }
     }
 
     return true
+}
+
+func (fileMap *FileMap) peerForMetafile(counter int) (string, bool) {
+    peer, found := fileMap.peerForChunk(1, counter)
+    return peer, found
 }
 
 func (fileMap *FileMap) peerForChunk(chunkId uint64, counter int) (string, bool) {
@@ -173,11 +178,12 @@ func (fs *FileSystem) Search(keywords []string) []*common.SearchResult {
 }
 
 func (fs *FileSystem) newSearchResult(metaFile *MetaFile) *common.SearchResult {
+
     return &common.SearchResult{
-        metaFile.Name,
-        metaFile.Hash,
-        fs.chunkMap(metaFile),
-        uint64(metaFile.countOfChunks()),
+        FileName:       metaFile.Name,
+        MetafileHash:   metaFile.Hash,
+        ChunkMap:       fs.chunkMap(metaFile),
+        ChunkCount:     uint64(metaFile.countOfChunks()),
     }
 }
 
@@ -185,9 +191,9 @@ func (fs *FileSystem) chunkMap(metaFile *MetaFile) []uint64 {
 
     chunkMap := make([]uint64, 0)
 
-    for i := 0; i < metaFile.countOfChunks(); i++ {
+    for i := 1; i <= metaFile.countOfChunks(); i++ {
 
-        hash := metaFile.hashAt(i)
+        hash := metaFile.hashAt(i - 1)
         _, found  := fs.getChunk(hash)
 
         if found {
@@ -348,7 +354,7 @@ func (se *SearchEngine) hasCompleted(searchId string, lock bool) bool {
             continue FILE_LOOP
         }
 
-        for i := uint64(0); i < size; i++ {
+        for i := uint64(1); i <= size; i++ {
 
             _, found := chunkMap[i]
 

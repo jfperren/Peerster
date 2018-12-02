@@ -630,7 +630,11 @@ func (gossiper *Gossiper) StartDownload(name string, metaHash []byte, peer strin
 			return
 		}
 
-		peer, found = fileMap.peerForChunk(uint64(chunkId), counter)
+		if chunkId == common.MetaHashChunkId {
+			peer, found = fileMap.peerForMetafile(counter)
+		} else {
+			peer, found = fileMap.peerForChunk(uint64(chunkId), counter)
+		}
 
 		if !found {
 			common.DebugNoKnownOwnerForFile(metaHash)
