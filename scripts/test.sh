@@ -1,4 +1,10 @@
 
+cd tests/go
+
+go test -v
+
+cd ../..
+
 source ./scripts/build.sh
 source ./tests/sh/helpers.sh
 
