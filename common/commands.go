@@ -94,7 +94,7 @@ func NewMessageCommand(content string) (*Command, *CommandError) {
     }
 
     privateMessageCommand := &MessageCommand{content}
-    return &Command{privateMessageCommand, nil, nil, nil, nil}, nil
+    return &Command{Message: privateMessageCommand}, nil
 }
 
 func NewPrivateMessageCommand(content, destination string) (*Command, *CommandError) {
@@ -108,13 +108,13 @@ func NewPrivateMessageCommand(content, destination string) (*Command, *CommandEr
     }
 
     privateMessageCommand := &PrivateMessageCommand{content, destination}
-    return &Command{nil, privateMessageCommand, nil, nil, nil}, nil
+    return &Command{PrivateMessage: privateMessageCommand}, nil
 }
 
 func NewUploadCommand(file string) (*Command, *CommandError) {
 
     uploadCommand := &UploadCommand{file}
-    return &Command{nil, nil, uploadCommand, nil, nil}, nil
+    return &Command{Upload: uploadCommand}, nil
 }
 
 func NewDownloadCommand(request, file, dest string) (*Command, *CommandError) {
@@ -134,7 +134,7 @@ func NewDownloadCommand(request, file, dest string) (*Command, *CommandError) {
     }
 
     downloadCommand := &DownloadCommand{file, dest, hash}
-    return &Command{nil, nil, nil, downloadCommand, nil}, nil
+    return &Command{Download: downloadCommand}, nil
 }
 
 func NewSearchCommand(query *string, budget uint64) (*Command, *CommandError) {
@@ -147,7 +147,7 @@ func NewSearchCommand(query *string, budget uint64) (*Command, *CommandError) {
     var searchCommand *SearchCommand
 
     searchCommand = &SearchCommand{budget, keywords}
-    return &Command{nil, nil, nil, nil, searchCommand}, nil
+    return &Command{Search: searchCommand}, nil
 }
 
 // --
