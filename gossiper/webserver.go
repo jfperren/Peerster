@@ -102,9 +102,9 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		command, err := common.NewMessageCommand(message)
+		command, commandErr := common.NewMessageCommand(message)
 
-		if err != nil {
+		if commandErr != nil {
 			res.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(res).Encode(err)
 			return
