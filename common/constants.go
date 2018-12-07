@@ -27,3 +27,5 @@ const SearchTimeout = 1 * time.Second
 const TransactionHopLimit = 10
 const BlockHopLimit = 20
 const FileNameSeparator = ","
+const InitialMiningSleepTime = 5 * time.Second
+const MiningSleepTimeFactor = 2

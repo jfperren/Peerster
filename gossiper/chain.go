@@ -233,9 +233,9 @@ func (bc *BlockChain) mine() {
         bc.lock.RLock()
 
         candidate := &common.Block {
-            bc.Latest,
-            nonce,
-            bc.Pending,
+            PrevHash: bc.Latest,
+            Nonce: nonce,
+            Transactions: bc.Pending,
         }
 
         bc.lock.RUnlock()
@@ -248,11 +248,17 @@ func (bc *BlockChain) mine() {
 
             if bc.TryAddBlock(candidate) {
 
-                nanoSeconds := time.Duration(2 * (time.Now().UnixNano() - bc.MiningTime))
+                var sleepTime time.Duration
 
-                common.DebugSleep(nanoSeconds * time.Nanosecond)
+                if bytes.Equal(candidate.PrevHash[:], []byte{}) {
+                    sleepTime = common.InitialMiningSleepTime
+                } else {
+                    diff := time.Duration(common.MiningSleepTimeFactor * (time.Now().UnixNano() - bc.MiningTime))
+                    sleepTime = time.Duration(diff * time.Nanosecond)
+                }
 
-                time.Sleep(nanoSeconds * time.Nanosecond)
+                common.DebugSleep(sleepTime)
+                time.Sleep(sleepTime)
 
                 bc.MinedBlocks <- candidate
 
