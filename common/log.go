@@ -11,11 +11,11 @@ import (
 
 var Verbose = true
 
-// --
-// -- INFO MESSAGES
-// --
 //
-// These are log messages to be used in the assignment.
+//  INFO MESSAGES
+//  -------------
+//
+//  These are log messages to be used in the assignment.
 
 func LogClientMessage(message string) {
 	fmt.Printf("CLIENT MESSAGE %v\n", message)
@@ -91,8 +91,7 @@ func LogSearchFinished() {
 	fmt.Printf("SEARCH FINISHED\n")
 }
 
-func LogFoundBlock(block *Block) {
-	hash := block.Hash()
+func LogFoundBlock(hash [32]byte) {
 	fmt.Printf("FOUND-BLOCK %v\n", hex.EncodeToString(hash[:]))
 }
 
@@ -107,12 +106,21 @@ func LogChain(blocks []*Block) {
 	fmt.Printf("CHAIN %v\n", strings.Join(blocksStr, " "))
 }
 
-// --
-// -- DEBUG MESSAGES
-// --
+func LogShorterFork(block *Block) {
+	hash := block.Hash()
+	fmt.Printf("FORK-SHORTER %v\n", hex.EncodeToString(hash[:]))
+}
+
+func LogForkLongerRewind(current []*Block) {
+	fmt.Printf("FORK-LONGER rewind %v blocks\n", len(current))
+}
+
 //
-// These are optional messages, not required in the assignment
-// that might be used for debugging.
+//  DEBUG MESSAGES
+//  --------------
+//
+//  These are optional messages, not required in the assignment
+//  that might be used for debugging.
 
 func DebugStopMongering(rumor *RumorMessage) {
 	if !Verbose { return }
@@ -355,4 +363,16 @@ func DebugBroadcastTransaction(transaction *TxPublish) {
 func DebugReceiveTransaction(transaction *TxPublish) {
 	if !Verbose { return }
 	fmt.Printf("RECEIVE transaction %v\n", transaction.File.Name)
+}
+
+func DebugSleep(duration time.Duration) {
+	fmt.Printf("SLEEP %v\n", duration)
+}
+
+func DebugChainLength(length int) {
+	fmt.Printf("CHAIN LENGTH %v\n", length)
+}
+
+func DebugBroadcastBlock(hash [32]byte) {
+	fmt.Printf("BROADCAST BLOCK %v\n", hex.EncodeToString(hash[:]))
 }

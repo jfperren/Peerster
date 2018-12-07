@@ -9,22 +9,25 @@ import (
 	"strings"
 )
 
-// --
-// -- DATA STRUCTURES
-// --
+//
+//  DATA STRUCTURES
+//
 
+// A simple message. To be used only in simple mode.
 type SimpleMessage struct {
 	OriginalName  string
 	RelayPeerAddr string
 	Contents      string
 }
 
+// A rumor that should be sent to every node.
 type RumorMessage struct {
-	Origin string
-	ID     uint32
-	Text   string
+	Origin 		string
+	ID     		uint32
+	Text   		string
 }
 
+// A packet to ask and download a chunk of a known file
 type DataRequest struct {
 	Origin      string
 	Destination string
@@ -32,6 +35,7 @@ type DataRequest struct {
 	HashValue   []byte
 }
 
+// A packet containing a chunk of a known file
 type DataReply struct {
 	Origin      string
 	Destination string
@@ -40,6 +44,7 @@ type DataReply struct {
 	Data        []byte
 }
 
+// A private message between two nodes
 type PrivateMessage struct {
 	Origin      string
 	ID          uint32
@@ -48,21 +53,25 @@ type PrivateMessage struct {
 	HopLimit    uint32
 }
 
-type PeerStatus struct {
-	Identifier string
-	NextID     uint32
-}
-
+// Packet containing all known nodes' information about missing rumors
 type StatusPacket struct {
-	Want []PeerStatus
+	Want 		[]PeerStatus
 }
 
+// A node's information about missing rumors
+type PeerStatus struct {
+	Identifier 	string
+	NextID     	uint32
+}
+
+// Packet containing keywords for a search request
 type SearchRequest struct {
-	Origin   string
-	Budget   uint64
-	Keywords []string
+	Origin   	string
+	Budget   	uint64
+	Keywords 	[]string
 }
 
+// Packet containing all the results of a search request
 type SearchReply struct {
 	Origin      string
 	Destination string
@@ -70,6 +79,7 @@ type SearchReply struct {
 	Results     []*SearchResult
 }
 
+// A match for a given search request
 type SearchResult struct {
 	FileName     string
 	MetafileHash []byte
@@ -77,28 +87,34 @@ type SearchResult struct {
 	ChunkCount   uint64
 }
 
+// A message announcing that a new transaction should be processed
 type TxPublish struct {
 	File     File
 	HopLimit uint32
 }
 
+// A message announcing that a new block was found
 type BlockPublish struct {
 	Block    Block
 	HopLimit uint32
 }
 
+// A file information
 type File struct {
 	Name          string
 	Size          int64
 	MetafileHash  []byte
 }
 
+// A block on the blockchain
 type Block struct {
 	PrevHash     [32]byte
 	Nonce        [32]byte
 	Transactions []TxPublish
 }
 
+// Aggregate of all other fields, should be used as top-level
+// entity for external communication with other nodes.
 type GossipPacket struct {
 	Simple        *SimpleMessage
 	Rumor         *RumorMessage
@@ -112,9 +128,9 @@ type GossipPacket struct {
 	BlockPublish  *BlockPublish
 }
 
-// --
-// -- INITIALIZERS
-// --
+//
+//  CONSTRUCTORS
+//
 
 func NewSimpleMessage(origin, address, contents string) *SimpleMessage {
 	return &SimpleMessage{
@@ -145,6 +161,7 @@ func NewSearchReply(origin, destination string, results []*SearchResult) *Search
 	}
 }
 
+// Copy the content of a search request but replace the budget.
 func CopySearchRequest(request *SearchRequest, budget uint64) *SearchRequest {
 
 	return &SearchRequest{
@@ -155,9 +172,9 @@ func CopySearchRequest(request *SearchRequest, budget uint64) *SearchRequest {
 }
 
 
-// --
-// -- CONVENIENCE METHODS
-// --
+//
+//  PACKING METHODS
+//
 
 // Pack a SimpleMessage into a GossipPacket
 func (simple *SimpleMessage) Packed() *GossipPacket {
@@ -259,6 +276,10 @@ func (publish *BlockPublish) Packed() *GossipPacket {
 	return &GossipPacket{BlockPublish: publish}
 }
 
+//
+//  INTEGRITY CHECKS
+//
+
 // Checks if a given GossipPacket is valid. It is only valid if exactly one of its 10 fields is non-nil.
 func (packet *GossipPacket) IsValid() bool {
 	return boolCount(packet.Rumor != nil)+boolCount(packet.Simple != nil)+
@@ -268,10 +289,12 @@ func (packet *GossipPacket) IsValid() bool {
 		boolCount(packet.TxPublish != nil)+boolCount(packet.BlockPublish != nil) == 1
 }
 
-func (packet *GossipPacket) IsElligibleForBroadcast() bool {
+// Safety check that we only broadcast packets which are supposed to be broadcast.
+func (packet *GossipPacket) IsEligibleForBroadcast() bool {
 	return !(packet.Simple == nil && packet.SearchRequest == nil && packet.TxPublish == nil && packet.BlockPublish == nil)
 }
 
+// Verify that a DataReply has the correct data via computing and comparing the hash
 func (reply *DataReply) VerifyHash(expected []byte) bool {
 
 	computedHash := sha256.Sum256(reply.Data)
@@ -281,14 +304,16 @@ func (reply *DataReply) VerifyHash(expected []byte) bool {
 	return dataIsConsistent && hashIsExpected
 }
 
+// If a route has an empty Text message, we consider it to be a routing rumor.
 func (rumor *RumorMessage) IsRouteRumor() bool {
 	return rumor.Text == ""
 }
 
 //
-//
+//  HASHING FUNCTIONS
 //
 
+// Hash of a whole block
 func (b *Block) Hash() (out [32]byte) {
 	h := sha256.New()
 	h.Write(b.PrevHash[:])
@@ -303,6 +328,7 @@ func (b *Block) Hash() (out [32]byte) {
 	return
 }
 
+// Hash of a transaction
 func (t *TxPublish) Hash() (out [32]byte) {
 	h := sha256.New()
 	binary.Write(h,binary.LittleEndian,
@@ -312,6 +338,10 @@ func (t *TxPublish) Hash() (out [32]byte) {
 	copy(out[:], h.Sum(nil))
 	return
 }
+
+//
+//  STRING FUNCTIONS
+//
 
 func (block *Block) Str() string {
 
@@ -323,5 +353,5 @@ func (block *Block) Str() string {
 		files = append(files, transaction.File.Name)
 	}
 
-	return fmt.Sprintf("%v:%v:%v", hex.EncodeToString(hash[:]), hex.EncodeToString(prev[:]), strings.Join(files, FileNameSeparator))
+	return fmt.Sprintf("%v:%v:%v", hex.EncodeToString(hash[:8]), hex.EncodeToString(prev[:8]), strings.Join(files, FileNameSeparator))
 }

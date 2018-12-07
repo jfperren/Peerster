@@ -5,10 +5,12 @@ import (
     "strings"
 )
 
-// --
-// -- DATA STRUCTURES
-// --
+//
+//  DATA STRUCTURES
+//
 
+// Aggregate of all other fields, should be used as top-level
+// entity for internal communication with client.
 type Command struct {
     Message         *MessageCommand
     PrivateMessage  *PrivateMessageCommand
@@ -17,19 +19,23 @@ type Command struct {
     Search          *SearchCommand
 }
 
+// A command to send a message or rumor.
 type MessageCommand struct {
     Content     string
 }
 
+// A command to send a private message to someone.
 type PrivateMessageCommand struct {
     Content     string
     Destination string
 }
 
+// A command to upload a file
 type UploadCommand struct {
     FileName    string
 }
 
+// A command to download a file
 type DownloadCommand struct {
     FileName    string
     Destination string
@@ -41,9 +47,9 @@ type SearchCommand struct {
     Keywords    []string
 }
 
-// --
-// -- ERRORS
-// --
+//
+//  ERRORS
+//
 
 type CommandError struct {
     flag     int
@@ -83,9 +89,9 @@ func (e *CommandError) Error() string {
     }
 }
 
-// --
-// -- CONSTRUCTORS
-// --
+//
+//  CONSTRUCTORS
+//
 
 func NewMessageCommand(content string) (*Command, *CommandError) {
 
@@ -150,10 +156,11 @@ func NewSearchCommand(query *string, budget uint64) (*Command, *CommandError) {
     return &Command{Search: searchCommand}, nil
 }
 
-// --
-// -- CONVENIENCE
-// --
+//
+//  SANITY CHECK
+//
 
+// Check if a given command is valid (i.e. only contains one non-nil field).
 func (command *Command) IsValid() bool {
     return boolCount(command.Message != nil)+boolCount(command.PrivateMessage != nil)+
         boolCount(command.Upload != nil)+boolCount(command.Download != nil)+

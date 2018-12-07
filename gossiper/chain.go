@@ -2,17 +2,16 @@ package gossiper
 
 import (
     "bytes"
-    "encoding/hex"
+    "crypto/rand"
     "github.com/jfperren/Peerster/common"
     "sync"
-    "crypto/rand"
     "time"
 )
 
 type BlockChain struct {
 
-    Candidates  []common.TxPublish          // Current transactions to be included in next block
-    Files       map[string]*common.File     // Current state of the chain: mapping of name to file
+    Pending     []common.TxPublish      // Current transactions to be included in next block
+    Files       map[string]*common.File // Current state of the chain: mapping of name to file
 
     Blocks      map[[32]byte]*common.Block  // All chain blocks, mapped by hash
     Length      map[[32]byte]int            // Length of chain at each block
@@ -29,14 +28,14 @@ type BlockChain struct {
 func NewBlockChain() *BlockChain {
 
     return &BlockChain{
-        Candidates:     make([]common.TxPublish, 0),
-        Files:          make(map[string]*common.File),
-        Blocks:         make(map[[32]byte]*common.Block),
-        Length:         make(map[[32]byte]int),
-        IsNew:          true,
-        MinedBlocks:    make(chan *common.Block, 2),
-        MiningTime:     0,
-        lock:           &sync.RWMutex{},
+        Pending:     make([]common.TxPublish, 0),
+        Files:       make(map[string]*common.File),
+        Blocks:      make(map[[32]byte]*common.Block),
+        Length:      make(map[[32]byte]int),
+        IsNew:       true,
+        MinedBlocks: make(chan *common.Block, 2),
+        MiningTime:  0,
+        lock:        &sync.RWMutex{},
     }
 }
 
@@ -83,14 +82,14 @@ func (bc *BlockChain) TryAddFile(candidate *common.TxPublish) bool {
         return false
     }
 
-    for _, otherCandidates := range bc.Candidates {
+    for _, otherCandidates := range bc.Pending {
         if candidate.File.Name == otherCandidates.File.Name {
             common.DebugIgnoreTransactionAlreadyCandidate(candidate)
             return false
         }
     }
 
-    bc.Candidates = append(bc.Candidates, *candidate)
+    bc.Pending = append(bc.Pending, *candidate)
     common.DebugAddCandidateTransaction(candidate)
 
     return true
@@ -121,6 +120,7 @@ func (bc *BlockChain) TryAddBlock(candidate *common.Block) bool {
     bc.Blocks[hash] = candidate
     bc.Length[hash] = bc.Length[candidate.PrevHash] + 1
 
+
     if bc.IsNew || bytes.Compare(candidate.PrevHash[:], bc.Latest[:]) == 0 {
 
         // Append on the longest chain
@@ -131,17 +131,7 @@ func (bc *BlockChain) TryAddBlock(candidate *common.Block) bool {
             bc.Files[transaction.File.Name] = &transaction.File
         }
 
-        newCandidates := make([]common.TxPublish, 0)
-
-        for _, transaction := range bc.Candidates {
-            _, found := bc.Files[transaction.File.Name]
-
-            if !found {
-                newCandidates = append(newCandidates, transaction)
-            }
-        }
-
-        bc.Candidates = newCandidates
+        bc.updatePendingTransactions()
 
         common.LogChain(bc.allBlocks())
 
@@ -149,14 +139,72 @@ func (bc *BlockChain) TryAddBlock(candidate *common.Block) bool {
 
         // Need to Rollback
 
-        fmt.Printf("ROLLBACK TIME\n")
+        latest, found := bc.Blocks[bc.Latest]
 
+        if !found {
+            bc.IsNew = false
+            return false
+        }
+
+        _, _, currentChain, newChain := bc.FirstCommonAncestor(latest, candidate)
+
+        bc.rollback(currentChain)
+        bc.fastForward(newChain)
+        bc.updatePendingTransactions()
+
+        common.LogForkLongerRewind(currentChain)
+
+    } else {
+
+        // Simply store the block and log
+
+        latest, found := bc.Blocks[bc.Latest]
+
+        if !found {
+            bc.IsNew = false
+            return false
+        }
+
+        common.LogShorterFork(latest)
     }
 
     bc.IsNew = false
 
     return true
 
+}
+
+func (bc *BlockChain) updatePendingTransactions() {
+
+    newPending := make([]common.TxPublish, 0)
+
+    for _, transaction := range bc.Pending {
+        _, found := bc.Files[transaction.File.Name]
+
+        if !found {
+            newPending = append(newPending, transaction)
+        }
+    }
+
+    bc.Pending = newPending
+}
+
+func (bc *BlockChain) rollback(chain []*common.Block) {
+
+    for _, block := range chain {
+        for _, transaction := range block.Transactions {
+            delete(bc.Files, transaction.File.Name)
+        }
+    }
+}
+
+func (bc *BlockChain) fastForward(chain []*common.Block) {
+
+    for _, block := range chain {
+        for _, transaction := range block.Transactions {
+            bc.Files[transaction.File.Name] = &transaction.File
+        }
+    }
 }
 
 func (bc *BlockChain) mine() {
@@ -177,7 +225,7 @@ func (bc *BlockChain) mine() {
         candidate := &common.Block {
             bc.Latest,
             nonce,
-            bc.Candidates,
+            bc.Pending,
         }
 
         bc.lock.RUnlock()

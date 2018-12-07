@@ -4,10 +4,12 @@ import (
 	"math/rand"
 )
 
+// Return 0 or 1 with 50% probability
 func FlipCoin() bool {
-	return rand.Int()%2 == 0
+	return rand.Int() % 2 == 0
 }
 
+// Check if an array contains an element
 func Contains(array []string, element string) bool {
 	for _, o := range array {
 		if o == element {
@@ -17,6 +19,7 @@ func Contains(array []string, element string) bool {
 	return false
 }
 
+// Return 1 if bool is true
 func boolCount(b bool) int {
 	if b {
 		return 1
@@ -25,6 +28,7 @@ func boolCount(b bool) int {
 	}
 }
 
+// Split a budget (uint64) equally among a given number of peers and return the assignment.
 func SplitBudget(budget uint64, into int) []uint64 {
 
 	splits := make([]uint64, 0)
