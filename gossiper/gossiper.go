@@ -3,7 +3,6 @@ package gossiper
 import (
 	"github.com/dedis/protobuf"
 	"github.com/jfperren/Peerster/common"
-	"log"
 	"sync"
 	"time"
 )
@@ -115,9 +114,9 @@ func (gossiper *Gossiper) Stop() {
 	gossiper.GossipSocket.Unbind()
 }
 
-// --
-// --  EVENT LOOPS
-// --
+//
+//  EVENT LOOPS
+//
 
 // Main loop for handling gossip packets from other nodes.
 func (gossiper *Gossiper) receiveGossip() {
@@ -141,40 +140,6 @@ func (gossiper *Gossiper) receiveGossip() {
 	}
 }
 
-// Main loop for pinging other nodes as part of the anti-entropy algorithm.
-func (gossiper *Gossiper) antiEntropy() {
-	for {
-		peer, found := gossiper.Router.randomPeer()
-
-		if found {
-			packet := gossiper.GenerateStatusPacket().Packed()
-			common.DebugAskAndSendStatus(packet.Status, peer)
-			go gossiper.sendToNeighbor(peer, packet)
-		}
-
-		time.Sleep(common.AntiEntropyDT)
-	}
-}
-
-// Main loop for sending route rumors
-func (gossiper *Gossiper) sendRouteRumors() {
-
-	if gossiper.Router.Rtimer == common.NoRouteRumor {
-		return
-	}
-
-	for {
-		peer, found := gossiper.Router.randomPeer()
-
-		if found {
-			routeRumor := gossiper.GenerateRouteRumor()
-			common.DebugSendRouteRumor(peer)
-			go gossiper.sendToNeighbor(peer, routeRumor.Packed())
-		}
-
-		time.Sleep(gossiper.Router.Rtimer)
-	}
-}
 
 // Main loop for handling client packets.
 func (gossiper *Gossiper) receiveClient() {
@@ -193,9 +158,9 @@ func (gossiper *Gossiper) receiveClient() {
 	}
 }
 
-// --
-// --  HANDLING NEW PACKETS
-// --
+//
+//  HANDLING NEW PACKETS
+//
 
 //  Handle new packet from client
 func (gossiper *Gossiper) HandleClient(command *common.Command) {
@@ -218,7 +183,7 @@ func (gossiper *Gossiper) HandleClient(command *common.Command) {
 
 		} else {
 
-			rumor := gossiper.generateRumor(content)
+			rumor := gossiper.GenerateRumor(content)
 
 			gossiper.Rumors.Put(rumor)
 
@@ -441,383 +406,6 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 	}
 }
 
-// --
-// -- SEND PACKETS TO OTHER NODES
-// --
-
-// Send a GossipPacket to any node on the network identified by name.
-func (gossiper *Gossiper) sendToNode(packet *common.GossipPacket, destination string, hopLimit *uint32) bool {
-
-	if destination == "" {
-		common.DebugSendNoDestination()
-	}
-
-	if destination == gossiper.Name {
-
-		// If it's for us, we don't need to do anything
-		return true
-	}
-
-	if hopLimit != nil {
-
-		// This is in forwarding mode, so we need to decrease the count and verify that we should still continue
-		*hopLimit--
-
-		// If it's non-zero, we forward according to the NextHop table
-		if *hopLimit <= 0 {
-			return false
-		}
-	}
-
-	nextPeer, found := gossiper.Router.NextHop[destination]
-
-	if found {
-		common.DebugForwardPointToPoint(destination, nextPeer)
-		go gossiper.sendToNeighbor(nextPeer, packet)
-	} else {
-		common.DebugUnknownDestination(destination)
-	}
-
-	return false
-}
-
-// Send a GossipPacket to a given neighboring node identified by IP address
-func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.GossipPacket) {
-
-	if !packet.IsValid() {
-		log.Panicf("Sending invalid packet: %v", packet)
-	}
-
-	bytes, err := protobuf.Encode(packet)
-	if err != nil {
-		panic(err)
-	}
-
-	gossiper.GossipSocket.Send(bytes, peerAddress)
-}
-
-// Broadcast a GossipPacket containing a Simple message to every neighboring node.
-func (gossiper *Gossiper) broadcastToNeighborsExcept(packet *common.GossipPacket, except *[]string) {
-
-	if !packet.IsElligibleForBroadcast() {
-		log.Panicf("Cannot broadcast packet %v.", packet)
-	}
-
-	for i := 0; i < len(gossiper.Router.Peers); i++ {
-
-		peer := gossiper.Router.Peers[i]
-
-		if except == nil || !common.Contains(*except, peer) {
-			gossiper.sendToNeighbor(peer, packet)
-		}
-	}
-}
-
-func (gossiper *Gossiper) broadcastToNeighbors(packet *common.GossipPacket) {
-	gossiper.broadcastToNeighborsExcept(packet, nil)
-}
-
-// --
-// -- RUMORS, STATUS & DOWNLOAD
-// --
-
-// Start or continue to propagate a given rumor, by using the rumormongering algorithm
-// and sending the given rumor to the given node.
-//
-// - If the node timeouts or sends a status that has the same IDs as us, we flip a coin
-//   and continue with probability 50%.
-//
-// - If the node sends a status that says it is missing messages that we can send, we
-//   continue the rumormongering process with the current rumor AND we start a new
-//   rumormongering process with the missing rumor.
-//
-// - If the node sends a status that says we are missing messages, we
-func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
-
-	if rumor == nil {
-		panic("Cannot rumormonger with <nil> rumor!")
-	}
-
-	shouldContinue := false
-
-	// Forward package to peer
-	common.LogMongering(peer)
-	go gossiper.sendToNeighbor(peer, rumor.Packed())
-
-	// Start timer
-	ticker := time.NewTicker(common.StatusTimeout)
-	defer ticker.Stop()
-
-	select {
-	case packet := <-gossiper.Dispatcher.statusPackets(peer):
-
-		statusPacket := packet.Status
-
-		// Compare status from peer with own messages
-		otherRumor, _, statuses := gossiper.CompareStatus(statusPacket.Want, ComparisonModeMissingOrNew)
-
-		switch {
-		case statuses != nil: // Peer has new messages
-			statusPacket := &common.StatusPacket{statuses}
-			go gossiper.sendToNeighbor(peer, statusPacket.Packed())
-			shouldContinue = true
-
-		case otherRumor != nil: // Peer is missing messages
-
-			go gossiper.rumormonger(otherRumor, peer)
-			shouldContinue = true
-
-		default:
-			common.LogInSyncWith(peer)
-			shouldContinue = false
-		}
-
-	case <-ticker.C: // Timeout
-		common.DebugTimeout(peer)
-		shouldContinue = false
-	}
-
-	gossiper.Dispatcher.stopWaitingOnStatusPacket(peer)
-
-	newPeer, found := gossiper.Router.randomPeer()
-
-	if !found {
-		return
-	}
-
-	if !shouldContinue && common.FlipCoin() {
-		common.LogFlippedCoin(newPeer)
-		shouldContinue = true
-	}
-
-	if shouldContinue {
-		gossiper.rumormonger(rumor, newPeer)
-	} else {
-		common.DebugStopMongering(rumor)
-	}
-}
-
-// Start a new download process. As long as there are missing chunks related to the metahash provided, it will
-// continue to download the remaining ones. If there is a timeout or the response does not match the data requested,
-// it will restart evert 5 seconds, up to a total of 10 tries before stopping.
-//
-//  - name: Name of the file as it will appear in the file system later on
-//  - metaHash: Hash of the requested file
-//  - peer: Name of the peer from which we want to download the file
-//  - counter: Set to 0 for new downloads, it will increase up to 10 until timing out.
-//
-func (gossiper *Gossiper) StartDownload(name string, metaHash []byte, peer string, counter int) {
-
-	if counter > common.MaxDownloadRequests {
-		// Probably print some stuff
-		common.DebugDownloadTimeout(name, metaHash, peer)
-		return
-	}
-
-	nextHash, chunkId, completed := gossiper.FileSystem.downloadStatus(metaHash)
-
-	if completed {
-		common.DebugDownloadCompleted(name, metaHash, peer)
-		return
-	}
-
-	if peer == "" {
-
-		fileMap, found := gossiper.SearchEngine.FileMap(metaHash)
-
-		if !found {
-			common.DebugDownloadUnknownFile(metaHash)
-			return
-		}
-
-		if chunkId == common.MetaHashChunkId {
-			peer, found = fileMap.peerForMetafile(counter)
-		} else {
-			peer, found = fileMap.peerForChunk(uint64(chunkId), counter)
-		}
-
-		if !found {
-			common.DebugNoKnownOwnerForFile(metaHash)
-			return
-		}
-	}
-
-	common.DebugStartDownload(name, nextHash, peer)
-
-	go func() {
-
-		ticker := time.NewTicker(common.DownloadTimeout)
-		defer ticker.Stop()
-
-		select {
-		case packet := <-gossiper.Dispatcher.dataReplies(nextHash):
-
-			reply := packet.DataReply
-
-			if reply == nil {
-				// Error, we expect only a data reply from this
-				return
-			}
-
-			if !reply.VerifyHash(nextHash) {
-				// Unexpected hash or incorrect data, retry
-				common.DebugCorruptedDataReply(nextHash, reply)
-				go gossiper.StartDownload(name, metaHash, peer, counter+1)
-				return
-			}
-
-			gossiper.FileSystem.processDataReply(name, metaHash, reply)
-
-			// At this point, the download is successful, so we can log it
-
-			if chunkId == common.MetaHashChunkId {
-				common.LogDownloadingMetafile(name, packet.DataReply.Origin)
-			} else {
-				common.LogDownloadingChunk(name, chunkId, packet.DataReply.Origin)
-			}
-
-			// Then we start downloading the next chunk
-			go gossiper.StartDownload(name, metaHash, peer, 0)
-
-		case <-ticker.C: // Timeout
-			go gossiper.StartDownload(name, metaHash, peer, counter+1)
-		}
-
-		gossiper.Dispatcher.stopWaitingOnDataReply(nextHash)
-	}()
-
-	request := gossiper.GenerateDataRequest(peer, nextHash)
-	gossiper.sendToNode(request.Packed(), request.Destination, nil)
-
-}
-
-// Compare the gossiper's vector clock with another one. There are two possible modes for this:
-//
-// - "Missing or New" mode:
-//   This is the default mode and the one to use when comparing vector clocks of two gossiper nodes.
-//
-//    - If the two vector clocks are the same, return nil, nil, nil.
-//    - If the other vector clock is missing message, send the first rumor only as first return value.
-//    - If the other vector clock has all our messages, but we see that they have messages we don't have
-//      return our vector clock as third return value.
-//
-// - "AllNew" mode:
-//   This is the mode to use when comparing a gossiper's vector clock with a server / client one.
-//
-//    - If the other vector clock is missing messages, send ALL those messages as a second return value.
-//    - Otherwise, return nil, nil, nil.
-//
-func (gossiper *Gossiper) CompareStatus(statuses []common.PeerStatus, mode int) (*common.RumorMessage, []*common.RumorMessage, []common.PeerStatus) {
-
-	if mode > ComparisonModeAllNew || mode < ComparisonModeMissingOrNew {
-		mode = ComparisonModeAllNew
-	}
-
-	// First, we generate a statusPacket based on our rumor list
-	myStatuses := gossiper.GenerateStatusPacket().Want
-
-	// This map should store, for each node we know about, what is the nextID we want
-	myNextIDs := make(map[string]uint32)
-
-	// Should become true if during the process somewhere we saw a message that we do not yet have
-	rumorsWanted := false
-
-	//
-	var allRumors []*common.RumorMessage
-
-	if mode == ComparisonModeAllNew {
-		allRumors = make([]*common.RumorMessage, 0)
-	}
-
-	for _, myStatus := range myStatuses {
-		myNextIDs[myStatus.Identifier] = myStatus.NextID
-	}
-
-	for _, theirStatus := range statuses {
-
-		theirNextID := theirStatus.NextID
-
-		// In case someone sends something smaller than
-		// possible, we fail gracefully
-		if theirNextID < common.InitialId {
-			return nil, nil, nil
-		}
-
-		myNextID, found := myNextIDs[theirStatus.Identifier]
-
-		switch {
-
-		case !found && theirNextID != common.InitialId:
-			// They know about an origin node we don't know.
-			// We make sure that they are not looking for the first message
-			// because in this case they cannot send us anything.
-			rumorsWanted = true
-
-		case found && myNextID < theirNextID:
-			// They have a message we don't
-			rumorsWanted = true
-
-		case found && myNextID > theirNextID:
-
-			if mode == ComparisonModeMissingOrNew {
-				return gossiper.Rumors.Get(theirStatus.Identifier, theirNextID), nil, nil
-			} else {
-				for i := theirNextID; i < myNextID; i++ {
-					rumor := gossiper.Rumors.Get(theirStatus.Identifier, i)
-					allRumors = append(allRumors, rumor)
-				}
-			}
-		}
-
-		// We remove the ID from our NextIDs map to keep track of the fact
-		// that we have seen this ID already.
-		if found {
-			delete(myNextIDs, theirStatus.Identifier)
-		}
-	}
-
-	// After comparing with all their IDs, if there is still some value
-	// in myNextIDs, it means that they don't know about such origin nodes
-	for identifier, myNextID := range myNextIDs {
-
-		// If we are also waiting for the first message,
-		// just skip this one, we cannot send anything.
-		if myNextID == common.InitialId {
-			continue
-		}
-
-		if mode == ComparisonModeMissingOrNew {
-			// Get first rumor from this node
-			return gossiper.Rumors.Get(identifier, common.InitialId), nil, nil
-		} else {
-			for i := common.InitialId; i < myNextID; i++ {
-				rumor := gossiper.Rumors.Get(identifier, i)
-				allRumors = append(allRumors, rumor)
-			}
-		}
-	}
-
-	// If we did not return already with a rumor to send, and we want Rumors,
-	// we simply return our status packet to notify.
-	if rumorsWanted && mode == ComparisonModeMissingOrNew {
-		return nil, nil, myStatuses
-	}
-
-	if mode == ComparisonModeMissingOrNew {
-		// In "Missing or New" mode, we simply return all nil to indicate
-		// that the two statusPackets are equivalent.
-		return nil, nil, nil
-	} else {
-		// In "All New" mode, we return all new messages alongside our
-		// status packet so that the caller can store it for next time
-		return nil, allRumors, myStatuses
-	}
-}
-
-// --
-// -- GENERATING NEW PACKETS
-// --
-
 // Generate a status packet with the current vector clock.
 func (gossiper *Gossiper) GenerateStatusPacket() *common.StatusPacket {
 
@@ -873,7 +461,7 @@ func (gossiper *Gossiper) GenerateDataRequest(destination string, hash []byte) *
 }
 
 // Generate a new Rumor based on the string.
-func (gossiper *Gossiper) generateRumor(message string) *common.RumorMessage {
+func (gossiper *Gossiper) GenerateRumor(message string) *common.RumorMessage {
 
 	rumor := &common.RumorMessage{
 		Origin: gossiper.Name,
@@ -888,5 +476,5 @@ func (gossiper *Gossiper) generateRumor(message string) *common.RumorMessage {
 
 // Generate a route rumor
 func (gossiper *Gossiper) GenerateRouteRumor() *common.RumorMessage {
-	return gossiper.generateRumor("")
+	return gossiper.GenerateRumor("")
 }

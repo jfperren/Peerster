@@ -11,9 +11,9 @@ import (
 // processes can explicitely state what sources they are waiting on and will be notified
 // upon receipt of such packet
 type Dispatcher struct {
-	HandlerLock  *sync.RWMutex                        // Lock for safely updating & reading handlers
 	Handlers     map[string]chan *common.GossipPacket // Channels waiting for StatusPackets
 	HandlerCount map[string]int                       // Count of rumormongering processes waiting on a node status
+	HandlerLock  *sync.RWMutex                        // Lock for safely updating & reading handlers
 
 }
 
@@ -25,6 +25,10 @@ func NewDispatcher() *Dispatcher {
 		HandlerCount: make(map[string]int),
 	}
 }
+
+//
+//  CORE FUNCTIONS
+//
 
 // Dispatch a status packet to potential Handlers. Return true if the status packet was expected by a
 // process.
@@ -78,17 +82,23 @@ func (dispatcher *Dispatcher) stopWaitingOn(identifier string) {
 	dispatcher.HandlerCount[identifier] = count
 }
 
-// Ids for different types of dispatch
+//
+//  UNIQUE IDS
+//
 
+// Unique ID of a status message
 func dispatchIdStatus(source string) string {
 	return "status:" + source
 }
 
+// Unique ID of a data reply
 func dispatchIdDataReply(hash []byte) string {
 	return "data-reply:" + hex.EncodeToString(hash)
 }
 
-// Helpers based on type of dispatch
+//
+//  CONVENIENCE METHODS
+//
 
 func (dispatcher *Dispatcher) statusPackets(source string) chan *common.GossipPacket {
 	return dispatcher.packets(dispatchIdStatus(source))

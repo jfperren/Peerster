@@ -8,10 +8,16 @@ import (
     "time"
 )
 
+
+//
+//  DATA STRUCTURES
+//
+
+// Internal representation of the current state of the block chain.
 type BlockChain struct {
 
-    Pending     []common.TxPublish      // Current transactions to be included in next block
-    Files       map[string]*common.File // Current state of the chain: mapping of name to file
+    Pending     []common.TxPublish          // Current transactions to be included in next block
+    Files       map[string]*common.File     // Current state of the chain: mapping of name to file
 
     Blocks      map[[32]byte]*common.Block  // All chain blocks, mapped by hash
     Length      map[[32]byte]int            // Length of chain at each block
@@ -24,6 +30,11 @@ type BlockChain struct {
 
     lock        *sync.RWMutex               // Mutex to synchronize access to the chain
 }
+
+//
+//  CONSTRUCTORS
+//
+
 
 func NewBlockChain() *BlockChain {
 
@@ -41,33 +52,35 @@ func NewBlockChain() *BlockChain {
 
 func NewTransaction(metaFile *MetaFile) *common.TxPublish {
     return &common.TxPublish{
-        common.File{
-            metaFile.Name,
-            int64(metaFile.Size),
-            metaFile.Hash,
+        File: common.File{
+            Name: metaFile.Name,
+            Size: int64(metaFile.Size),
+            MetafileHash: metaFile.Hash,
         },
-        common.TransactionHopLimit,
+        HopLimit: common.TransactionHopLimit,
     }
 }
 
 func (gossiper *Gossiper) waitForNewBlocks() {
 
     for {
-
-
         // Wait for blocks
         block := <- gossiper.BlockChain.MinedBlocks
-
 
         publish := &common.BlockPublish{
             Block:    *block,
             HopLimit: common.BlockHopLimit,
         }
 
+        common.DebugBroadcastBlock(publish.Block.Hash())
+
         gossiper.broadcastToNeighbors(publish.Packed())
-        common.LogFoundBlock(block)
     }
 }
+
+//
+//  UPDATE FUNCTIONS
+//
 
 // Atomically test and append transaction
 func (bc *BlockChain) TryAddFile(candidate *common.TxPublish) bool {
@@ -153,19 +166,13 @@ func (bc *BlockChain) TryAddBlock(candidate *common.Block) bool {
         bc.updatePendingTransactions()
 
         common.LogForkLongerRewind(currentChain)
+        common.DebugChainLength(bc.Length[hash])
 
     } else {
 
-        // Simply store the block and log
-
-        latest, found := bc.Blocks[bc.Latest]
-
-        if !found {
-            bc.IsNew = false
-            return false
-        }
-
-        common.LogShorterFork(latest)
+        // We already stored it, just log
+        common.LogShorterFork(candidate)
+        common.DebugChainLength(bc.Length[hash])
     }
 
     bc.IsNew = false
@@ -205,14 +212,17 @@ func (bc *BlockChain) fastForward(chain []*common.Block) {
             bc.Files[transaction.File.Name] = &transaction.File
         }
     }
+
+    bc.Latest = chain[0].Hash()
 }
 
 func (bc *BlockChain) mine() {
 
+    bc.MiningTime = time.Now().UnixNano()
+
     for {
 
         var nonce [32]byte
-        bc.MiningTime = time.Now().UnixNano()
 
         _, err := rand.Read(nonce[:])
 
@@ -234,12 +244,19 @@ func (bc *BlockChain) mine() {
 
         if hash[0] == 0 && hash[1] == 0 {
 
+            common.LogFoundBlock(hash)
+
             if bc.TryAddBlock(candidate) {
 
                 nanoSeconds := time.Duration(2 * (time.Now().UnixNano() - bc.MiningTime))
+
+                common.DebugSleep(nanoSeconds * time.Nanosecond)
+
                 time.Sleep(nanoSeconds * time.Nanosecond)
 
                 bc.MinedBlocks <- candidate
+
+                bc.MiningTime = time.Now().UnixNano()
             }
         }
     }

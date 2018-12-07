@@ -10,36 +10,42 @@ import (
     "time"
 )
 
+// This contains fields and functions related to the decentralized search
+// algorithm of Peerster.
 type SearchEngine struct {
 
-    activeSearches  map[string]*ActiveSearch
-    fileMaps        map[string]*FileMap
-    lock            *sync.RWMutex
+    activeSearches map[string]*ActiveSearch // All searches that did not complete
+    fileMaps        map[string]*FileMap     // Keeps track of file chunks location
+    lock            *sync.RWMutex           // Synchronize access
 }
 
+// Represents a search request that has not yet completed.
 type ActiveSearch struct {
 
-    id          string
-    keywords    []string
-    matches     []*common.SearchResult
+    id          string                  // Unique ID to reference the search
+    keywords    []string                // Keywords used
+    matches     []*common.SearchResult  // Current matches found so far
 }
 
-type SearchRequestHistory struct {
-
-    keywords    []string
-    timestamp   int64
-}
-
-
+// Contains, for each file in the results, a mapping to the location of their chunks.
 type FileMap struct {
 
-    FileName        string
-    FileHash        []byte
-    chunkCount      uint64
-    chunkMap        map[uint64]map[string]bool
-
+    FileName        string                      // Name of the file
+    FileHash        []byte                      // MetaHash of the file
+    chunkCount      uint64                      // Count of chunks
+    chunkMap        map[uint64]map[string]bool  // For each chunk number, list of seeds
 }
 
+// Initialize search engine
+func NewSearchEngine() *SearchEngine {
+    return &SearchEngine{
+        activeSearches: make(map[string]*ActiveSearch),
+        fileMaps: make(map[string]*FileMap),
+        lock: &sync.RWMutex{},
+    }
+}
+
+// Check if a given fileMap contains at least one seed per chunk
 func (fileMap *FileMap) isComplete() bool {
 
     for i := uint64(1); i <= fileMap.chunkCount; i++ {
@@ -51,11 +57,13 @@ func (fileMap *FileMap) isComplete() bool {
     return true
 }
 
+// Random peer from which to download the metaFile of a given file.
 func (fileMap *FileMap) peerForMetafile(counter int) (string, bool) {
     peer, found := fileMap.peerForChunk(1, counter)
     return peer, found
 }
 
+// Random peer from which to download a given chunk of a file.
 func (fileMap *FileMap) peerForChunk(chunkId uint64, counter int) (string, bool) {
 
     potentialPeers, found := fileMap.chunkMap[chunkId]
@@ -78,18 +86,8 @@ func (fileMap *FileMap) peerForChunk(chunkId uint64, counter int) (string, bool)
     return "", false
 }
 
-func NewSearchEngine() *SearchEngine {
-    return &SearchEngine{
-        make(map[string]*ActiveSearch),
-        make(map[string]*FileMap),
-        &sync.RWMutex{},
-    }
-}
 
-//
-//
-//
-
+// Get the fileMap for a given meta-hash
 func (se *SearchEngine) FileMap(hash []byte) (*FileMap, bool) {
 
     se.lock.RLock()
@@ -100,11 +98,11 @@ func (se *SearchEngine) FileMap(hash []byte) (*FileMap, bool) {
     return fileMap, found
 }
 
+// Register a new search as active search so that we can keep track of its results
 func (se *SearchEngine) createNewActiveSearch(keywords []string) string {
 
     searchRequest := &ActiveSearch{
-        id: fmt.Sprintf("%v:%v", time.Now().UnixNano(), time.Now().UnixNano(),
-            strings.Join(keywords,common.SearchKeywordSeparator)),
+        id: fmt.Sprintf("%v:%v", time.Now().UnixNano(), strings.Join(keywords,common.SearchKeywordSeparator)),
         keywords: keywords,
         matches: make([]*common.SearchResult, 0),
     }
@@ -117,7 +115,7 @@ func (se *SearchEngine) createNewActiveSearch(keywords []string) string {
     return searchRequest.id
 }
 
-/// Process results from a current or previous search.
+// Process results from a current or previous search.
 func (se *SearchEngine) StoreResults(results []*common.SearchResult, origin string) {
 
     se.lock.Lock()
@@ -159,7 +157,7 @@ func (se *SearchEngine) StoreResults(results []*common.SearchResult, origin stri
 }
 
 //
-//
+//  ADDITIONAL FILE SYSTEM FUNCTIONS
 //
 
 func (fs *FileSystem) Search(keywords []string) []*common.SearchResult {
@@ -204,6 +202,70 @@ func (fs *FileSystem) chunkMap(metaFile *MetaFile) []uint64 {
     return chunkMap
 }
 
+// Check if a search is completed by checking the number of matches
+func (se *SearchEngine) hasCompleted(searchId string, lock bool) bool {
+
+    if lock {
+        se.lock.RLock()
+        defer se.lock.RUnlock()
+    }
+
+    search, found := se.activeSearches[searchId]
+
+    if !found {
+        return true
+    }
+
+    chunkMaps := make(map[string]map[uint64]bool)
+    sizes := make(map[string]uint64)
+
+    for _, result := range search.matches {
+
+        chunkMap, found := chunkMaps[result.FileName]
+
+        if !found {
+            chunkMap = make(map[uint64]bool)
+            chunkMaps[result.FileName] = chunkMap
+        }
+
+        for _, chunkId := range result.ChunkMap {
+            chunkMap[chunkId] = true
+        }
+
+        sizes[result.FileName] = result.ChunkCount
+    }
+
+    count := 0
+
+    FILE_LOOP:
+    for name, chunkMap := range chunkMaps {
+
+        size, found := sizes[name]
+
+        if !found {
+            continue FILE_LOOP
+        }
+
+        for i := uint64(1); i <= size; i++ {
+
+            _, found := chunkMap[i]
+
+            if !found {
+                continue FILE_LOOP
+            }
+        }
+
+        count++
+    }
+
+    return count >= 2
+}
+
+//
+//  OTHER HELPERS
+//
+
+// Compare filename and keyword for potential match
 func Match(name string, keywords []string) bool {
 
     for _, keyword := range keywords {
@@ -218,25 +280,25 @@ func Match(name string, keywords []string) bool {
     return false
 }
 
-//
-//
-//
+// Fill a given chunkMap with the contents of a search result
+func fillChunkMap(chunkMap map[uint64]map[string]bool, result *common.SearchResult, origin string) {
 
-// func (se *SearchEngine) shouldStopSearch(search *ActiveSearch) bool {
-//
-//     se.lock.RLock()
-//     defer se.lock.RUnlock()
-//
-//     _, found := se.activeSearches[search.id]
-//
-//     return !found
-// }
+    for _, chunk := range result.ChunkMap {
 
-// --
-// -- Locations
-// --
+        seeds, found := chunkMap[chunk]
 
-// func (fs *FileSystem)
+        if !found {
+            seeds = make(map[string]bool)
+            chunkMap[chunk] = seeds
+        }
+
+        seeds[origin] = true
+    }
+}
+
+//
+//  GOSSIPER FUNCTIONS
+//
 
 func (gossiper *Gossiper) RingSearch(keywords []string, budget uint64) {
 
@@ -307,80 +369,7 @@ func (gossiper *Gossiper) forwardSearchRequest(searchRequest *common.SearchReque
     }
 }
 
+// Forward the search
 func (gossiper *Gossiper) broadcastSearchRequest(searchRequest *common.SearchRequest) {
     gossiper.broadcastToNeighbors(searchRequest.Packed())
 }
-
-func (se *SearchEngine) hasCompleted(searchId string, lock bool) bool {
-
-    if lock {
-        se.lock.RLock()
-        defer se.lock.RUnlock()
-    }
-
-    search, found := se.activeSearches[searchId]
-
-    if !found {
-        return true
-    }
-
-    chunkMaps := make(map[string]map[uint64]bool)
-    sizes := make(map[string]uint64)
-
-    for _, result := range search.matches {
-
-        chunkMap, found := chunkMaps[result.FileName]
-
-        if !found {
-            chunkMap = make(map[uint64]bool)
-            chunkMaps[result.FileName] = chunkMap
-        }
-
-        for _, chunkId := range result.ChunkMap {
-            chunkMap[chunkId] = true
-        }
-
-        sizes[result.FileName] = result.ChunkCount
-    }
-
-    count := 0
-
-    FILE_LOOP:
-    for name, chunkMap := range chunkMaps {
-
-        size, found := sizes[name]
-
-        if !found {
-            continue FILE_LOOP
-        }
-
-        for i := uint64(1); i <= size; i++ {
-
-            _, found := chunkMap[i]
-
-            if !found {
-                continue FILE_LOOP
-            }
-        }
-
-        count++
-    }
-
-    return count >= 2
-}
-
-func fillChunkMap(chunkMap map[uint64]map[string]bool, result *common.SearchResult, origin string) {
-
-    for _, chunk := range result.ChunkMap {
-
-        seeds, found := chunkMap[chunk]
-
-        if !found {
-            seeds = make(map[string]bool)
-            chunkMap[chunk] = seeds
-        }
-
-        seeds[origin] = true
-    }
-}
-

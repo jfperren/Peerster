@@ -8,6 +8,7 @@ import (
 	"github.com/jfperren/Peerster/common"
 	"os"
 	"sync"
+	"time"
 )
 
 // File System handles the low-level complexity of chunking (scanning) existing files, storing file hashes,
@@ -54,12 +55,13 @@ func (e *FileSystemError) Error() string {
 
 // Create a new File System
 func NewFileSystem(sharedPath, downloadPath string) *FileSystem {
+
 	return &FileSystem{
-		sharedPath,
-		downloadPath,
-		make(map[string]*Chunk),
-		make(map[string]*MetaFile),
-		&sync.RWMutex{},
+		sharedPath: sharedPath,
+		downloadPath: downloadPath,
+		chunks: make(map[string]*Chunk),
+		metaFiles: make(map[string]*MetaFile),
+		lock: &sync.RWMutex{},
 	}
 }
 
@@ -272,4 +274,102 @@ func (fs *FileSystem) ScanFile(fileName string) (*MetaFile, error) {
 	common.DebugScanFile(fileName, size, metaHash[:])
 
 	return metaFile, nil
+}
+
+//
+//  GOSSIPER METHODS
+//
+
+// Start a new download process. As long as there are missing chunks related to the metahash provided, it will
+// continue to download the remaining ones. If there is a timeout or the response does not match the data requested,
+// it will restart evert 5 seconds, up to a total of 10 tries before stopping.
+//
+//  - name: Name of the file as it will appear in the file system later on
+//  - metaHash: Hash of the requested file
+//  - peer: Name of the peer from which we want to download the file
+//  - counter: Set to 0 for new downloads, it will increase up to 10 until timing out.
+//
+func (gossiper *Gossiper) StartDownload(name string, metaHash []byte, peer string, counter int) {
+
+	if counter > common.MaxDownloadRequests {
+		// Probably print some stuff
+		common.DebugDownloadTimeout(name, metaHash, peer)
+		return
+	}
+
+	nextHash, chunkId, completed := gossiper.FileSystem.downloadStatus(metaHash)
+
+	if completed {
+		common.DebugDownloadCompleted(name, metaHash, peer)
+		return
+	}
+
+	if peer == "" {
+
+		fileMap, found := gossiper.SearchEngine.FileMap(metaHash)
+
+		if !found {
+			common.DebugDownloadUnknownFile(metaHash)
+			return
+		}
+
+		if chunkId == common.MetaHashChunkId {
+			peer, found = fileMap.peerForMetafile(counter)
+		} else {
+			peer, found = fileMap.peerForChunk(uint64(chunkId), counter)
+		}
+
+		if !found {
+			common.DebugNoKnownOwnerForFile(metaHash)
+			return
+		}
+	}
+
+	common.DebugStartDownload(name, nextHash, peer)
+
+	go func() {
+
+		ticker := time.NewTicker(common.DownloadTimeout)
+		defer ticker.Stop()
+
+		select {
+		case packet := <-gossiper.Dispatcher.dataReplies(nextHash):
+
+			reply := packet.DataReply
+
+			if reply == nil {
+				// Error, we expect only a data reply from this
+				return
+			}
+
+			if !reply.VerifyHash(nextHash) {
+				// Unexpected hash or incorrect data, retry
+				common.DebugCorruptedDataReply(nextHash, reply)
+				go gossiper.StartDownload(name, metaHash, peer, counter+1)
+				return
+			}
+
+			gossiper.FileSystem.processDataReply(name, metaHash, reply)
+
+			// At this point, the download is successful, so we can log it
+
+			if chunkId == common.MetaHashChunkId {
+				common.LogDownloadingMetafile(name, packet.DataReply.Origin)
+			} else {
+				common.LogDownloadingChunk(name, chunkId, packet.DataReply.Origin)
+			}
+
+			// Then we start downloading the next chunk
+			go gossiper.StartDownload(name, metaHash, peer, 0)
+
+		case <-ticker.C: // Timeout
+			go gossiper.StartDownload(name, metaHash, peer, counter+1)
+		}
+
+		gossiper.Dispatcher.stopWaitingOnDataReply(nextHash)
+	}()
+
+	request := gossiper.GenerateDataRequest(peer, nextHash)
+	gossiper.sendToNode(request.Packed(), request.Destination, nil)
+
 }
