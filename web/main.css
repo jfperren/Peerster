@@ -55,7 +55,7 @@ h3 {
   height: 100pt;
 }
 
-input#message, .scroll-box {
+.scroll-box {
   border-width: 1pt;
   border-color: #eeeeee;
   border-style: solid;
