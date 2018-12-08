@@ -36,6 +36,19 @@ type FileRequest struct {
 	Hash        string
 }
 
+type SearchRequest struct {
+	Keywords    string
+	Budget      int
+}
+
+type SearchResult struct {
+	Name    string
+	Hash	string
+	Full	bool
+}
+
+
+
 func StartWebServer(gossiper *Gossiper, port string) {
 
 	// Stores gossiper
@@ -50,8 +63,9 @@ func StartWebServer(gossiper *Gossiper, port string) {
 	http.HandleFunc("/node", middleware(handleNode))
 	http.HandleFunc("/user", middleware(handleUser))
 	http.HandleFunc("/privateMessage", middleware(handlePrivateMessage))
-	http.HandleFunc("/fileRequest", middleware(handleFileRequest))
+	http.HandleFunc("/fileDownload", middleware(handleFileDownload))
 	http.HandleFunc("/fileUpload", middleware(handleFileUpload))
+	http.HandleFunc("/fileSearch", middleware(handleFileSearch))
 
 	go func() {
 		err := http.ListenAndServe(":"+port, nil)
@@ -86,12 +100,7 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 
 		var message string
 		err := json.NewDecoder(req.Body).Decode(&message)
-
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode(err)
-			return
-		}
+		if err != nil { handleErr(err, res); return }
 
 		var theirStatuses []common.PeerStatus
 		err = json.Unmarshal([]byte(req.Header.Get("x-statuses")), &theirStatuses)
@@ -102,13 +111,8 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		command, commandErr := common.NewMessageCommand(message)
-
-		if commandErr != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode(err)
-			return
-		}
+		command, err := common.NewMessageCommand(message)
+		if err != nil { handleErr(err, res); return }
 
 		g.HandleClient(command)
 
@@ -121,12 +125,7 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 
 		var theirStatuses []common.PeerStatus
 		err := json.Unmarshal([]byte(req.Header.Get("x-statuses")), &theirStatuses)
-
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode(err)
-			return
-		}
+		if err != nil { handleErr(err, res); return }
 
 		_, rumors, myStatuses := g.CompareStatus(theirStatuses, ComparisonModeAllNew)
 
@@ -194,21 +193,12 @@ func handlePrivateMessage(res http.ResponseWriter, req *http.Request) {
 	case "POST":
 
 		var message Message
-		err := json.NewDecoder(req.Body).Decode(&message)
 
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode(err)
-			return
-		}
+		err := json.NewDecoder(req.Body).Decode(&message)
+		if err != nil { handleErr(err, res); return }
 
 		command, err := common.NewPrivateMessageCommand(message.Text, message.Destination)
-
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode(err)
-			return
-		}
+		if err != nil { handleErr(err, res); return }
 
 		g.HandleClient(command)
 
@@ -254,24 +244,18 @@ func handleFileUpload(res http.ResponseWriter, req *http.Request) {
 
 		var filename string
 		err := json.NewDecoder(req.Body).Decode(&filename)
+		if err != nil { handleErr(err, res); return }
 
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode(err)
-			return
-		}
+		command, err := common.NewUploadCommand(filename)
+		if err != nil { handleErr(err, res); return }
 
-		if filename == "" {
-			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode("Filename cannot be blank")
-			return
-		}
+		err = g.HandleClient(command)
+		if err != nil { handleErr(err, res); return }
 
-		metaFile, err := g.FileSystem.ScanFile(filename)
+		metaFile := g.FileSystem.getFileWithName(filename)
 
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode(err.Error())
+		if metaFile == nil {
+			res.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -292,15 +276,15 @@ func handleFileUpload(res http.ResponseWriter, req *http.Request) {
 			})
 		}
 
-		res.WriteHeader(http.StatusOK)
 		json.NewEncoder(res).Encode(metaFiles)
+		res.WriteHeader(http.StatusOK)
 
 	default:
 		res.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
-func handleFileRequest(res http.ResponseWriter, req *http.Request) {
+func handleFileDownload(res http.ResponseWriter, req *http.Request) {
 
 	switch req.Method {
 
@@ -308,20 +292,10 @@ func handleFileRequest(res http.ResponseWriter, req *http.Request) {
 
 		var request FileRequest
 		err := json.NewDecoder(req.Body).Decode(&request)
-
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode(err)
-			return
-		}
+		if err != nil { handleErr(err, res); return }
 
 		command, err := common.NewDownloadCommand(request.Hash, request.Name, request.Destination)
-
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(res).Encode(err)
-			return
-		}
+		if err != nil { handleErr(err, res); return }
 
 		g.HandleClient(command)
 
@@ -330,4 +304,54 @@ func handleFileRequest(res http.ResponseWriter, req *http.Request) {
 	default:
 		res.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+func handleFileSearch(res http.ResponseWriter, req *http.Request) {
+
+	switch req.Method {
+
+	case "POST":
+
+		var searchRequest SearchRequest
+		err := json.NewDecoder(req.Body).Decode(&searchRequest)
+		if err != nil { handleErr(err, res); return }
+
+		command, err := common.NewSearchCommand(searchRequest.Keywords, uint64(searchRequest.Budget))
+		if err != nil { handleErr(err, res); return }
+
+		err = g.HandleClient(command)
+		if err != nil { handleErr(err, res); return }
+
+		res.WriteHeader(http.StatusOK)
+
+	case "GET":
+
+		results := make([]SearchResult, 0)
+
+		for _, result := range g.SearchEngine.results {
+
+			hash := hex.EncodeToString(result.MetafileHash)
+
+			results = append(results, SearchResult{
+				Name: result.FileName,
+				Hash: hash,
+				Full: g.SearchEngine.fileMaps[hash].isComplete(),
+			})
+		}
+
+		json.NewEncoder(res).Encode(results)
+		res.WriteHeader(http.StatusOK)
+
+
+	default:
+		res.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+
+func handleErr(err error, res http.ResponseWriter) bool {
+
+	res.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(res).Encode(err.Error())
+	return true
 }
