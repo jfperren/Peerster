@@ -22,13 +22,13 @@ func main() {
 
 	// Packet to send
 	var command *common.Command
-	var commandError *common.CommandError
+	var commandError error
 
 	switch {
 
 	case *keywords != "":
 
-		command, commandError = common.NewSearchCommand(keywords, *budget)
+		command, commandError = common.NewSearchCommand(*keywords, *budget)
 
 	case *request != "":
 

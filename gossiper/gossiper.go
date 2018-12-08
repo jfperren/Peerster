@@ -163,10 +163,10 @@ func (gossiper *Gossiper) receiveClient() {
 //
 
 //  Handle new packet from client
-func (gossiper *Gossiper) HandleClient(command *common.Command) {
+func (gossiper *Gossiper) HandleClient(command *common.Command) error {
 
 	if command == nil || !command.IsValid() {
-		return // Fail gracefully
+		return common.InvalidCommandError()
 	}
 
 	switch {
@@ -219,10 +219,7 @@ func (gossiper *Gossiper) HandleClient(command *common.Command) {
 	case command.Upload != nil:
 
 		metaFile, err := gossiper.FileSystem.ScanFile(command.Upload.FileName)
-
-		if err != nil {
-			return
-		}
+		if err != nil { return err }
 
 		transaction := NewTransaction(metaFile)
 
@@ -235,6 +232,8 @@ func (gossiper *Gossiper) HandleClient(command *common.Command) {
 
 		gossiper.RingSearch(command.Search.Keywords, command.Search.Budget)
 	}
+
+	return nil
 }
 
 // Handle packet from another node.

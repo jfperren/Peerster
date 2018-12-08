@@ -33,8 +33,8 @@ type Chunk struct {
 	data []byte
 }
 
-const fileNotFound = 1
-const fileTooBig = 2
+const FileNotFound = 1
+const FileTooBig = 2
 
 // Errors thrown by the File System type
 type FileSystemError struct {
@@ -44,9 +44,9 @@ type FileSystemError struct {
 
 func (e *FileSystemError) Error() string {
 	switch e.flag {
-	case fileNotFound:
+	case FileNotFound:
 		return "File not found: " + e.filename
-	case fileTooBig:
+	case FileTooBig:
 		return "File is too big: " + e.filename + " (max. 2Mb)"
 	default:
 		return "Unexpected error"
@@ -223,7 +223,7 @@ func (fs *FileSystem) ScanFile(fileName string) (*MetaFile, error) {
 
 	if err != nil {
 		common.DebugFileNotFound(fileName)
-		return nil, &FileSystemError{fileName, fileNotFound}
+		return nil, &FileSystemError{fileName, FileNotFound}
 	}
 
 	size := 0
@@ -250,7 +250,7 @@ func (fs *FileSystem) ScanFile(fileName string) (*MetaFile, error) {
 
 		if len(hashes) > common.FileChunkSize {
 			common.DebugFileTooBig(fileName)
-			return nil, &FileSystemError{fileName, fileTooBig}
+			return nil, &FileSystemError{fileName, FileTooBig}
 		}
 
 		if count < common.FileChunkSize {

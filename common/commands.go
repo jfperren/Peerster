@@ -56,7 +56,9 @@ type CommandError struct {
 }
 
 const (
-    messageNoContent = iota
+    invalidCommand = iota
+
+    messageNoContent
 
     privateMessageNoContent
     privateMessageNoDest
@@ -72,6 +74,8 @@ const (
 
 func (e *CommandError) Error() string {
     switch e.flag {
+
+    case invalidCommand:            return "Command is not valid - Only one command at a time"
 
     case messageNoContent:          return "Cannot send a message without content"
 
@@ -89,11 +93,15 @@ func (e *CommandError) Error() string {
     }
 }
 
+func InvalidCommandError() error {
+    return &CommandError{invalidCommand}
+}
+
 //
 //  CONSTRUCTORS
 //
 
-func NewMessageCommand(content string) (*Command, *CommandError) {
+func NewMessageCommand(content string) (*Command, error) {
 
     if content == "" {
         return nil, &CommandError{messageNoContent}
@@ -103,7 +111,7 @@ func NewMessageCommand(content string) (*Command, *CommandError) {
     return &Command{Message: privateMessageCommand}, nil
 }
 
-func NewPrivateMessageCommand(content, destination string) (*Command, *CommandError) {
+func NewPrivateMessageCommand(content, destination string) (*Command, error) {
 
     if content == "" {
         return nil, &CommandError{privateMessageNoContent}
@@ -117,13 +125,17 @@ func NewPrivateMessageCommand(content, destination string) (*Command, *CommandEr
     return &Command{PrivateMessage: privateMessageCommand}, nil
 }
 
-func NewUploadCommand(file string) (*Command, *CommandError) {
+func NewUploadCommand(file string) (*Command, error) {
+
+    if file == "" {
+        return nil, &CommandError{uploadNoName}
+    }
 
     uploadCommand := &UploadCommand{file}
     return &Command{Upload: uploadCommand}, nil
 }
 
-func NewDownloadCommand(request, file, dest string) (*Command, *CommandError) {
+func NewDownloadCommand(request, file, dest string) (*Command, error) {
 
     if request == "" {
         return nil, &CommandError{downloadNoHash}
@@ -143,13 +155,13 @@ func NewDownloadCommand(request, file, dest string) (*Command, *CommandError) {
     return &Command{Download: downloadCommand}, nil
 }
 
-func NewSearchCommand(query *string, budget uint64) (*Command, *CommandError) {
+func NewSearchCommand(query string, budget uint64) (*Command, error) {
 
-    if *query == "" {
+    if query == "" {
         return nil, &CommandError{searchNoKeywords}
     }
 
-    keywords := strings.Split(*query, SearchKeywordSeparator)
+    keywords := strings.Split(query, SearchKeywordSeparator)
     var searchCommand *SearchCommand
 
     searchCommand = &SearchCommand{budget, keywords}
