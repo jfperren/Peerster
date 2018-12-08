@@ -333,6 +333,12 @@ func DebugIgnoreBlockAlreadyPresent(block *Block) {
 	fmt.Printf("IGNORE block %v is already in chain\n", hex.EncodeToString(hash[:]))
 }
 
+func DebugIgnoreBlockInconsistent(block *Block) {
+	if !Verbose { return }
+	hash := block.Hash()
+	fmt.Printf("IGNORE block %v is inconsistent with current namespace\n", hex.EncodeToString(hash[:]))
+}
+
 func DebugIgnoreBlockPrevDoesntMatch(block *Block, prev [32]byte) {
 	if !Verbose { return }
 	hash := block.Hash()

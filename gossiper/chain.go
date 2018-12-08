@@ -3,6 +3,7 @@ package gossiper
 import (
     "bytes"
     "crypto/rand"
+    "fmt"
     "github.com/jfperren/Peerster/common"
     "sync"
     "time"
@@ -125,6 +126,11 @@ func (bc *BlockChain) TryAddBlock(candidate *common.Block) bool {
 
     if found {
         common.DebugIgnoreBlockAlreadyPresent(candidate)
+        return false
+    }
+
+    if !bc.IsConsistent(candidate) {
+        common.DebugIgnoreBlockInconsistent(candidate)
         return false
     }
 
@@ -283,6 +289,55 @@ func (bc *BlockChain) allBlocks() []*common.Block {
         allBlocks = append(allBlocks, block)
         hash = block.PrevHash
     }
+}
+
+func (bc *BlockChain) IsConsistent(newBlock *common.Block) bool {
+
+    fmt.Printf("CHECKING CONSISTENCY\n")
+
+    names := make(map[string]bool)
+
+    for _, transaction := range newBlock.Transactions {
+
+        fmt.Printf("CHECKING NAME %v\n", transaction.File.Name)
+
+        _, found := names[transaction.File.Name]
+
+        if found {
+            fmt.Printf("DUPLICATE NAME %v\n", transaction.File.Name)
+            return false
+        }
+
+        names[transaction.File.Name] = true
+    }
+
+    hash := newBlock.PrevHash
+
+    for {
+        block, found := bc.Blocks[hash]
+
+        if !found {
+            return true
+        }
+
+        for _, transaction := range block.Transactions {
+
+            fmt.Printf("CHECKING NAME %v\n", transaction.File.Name)
+
+            _, found := names[transaction.File.Name]
+
+            if found {
+                fmt.Printf("DUPLICATE NAME %v\n", transaction.File.Name)
+                return false
+            }
+
+            names[transaction.File.Name] = true
+        }
+
+        hash = block.PrevHash
+    }
+
+    return true
 }
 
 func (bc *BlockChain) FirstCommonAncestor(current, new *common.Block) (*common.Block, bool, []*common.Block, []*common.Block) {
