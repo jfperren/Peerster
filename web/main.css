@@ -41,21 +41,27 @@ h3 {
   /* padding-bottom: 0px; */
 }
 
-ul#messages {
+.scroll-box {
   padding: 0pt;
+  padding-top: 5pt;
   list-style-type: none;
   list-style-position: outside;
   height: 200pt;
   overflow-y: scroll;
+  overflow-x: hidden;
 }
 
-input#message, ul#messages {
+#search-results {
+  height: 100pt;
+}
+
+input#message, .scroll-box {
   border-width: 1pt;
   border-color: #eeeeee;
   border-style: solid;
 }
 
-ul#messages li {
+.scroll-box li {
   padding-top: 1pt;
   padding-bottom: 1pt;
   padding-left: 10pt;
@@ -70,6 +76,10 @@ ul#messages li {
   /* margin-bottom: 4pt; */
   /* font-size: 8pt; */
   color: black;
+}
+
+.search-result {
+  font-size: 16pt;
 }
 
 .hash {

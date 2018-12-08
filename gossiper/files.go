@@ -276,6 +276,17 @@ func (fs *FileSystem) ScanFile(fileName string) (*MetaFile, error) {
 	return metaFile, nil
 }
 
+func (fs *FileSystem) getFileWithName(filename string) *MetaFile {
+
+	for _, metaFile := range fs.metaFiles {
+		if metaFile.Name == filename {
+			return metaFile
+		}
+	}
+
+	return nil
+}
+
 //
 //  GOSSIPER METHODS
 //

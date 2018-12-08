@@ -30,14 +30,23 @@
         <ul id="users"></ul>
     </div>
     <h3>Files</h3>
-    <p class="sub">All files you are sharing with the network. <a id="upload-file" href="#">Share more files</a> | <a id="download-file" href="#">Download files</a></p></p>
+    <p class="sub">All files you are sharing with the network. <a id="upload-file" href="#">Share more files</a> | <a id="download-file" href="#">Download private file</a></p></p>
     <div>
         <ul id="files"></ul>
+    </div>
+    <h3>Search</h3>
+    <p class="sub">Enter comma-separated keywords to search files on the network.</p>
+    <form id="search-form" onsubmit="return false;">
+      <button id="submit-search" class="reset">Search</button>
+      <span class="search-query"><input id="search-query" autocomplete="off" name="search", type="text", placeholder="keyword1, keyword2, ..."/></span>
+    </form>
+    <div>
+        <ul id="search-results" class="scroll-box"></ul>
     </div>
     <h3>Messages</h3>
     <p class="sub">All messages that were shared on the network. This includes broadcasts (gossip) and private messages.</p>
     <div>
-      <ul id="messages"></ul>
+      <ul id="messages" class="scroll-box"></ul>
     </div>
     <form id="message-form" onsubmit="return false;">
       <button id="send-message" class="reset">Send</button>

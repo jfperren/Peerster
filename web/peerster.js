@@ -23,9 +23,11 @@ function postMessage(message, statuses, callback) {
       'x-statuses': JSON.stringify(statuses)
     },
     success: function(res) {
+      console.log(res)
       callback(JSON.parse(res));
     },
     error: function(res) {
+      console.log(res)
       callback(null, JSON.parse(res));
     }
   });
@@ -101,10 +103,28 @@ function uploadFile(filename, callback) {
       callback(JSON.parse(res));
     },
     error: function(res) {
+      console.log(res)
       callback(null, res);
     }
   });
 };
+
+function searchRequest(keywords, callback) {
+  $.ajax({
+    method: "POST",
+    url: "/fileSearch",
+    data: JSON.stringify({
+      'Keywords': keywords,
+      'Budget': 4
+    }),
+    success: function(res) {
+      callback(JSON.parse(res));
+    },
+    error: function(res) {
+      callback(null, res);
+    }
+  });
+}
 
 function getUploadedFiles(callback) {
 
@@ -113,7 +133,14 @@ function getUploadedFiles(callback) {
   });
 }
 
-function downloadFile(filename, hash, destination, callback) {
+function getSearchResult(callback) {
+
+  $.get("/fileSearch", function(res) {
+    callback(JSON.parse(res));
+  });
+}
+
+function downloadFilePrivate(filename, hash, destination, callback) {
 
   if ($.map(files, (f) => f.Name).includes(filename)) {
     callback(null, `$filename is already in your list of files.`)
@@ -121,11 +148,33 @@ function downloadFile(filename, hash, destination, callback) {
 
   $.ajax({
     method: "POST",
-    url: "/fileRequest",
+    url: "/fileDownload",
     data: JSON.stringify({
       'Destination': destination,
       'Hash': hash,
       'Name': filename
+    }),
+    success: function(res) {
+      callback(JSON.parse(res));
+    },
+    error: function(res) {
+      callback(null, res);
+    }
+  });
+};
+
+function downloadFilePublic(filename, hash, callback) {
+
+  if ($.map(files, (f) => f.Name).includes(filename)) {
+    callback(null, `$filename is already in your list of files.`)
+  }
+
+  $.ajax({
+    method: "POST",
+    url: "/fileDownload",
+    data: JSON.stringify({
+      'Name': filename,
+      'Hash': hash,
     }),
     success: function(res) {
       callback(JSON.parse(res));
@@ -203,8 +252,39 @@ function enqueueUsers(newUsers) {
 
 function enqueueFiles(newFiles) {
 
+    newFiles = newFiles.filter(function(file) {
+        return !files.includes(file);
+    })
+
+    files = files + newFiles
+
     $("#files").append($.map(newFiles, function(file) {
       return `<li>${file.Name} (<span class="hash">${file.Hash}</span>)</li>`;
+    }));
+}
+
+function enqueueSearchResults(results) {
+
+    newResults = results.filter(function(result) {
+        return !searchResults.includes(result);
+    })
+
+    searchResults = searchResults + newResults;
+
+    $("#search-results").append($.map(newResults, function(result) {
+
+        html = `<li><div class="search-result">${result.Name}</div>`
+        html += `<span class="hash">`
+
+        if (result.Full) {
+          html += `> <a class="download-public" href="#" hash="${result.Hash}">${result.Hash}</a>`
+        } else {
+          html += `> Download unavailable, some chunks are missing`
+        }
+
+        html += `</span></li>`
+
+        return html
     }));
 }
 
@@ -241,6 +321,12 @@ function loadUploadedFiles() {
   });
 }
 
+function loadSearchResults() {
+  getSearchResult(function(res, err) {
+    enqueueSearchResults(res)
+  });
+}
+
 function isValidIPAddress(address) {
   regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):[0-9]{4}$/;
   return regex.test(address)
@@ -255,6 +341,7 @@ var privateMessages = [];
 var users = [];
 var name = "";
 var files = [];
+var searchResults = [];
 
 $(function(){
 
@@ -269,11 +356,13 @@ $(function(){
   loadNewUsers()
   loadNewPrivateMessages()
   loadUploadedFiles()
+  loadSearchResults()
 
   setInterval(loadNewMessages, 1000)
   setInterval(loadNewPeers, 1000)
   setInterval(loadNewUsers, 1000)
   setInterval(loadNewPrivateMessages, 1000)
+  setInterval(loadSearchResults, 1000)
 
   $("#add-peer").on('click', function(e){
     e.preventDefault();
@@ -378,7 +467,7 @@ $(function(){
       return
     }
 
-    downloadFile(filename, hash, destination, function(res, err) {
+    downloadFilePrivate(filename, hash, destination, function(res, err) {
 
       // If there's an error, alert and exit
       if (err != null) { alert(err.responseText); return }
@@ -386,5 +475,35 @@ $(function(){
       // Add peer to list
       enqueueFiles([res])
     });
+  });
+
+  $("#search-form").submit(function(){
+
+    // Get the message, exit if it's empty
+    var query = $("#search-query").val()
+    if (query == "") { alert("Please enter a least one character in search");return }
+
+    searchRequest(query, function(res, err) {
+
+      // If there's an error, alert and exit
+      if (err != null) { console.log(err); return }
+
+      // Reset value in field
+      $("#search-query").val("");
+    });
+  });
+
+  $("body").on('click', '.download-public', function(e) {
+    e.preventDefault();
+
+    hash = $(e.target).attr('hash')
+
+    var filename = prompt("How would you like to name this file locally?")
+
+    if (filename == null || filename == "") {
+      return
+    }
+
+    downloadFilePublic(filename, hash)
   });
 });
