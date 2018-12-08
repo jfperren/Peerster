@@ -3,7 +3,6 @@ package gossiper
 import (
     "bytes"
     "crypto/rand"
-    "fmt"
     "github.com/jfperren/Peerster/common"
     "sync"
     "time"
@@ -293,18 +292,13 @@ func (bc *BlockChain) allBlocks() []*common.Block {
 
 func (bc *BlockChain) IsConsistent(newBlock *common.Block) bool {
 
-    fmt.Printf("CHECKING CONSISTENCY\n")
-
     names := make(map[string]bool)
 
     for _, transaction := range newBlock.Transactions {
 
-        fmt.Printf("CHECKING NAME %v\n", transaction.File.Name)
-
         _, found := names[transaction.File.Name]
 
         if found {
-            fmt.Printf("DUPLICATE NAME %v\n", transaction.File.Name)
             return false
         }
 
@@ -322,12 +316,9 @@ func (bc *BlockChain) IsConsistent(newBlock *common.Block) bool {
 
         for _, transaction := range block.Transactions {
 
-            fmt.Printf("CHECKING NAME %v\n", transaction.File.Name)
-
             _, found := names[transaction.File.Name]
 
             if found {
-                fmt.Printf("DUPLICATE NAME %v\n", transaction.File.Name)
                 return false
             }
 
