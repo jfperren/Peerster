@@ -14,9 +14,10 @@ import (
 // algorithm of Peerster.
 type SearchEngine struct {
 
-    activeSearches map[string]*ActiveSearch // All searches that did not complete
-    fileMaps        map[string]*FileMap     // Keeps track of file chunks location
-    lock            *sync.RWMutex           // Synchronize access
+    activeSearches  map[string]*ActiveSearch    // All searches that did not complete
+    fileMaps        map[string]*FileMap         // Keeps track of file chunks location
+    results         []*common.SearchResult      // All results received
+    lock            *sync.RWMutex               // Synchronize access
 }
 
 // Represents a search request that has not yet completed.
@@ -40,6 +41,7 @@ type FileMap struct {
 func NewSearchEngine() *SearchEngine {
     return &SearchEngine{
         activeSearches: make(map[string]*ActiveSearch),
+        results: make([]*common.SearchResult, 0),
         fileMaps: make(map[string]*FileMap),
         lock: &sync.RWMutex{},
     }
@@ -145,6 +147,7 @@ func (se *SearchEngine) StoreResults(results []*common.SearchResult, origin stri
         }
 
         fillChunkMap(fileMap.chunkMap, result, origin)
+        se.results = append(se.results, result)
     }
 
     for searchId, _ := range se.activeSearches {
