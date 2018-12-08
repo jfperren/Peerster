@@ -45,9 +45,9 @@ type FileSystemError struct {
 func (e *FileSystemError) Error() string {
 	switch e.flag {
 	case fileNotFound:
-		return "File is too big: " + e.filename + " (max. 2Mb)"
-	case fileTooBig:
 		return "File not found: " + e.filename
+	case fileTooBig:
+		return "File is too big: " + e.filename + " (max. 2Mb)"
 	default:
 		return "Unexpected error"
 	}
