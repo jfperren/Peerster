@@ -349,14 +349,13 @@ $(function(){
     var title = JSON.parse(res)
     name = title
     $("#node-title").html(title)
+    loadNewPeers()
+    loadNewMessages()
+    loadNewUsers()
+    loadNewPrivateMessages()
+    loadUploadedFiles()
+    loadSearchResults()
   });
-
-  loadNewPeers()
-  loadNewMessages()
-  loadNewUsers()
-  loadNewPrivateMessages()
-  loadUploadedFiles()
-  loadSearchResults()
 
   setInterval(loadNewMessages, 1000)
   setInterval(loadNewPeers, 1000)
