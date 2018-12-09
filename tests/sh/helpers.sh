@@ -17,10 +17,10 @@ expect_contains() {
 
   if (grep -q "$regex" ${file}) ; then
     SUCCESS=$((SUCCESS+1))
-    echo -e "${GREEN}- ${file} : <CONTAINS> ${regex}${GREEN}"
+    echo -e "${GREEN}- ${file} : <CONTAINS> ${regex}${NC}"
   else
     FAILED=$((FAILED+1))
-    echo -e "${RED}- ${file} : <SHOULD CONTAIN> ${regex}${RED}"
+    echo -e "${RED}- ${file} : <SHOULD CONTAIN> ${regex}${NC}"
   fi
 }
 
@@ -31,10 +31,10 @@ expect_missing() {
 
   if !(grep -q "$regex" ${file}) ; then
     SUCCESS=$((SUCCESS+1))
-    echo -e "${GREEN}- ${file} : <DOES NOT CONTAIN> ${regex}${GREEN}"
+    echo -e "${GREEN}- ${file} : <DOES NOT CONTAIN> ${regex}${NC}"
   else
     FAILED=$((FAILED+1))
-    echo -e "${RED}- ${file} : <SHOULD NOT CONTAIN> ${regex}${RED}"
+    echo -e "${RED}- ${file} : <SHOULD NOT CONTAIN> ${regex}${NC}"
   fi
 }
 
@@ -42,9 +42,9 @@ print_test_results() {
 
   echo ""
   if [ $FAILED -eq 0 ]; then
-    echo -e "${GREEN}  TESTS SUCCEEDED (${SUCCESS} tests total)${GREEN}"
+    echo -e "${GREEN}  TESTS SUCCEEDED (${SUCCESS} tests total)${NC}"
   else
-    echo -e "${RED}  TESTS FAILED WITH ${FAILED} FAILURES AND ${SUCCESS} SUCCESSES${RED}"
+    echo -e "${RED}  TESTS FAILED WITH ${FAILED} FAILURES AND ${SUCCESS} SUCCESSES${NC}"
   fi
   echo ""
 }

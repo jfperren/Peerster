@@ -5,10 +5,13 @@ rm -rf submission/*
 cp -rf . ../tmp
 cd ../tmp
 rm -rf submission
-rm Peerster
 rm -rf _SharedFiles/*
 rm -rf _Downloads/*
 rm -rf logs/*
+
+rm Peerster
+rm client/client
+
 cd ../Peerster
 
 name="Peerster-jfperren-v3.0.0"
