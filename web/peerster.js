@@ -259,9 +259,11 @@ function enqueueFiles(newFiles) {
 
 function enqueueSearchResults(newResults) {
 
-    countNew = newResults.length - searchResults.length
-    newResults = newResults.slice(-countNew)
-    searchResults = searchResults + newResults;
+    console.log(`total received: ${newResults}`)
+    console.log(`current: ${searchResults}`)
+
+    newResults = newResults.slice(searchResults.length)
+    searchResults = searchResults.concat(newResults);
 
     $("#search-results").append($.map(newResults, function(result) {
 
@@ -482,13 +484,15 @@ $(function(){
     var query = $("#search-query").val()
     if (query == "") { alert("Please enter a least one character in search");return }
 
+    // Reset value in field
+    $("#search-query").val("");
+
+    $("#search-results").append(`<li>- New search request: ${query}</li>`);
+
     searchRequest(query, function(res, err) {
 
       // If there's an error, alert and exit
-      if (err != null) { alert("Something went wrong"); return }
-
-      // Reset value in field
-      $("#search-query").val("");
+      if (err != null) { alert("Something went wrong in search"); return }
     });
   });
 
