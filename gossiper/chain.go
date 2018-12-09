@@ -225,10 +225,11 @@ func (bc *BlockChain) mine() {
 
     bc.MiningTime = time.Now().UnixNano()
 
+    firstBlock := true
+
     for {
 
         var nonce [32]byte
-        firstBlock := true
 
         _, err := rand.Read(nonce[:])
 
