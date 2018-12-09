@@ -125,7 +125,7 @@ func (se *SearchEngine) StoreResults(results []*common.SearchResult, origin stri
 
     for _, result := range results {
 
-        common.LogMatch(result.FileName, origin, result.MetafileHash, result.ChunkMap)
+        common.LogMatch(*result, origin)
 
         for _, search := range se.activeSearches {
 

@@ -76,15 +76,20 @@ func LogReconstructed(filename string) {
 	fmt.Printf("RECONSTRUCTED file %v\n", filename)
 }
 
-func LogMatch(filename, origin string, metahash []byte, chunks []uint64) {
-	fmt.Printf("FOUND match %v at %v metafile=%v chunks=%v", filename, origin,
-		hex.EncodeToString(metahash), chunks[0])
+func LogMatch(result SearchResult, origin string) {
 
-	for i := 1; i < len(chunks); i++ {
-		fmt.Printf(",%v", chunks[i])
+	chunks := make([]string, 0)
+
+	for _, chunkId := range result.ChunkMap {
+		chunks = append(chunks, fmt.Sprintf("%v", chunkId))
 	}
 
-	fmt.Printf("\n")
+	fmt.Printf("FOUND match %v at %v metafile=%v chunks=%v\n",
+		result.FileName,
+		origin,
+		hex.EncodeToString(result.MetafileHash[:]),
+		strings.Join(chunks, ","),
+	)
 }
 
 func LogSearchFinished() {
@@ -372,13 +377,28 @@ func DebugReceiveTransaction(transaction *TxPublish) {
 }
 
 func DebugSleep(duration time.Duration) {
+	if !Verbose { return }
 	fmt.Printf("SLEEP %v\n", duration)
 }
 
 func DebugChainLength(length int) {
+	if !Verbose { return }
 	fmt.Printf("CHAIN LENGTH %v\n", length)
 }
 
 func DebugBroadcastBlock(hash [32]byte) {
+	if !Verbose { return }
 	fmt.Printf("BROADCAST BLOCK %v\n", hex.EncodeToString(hash[:]))
+}
+
+func DebugServeSeachReply(reply *SearchReply) {
+	if !Verbose { return }
+
+	results := make([]string, 0)
+
+	for _, result := range reply.Results {
+		results = append(results, result.FileName)
+	}
+
+	fmt.Printf("SERVE SEARCH REPLY to %v results %v\n", reply.Destination, strings.Join(results, ","))
 }

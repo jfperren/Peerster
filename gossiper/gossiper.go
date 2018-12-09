@@ -131,7 +131,8 @@ func (gossiper *Gossiper) receiveGossip() {
 		protobuf.Decode(bytes, &packet)
 
 		if !packet.IsValid() {
-			panic("Received invalid packet")
+			common.DebugInvalidPacket(&packet)
+			continue
 		}
 
 		gossiper.Router.AddPeerIfNeeded(source)
@@ -345,7 +346,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 		}
 
 	case packet.SearchRequest != nil:
-		
+
 		if packet.SearchRequest.Budget <= 0 {
 			return
 		}
@@ -366,7 +367,9 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 		results := gossiper.FileSystem.Search(packet.SearchRequest.Keywords)
 		reply := common.NewSearchReply(gossiper.Name, packet.SearchRequest.Origin, results)
 
-		go gossiper.sendToNode(reply.Packed(), reply.Destination, &(reply.HopLimit))
+		common.DebugServeSeachReply(reply)
+
+		go gossiper.sendToNode(reply.Packed(), reply.Destination, nil)
 
 	case packet.SearchReply != nil:
 
