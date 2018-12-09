@@ -353,5 +353,5 @@ func (block *Block) Str() string {
 		files = append(files, transaction.File.Name)
 	}
 
-	return fmt.Sprintf("%v:%v:%v", hex.EncodeToString(hash[:8]), hex.EncodeToString(prev[:8]), strings.Join(files, FileNameSeparator))
+	return fmt.Sprintf("%v:%v:%v", hex.EncodeToString(hash[:]), hex.EncodeToString(prev[:]), strings.Join(files, FileNameSeparator))
 }
