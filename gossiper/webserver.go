@@ -131,7 +131,6 @@ func handleMessage(res http.ResponseWriter, req *http.Request) {
 
 		body := RumorsAndStatuses{rumors, myStatuses}
 
-		res.WriteHeader(http.StatusOK)
 		json.NewEncoder(res).Encode(body)
 
 	default:
@@ -218,6 +217,7 @@ func handlePrivateMessage(res http.ResponseWriter, req *http.Request) {
 		if index < 0 {
 			res.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(res).Encode("Index should be bigger or equal to 0.")
+			return
 		}
 
 		var body []*common.PrivateMessage
@@ -228,7 +228,6 @@ func handlePrivateMessage(res http.ResponseWriter, req *http.Request) {
 			body = g.Messages[index:]
 		}
 
-		res.WriteHeader(http.StatusOK)
 		json.NewEncoder(res).Encode(body)
 
 	default:
@@ -259,7 +258,6 @@ func handleFileUpload(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		res.WriteHeader(http.StatusOK)
 		json.NewEncoder(res).Encode(File{
 			metaFile.Name,
 			hex.EncodeToString(metaFile.Hash),
@@ -277,7 +275,6 @@ func handleFileUpload(res http.ResponseWriter, req *http.Request) {
 		}
 
 		json.NewEncoder(res).Encode(metaFiles)
-		res.WriteHeader(http.StatusOK)
 
 	default:
 		res.WriteHeader(http.StatusMethodNotAllowed)
@@ -340,8 +337,6 @@ func handleFileSearch(res http.ResponseWriter, req *http.Request) {
 		}
 
 		json.NewEncoder(res).Encode(results)
-		res.WriteHeader(http.StatusOK)
-
 
 	default:
 		res.WriteHeader(http.StatusMethodNotAllowed)
