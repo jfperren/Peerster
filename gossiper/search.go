@@ -1,6 +1,7 @@
 package gossiper
 
 import (
+    "bytes"
     "encoding/hex"
     "fmt"
     "github.com/jfperren/Peerster/common"
@@ -125,29 +126,47 @@ func (se *SearchEngine) StoreResults(results []*common.SearchResult, origin stri
 
     for _, result := range results {
 
-        common.LogMatch(*result, origin)
+        expected := false
 
         for _, search := range se.activeSearches {
 
             if Match(result.FileName, search.keywords) {
-                search.matches = append(search.matches, result)
+
+                found := false
+
+                for _, existingResult := range search.matches {
+                    if bytes.Equal(existingResult.MetafileHash, result.MetafileHash) &&
+                        existingResult.FileName == result.FileName {
+                            found = true
+                    }
+                }
+
+                if !found {
+                    search.matches = append(search.matches, result)
+                    expected = true
+                }
             }
         }
 
-        fileMap, found := se.fileMaps[hex.EncodeToString(result.MetafileHash)]
+        if expected {
 
-        if !found {
-            fileMap = &FileMap{
-                result.FileName,
-                result.MetafileHash,
-                result.ChunkCount,
-                make(map[uint64]map[string]bool),
+            fileMap, found := se.fileMaps[hex.EncodeToString(result.MetafileHash)]
+
+            if !found {
+                fileMap = &FileMap{
+                    result.FileName,
+                    result.MetafileHash,
+                    result.ChunkCount,
+                    make(map[uint64]map[string]bool),
+                }
+                se.fileMaps[hex.EncodeToString(result.MetafileHash)] = fileMap
             }
-            se.fileMaps[hex.EncodeToString(result.MetafileHash)] = fileMap
-        }
 
-        fillChunkMap(fileMap.chunkMap, result, origin)
-        se.results = append(se.results, result)
+            common.LogMatch(*result, origin)
+            se.results = append(se.results, result)
+
+            fillChunkMap(fileMap.chunkMap, result, origin)
+        }
     }
 
     for searchId, _ := range se.activeSearches {
