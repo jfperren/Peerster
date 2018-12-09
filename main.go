@@ -21,7 +21,7 @@ func main() {
 	server := flag.Bool("server", false, "runs this node in server mode")
 	rtimer := flag.Int("rtimer", 0, "route rumors sending period in seconds, 0 to disable sending of route rumors.")
 	verbose := flag.Bool("verbose", false, "display additional logs (useful for testing)")
-	separatefs := flag.Bool("separatefs", true, "set to true to use its own _Download and _SharedFile folder")
+	separatefs := flag.Bool("separatefs", false, "set to true to use its own _Download and _SharedFile folder")
 
 	flag.Parse()
 
