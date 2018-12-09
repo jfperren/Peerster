@@ -23,11 +23,9 @@ function postMessage(message, statuses, callback) {
       'x-statuses': JSON.stringify(statuses)
     },
     success: function(res) {
-      console.log(res)
       callback(JSON.parse(res));
     },
     error: function(res) {
-      console.log(res)
       callback(null, JSON.parse(res));
     }
   });
@@ -84,7 +82,7 @@ function getPrivateMessages(callback) {
       callback(JSON.parse(res));
     },
     error: function(res) {
-      callback(null, JSON.parse(res));
+      callback(null, res);
     }
   });
 };
@@ -103,7 +101,6 @@ function uploadFile(filename, callback) {
       callback(JSON.parse(res));
     },
     error: function(res) {
-      console.log(res)
       callback(null, res);
     }
   });
@@ -114,12 +111,9 @@ function searchRequest(keywords, callback) {
     method: "POST",
     url: "/fileSearch",
     data: JSON.stringify({
-      'Keywords': keywords,
-      'Budget': 4
+      Keywords: keywords,
+      Budget: 4
     }),
-    success: function(res) {
-      callback(JSON.parse(res));
-    },
     error: function(res) {
       callback(null, res);
     }
@@ -263,12 +257,10 @@ function enqueueFiles(newFiles) {
     }));
 }
 
-function enqueueSearchResults(results) {
+function enqueueSearchResults(newResults) {
 
-    newResults = results.filter(function(result) {
-        return !searchResults.includes(result);
-    })
-
+    countNew = newResults.length - searchResults.length
+    newResults = newResults.slice(-countNew)
     searchResults = searchResults + newResults;
 
     $("#search-results").append($.map(newResults, function(result) {
@@ -291,38 +283,44 @@ function enqueueSearchResults(results) {
 // --- CONVENIENCE METHODS --- //
 
 function loadNewMessages() {
-    getMessages(statuses, function(res) {
+    getMessages(statuses, function(res, err) {
+      if (err != null) { return }
       enqueueMessages(res["Rumors"])
       statuses = res["Statuses"]
     });
 }
 
 function loadNewPrivateMessages() {
-  getPrivateMessages(function(res) {
+  getPrivateMessages(function(res, err) {
+    if (err != null) { return }
     enqueuePrivateMessages(res)
   });
 }
 
 function loadNewPeers() {
   getNodes(function(res, err) {
+    if (err != null) { return }
     enqueuePeers(res)
   });
 }
 
 function loadNewUsers() {
   getUsers(function(res, err) {
+    if (err != null) { return }
       enqueueUsers(res)
   });
 }
 
 function loadUploadedFiles() {
   getUploadedFiles(function(res, err) {
+    if (err != null) { return }
     enqueueFiles(res)
   });
 }
 
 function loadSearchResults() {
   getSearchResult(function(res, err) {
+    if (err != null) { return }
     enqueueSearchResults(res)
   });
 }
@@ -346,22 +344,24 @@ var searchResults = [];
 $(function(){
 
   $.get("/id", function(res) {
+
     var title = JSON.parse(res)
     name = title
     $("#node-title").html(title)
+
     loadNewPeers()
     loadNewMessages()
     loadNewUsers()
     loadNewPrivateMessages()
     loadUploadedFiles()
     loadSearchResults()
-  });
 
-  setInterval(loadNewMessages, 1000)
-  setInterval(loadNewPeers, 1000)
-  setInterval(loadNewUsers, 1000)
-  setInterval(loadNewPrivateMessages, 1000)
-  setInterval(loadSearchResults, 1000)
+    setInterval(loadNewMessages, 1000)
+    setInterval(loadNewPeers, 1000)
+    setInterval(loadNewUsers, 1000)
+    setInterval(loadNewPrivateMessages, 1000)
+    setInterval(loadSearchResults, 1000)
+  });
 
   $("#add-peer").on('click', function(e){
     e.preventDefault();
@@ -485,7 +485,7 @@ $(function(){
     searchRequest(query, function(res, err) {
 
       // If there's an error, alert and exit
-      if (err != null) { console.log(err); return }
+      if (err != null) { alert("Something went wrong"); return }
 
       // Reset value in field
       $("#search-query").val("");
