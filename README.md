@@ -16,7 +16,7 @@ scripts/build.sh
 
 To run a gossiper node in CLI mode, use the following command:
 ```
-./Peerster -gossipAddr=127.0.0.1:5002 -UIPort=8082 -name="Charlie" -peers=127.0.0.1:5000 [-rtimer 1] [-verbose] [-separatefs]
+./Peerster -gossipAddr=127.0.0.1:5002 -UIPort=8082 -name="Charlie" -peers=127.0.0.1:5000 [-rtimer 5] [-verbose] [-separatefs]
 ```
 
 Here, `rtimer` is the number of seconds between route rumors, `verbose` allows to display additional information (it is useful for debugging but might clutter the log) and `separatefs` allows the node to use its own subfolder of the `_Download` and `_SharedFiles` folder (Note: the folder is created using the `name` attribute).
@@ -67,13 +67,30 @@ scripts/run_bob_server.sh
 The two basic testing scripts, as well as more advanced tests for routing, private messages and file sharing are available in the `tests/sh/` folder:
 
 ```
-tests/sh/test_routing.sh
-tests/sh/test_private.sh
+tests/sh/test_chain.sh
+tests/sh/test_download.sh
 tests/sh/test_files.sh
-
-tests/sh/test_1_ring.sh
-tests/sh/test_2_ring.sh
+tests/sh/test_private.sh
+tests/sh/test_download.sh
+tests/sh/test_routing.sh
+tests/sh/test_rumors.sh
+tests/sh/test_search.sh
+tests/sh/test_simple.sh
 ```
+
+There are also some unit tests written in go that can be run while inside the `tests/go/` folder using `go test -v`. Finally, it is possible to easily run everything as one big test suite using `scripts/test.sh`.
+
+## Notes about Implementation of HW3
+
+Here are relevant details for whoever is reading / testing the code of Homework 3.
+
+- The node contininuously mines, even when there is no transaction. The usual mining time on my laptop is about 0.1s so the chain grows very rapidly. I did not make any change to that in order to avoid failing automatic tests and/or breaking compatibility with other nodes.
+- Because it was unclear in the assignment guidelines, I decided to keep blocks that have an unknown parent. The main reason is this ensures that a node joining the network late has still a chance to somewhat converge to the longest chain, as otherwise it will simply always discard new blocks being mined on the main chain.
+- Following the previous point, it is possible to rewind and fast-forward on two completely separate chains.
+- When downloading without a destination, the node chooses a new random peer for each new chunk (in the list of peers that have this chunk).
+- When performing a file search, results can match any search request which has not yet completed (and will match as many as possible).
+- When receiving a file search result that has our node as destination but does not correspond to an active search (i.e. not finished), we discard this search result. 
+- Following the point above, we also discard / do not log search results which have already matched with all active searches. This ensures that a result received many times over the course of one expanding search (at each iteration) is not logged more than once.
 
 ## Notes about Implementation of HW2
 
