@@ -1,5 +1,6 @@
 
-rm -rf submission/*
+rm -rf submission
+mkdir submission
 
 # mkdir ../tmp
 cp -rf . ../tmp
