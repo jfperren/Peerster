@@ -228,6 +228,7 @@ func (bc *BlockChain) mine() {
     for {
 
         var nonce [32]byte
+        firstBlock := true
 
         _, err := rand.Read(nonce[:])
 
@@ -255,8 +256,9 @@ func (bc *BlockChain) mine() {
 
                 var sleepTime time.Duration
 
-                if bytes.Equal(candidate.PrevHash[:], []byte{}) {
+                if firstBlock {
                     sleepTime = common.InitialMiningSleepTime
+                    firstBlock = false
                 } else {
                     diff := time.Duration(common.MiningSleepTimeFactor * (time.Now().UnixNano() - bc.MiningTime))
                     sleepTime = time.Duration(diff * time.Nanosecond)
