@@ -154,12 +154,12 @@
         Each such node will remove information about the origin of the message and place it in a queue.
         Once a specific condition is met, the mixer node will shuffle the queue and forward the messages in a different order to the next relay.
         Finally, it is important to note that before a message is sent on a mixnet, it needs to be encrypted behind several layers of security (one for each mixer node on the path, who will decrypt it one layer at a time).
-        Besides the obvious task of making the input of a shuffle indistinguishable from its output, this multi-layer encryption-decryption scheme (often called an \textit{Onion}) ensures that a given message will follow its intended path and that the mixer nodes cannot read its content
+        Besides the obvious task of making the input of a shuffle indistinguishable from its output, this multi-layer encryption-decryption scheme (often called an \textit{Onion}) ensures that a given message will follow its intended path and that the mixer nodes cannot read its content.
         % Finally, in order to ensure that mixer nodes cannot themselves access the content of the messages,
         % There are many ways
         \bigbreak
         In practice, mix networks were and are still often used as a way to anonymously browse the web or communicate via e-mail.
-        This second kind is often distinguished in three\footnote{This does not consider type 0 remailers comprised of a single node, as it is less relevant here.} types. \
+        This second kind is often distinguished in three\footnote{This does not consider type 0 remailers constituted of a single node, as it is less relevant here.} types. \
         \textbf{Type I} (or \textit{Cypherpunk}) remailers provide a simple implementation of Chaum's mix network.
         However, the implementation contained several security flaws.
         Mainly, the length of the original message was kept the same, and the messages were always forwarded with a fixed delay (if any).
@@ -194,7 +194,7 @@
     % \subsection{Tor}
         \bigbreak
         Lastly, it would be hard to discuss anonymous routing protocols without mentioning \textbf{Tor} (shorthand for \textit{The Onion Router}).
-        Initially describe in \cite{tor}, Tor is also derived from Chaum's original mix network and is in some ways very similar to the concepts explained above.
+        Initially described in \cite{tor}, Tor is also derived from Chaum's original mix network and is in some ways very similar to the concepts explained above.
         The main difference is that a Tor relay nodes will simply wait a random delay before forwarding an incoming message, without performing any kind of shuffle.
         The main advantage of this is a big reduction in latency.
         Indeed, classic mixer nodes - who wait for a given number of incoming messages before forwarding them - might end up causing arbitrarily large delays in the delivery of a message.
@@ -202,7 +202,7 @@
         This is fair, however the performance of Tor is based on two key assumptions.
         First, the network should always be fairly busy.
         This will help disguise the traffic as it blends in with requests from other peers.
-        Secondly, it is unlikely that someone will get access to the logs of every one of the nodes on the path of a message (which would be required to perform a successful attack on the message).
+        Secondly, it is unlikely that someone will get access to the logs of every single node on the path of a message (which would be required to perform a successful attack on the message).
         % builds its security on top of the fact that it is unlikely
         % this has the effect of lowering the overall performance of the protocol.
 
@@ -217,14 +217,14 @@
         Even with a list of public keys and mixer nodes, one still needs to trust these data.
         They might be forged by malicious users in the network and are hardly detectable.
 
-        To ensure the security of communication data in he network, there are several ways to proceed.
-        First of all, we can of course give the example of the physical meeting between the different users of the networks as well as those hosting mixer nodes to exchange public keys and mixer nodes addresses.
+        To ensure the security of communication data in the network, there are several ways to proceed.
+        First of all, we can of course give the example of the physical meeting between the different users of the networks as well as those hosting mixer nodes to exchange public keys and mixer node addresses.
         But this kind of solution is never used practically speaking for user convenience.
-        Another solution is to have a trusted third party that distributes to all users required data.
+        Another solution is to have a trusted third party that distributes to all users the required data.
 
         %- Type I remailer = third party je crois http://www.noreply.org/echolot/rlist2.html
         In \textit{Cypherpunk} and \textit{Mixmaster} (types I \& II remailers), those third parties are hosted by trusted groups.
-        For example, a list of available and trusted remailers can be found at all times on noreply.org\footnote{\url{http://www.noreply.org/echolot/rlist2.html}}
+        For example, a list of available and trusted remailers can be found at all times on \url{noreply.org}\footnote{\url{http://www.noreply.org/echolot/rlist2.html}}
 
         % mixmion = DHT (https://www.mixminion.net/minion-design.pdf)
         In Mixminion\cite{mixminion}, the third party is a set of directory servers managing a \textit{Distributed Hash Table} (DHT) possibly hosted by the users themselves.
