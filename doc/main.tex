@@ -104,11 +104,11 @@
     First of all, the private messages are sent through the network in plain text.
     Therefore, it is very easy for any node on the direct path of a private message to intercept such messages and listen to the private conversation between two peers.
     Secondly, any node is able to register and announce any possible name to the network.
-    Such a name is then used as is by other nodes, without checking if the node actually exists and there is no check for uses of the same name by different nodes, which leaves open the possibility of spoofing anyone on the network.
-    Finally, the traffic from a node is relayed immediately by the neighbors, in a way that everybody is aware of the original sender of a message.
+    Such a name is then used as is by other nodes, without any kind of authenticity check, which leaves open the possibility of spoofing anyone on the network.
+    Finally, the traffic from a node is relayed immediately by the neighbors, in a way that everybody is aware of the originator of a message.
     % Finally, there is no anonymity for the sender of a message. As the messages are relayed directly by the
     % This means that it is not possible to be anonymous on the network.
-    In this project, we aim to fix some of these flaws and overall increase the level of anonymity and privacy of users on Peerster.
+    In this project, we aim to fix some of these flaws and increase the overall level of anonymity and privacy of users on Peerster.
     First, we will implement privacy of content via public key cryptography.
     Second, a basic mix network routing algorithm will be implemented to guarantee sender anonymity.
     Finally, we will use the already existing blockchain as a decentralized directory of public keys and mixer nodes.
@@ -126,9 +126,8 @@
     \subsection{Signature and encryption}
 
         Two main schemes exist for cyphering/decyphering messages, and for signing/verifying the signature: using a symmetric cryptographic scheme, or an asymmetric one.
-
         Symmetric cryptographic schemes use the same key on both participants to the exchange of messages.
-        The issue in our case is that we would need to create one key for each pair of peers in our network, leading to a combinatory explosion of the number of keys.
+        The issue in our case is that we would need to create one key for each pair of peers in our network, leading to a combinatorial explosion of the number of keys.
         In addition, two nodes would need to exchange their common key through a secure channel, which can only be created \textbf{after} they agreed on a key to use.
 
         Asymmetric schemes make each user create a \textbf{pair} of keys: a public key and a private key.
@@ -140,7 +139,7 @@
         One issue remains: the transmission of the keys.
         Using an asymmetric encryption scheme, we do not bother with exchanging the keys in a secure way, because only the public key, which is common knowledge, is sent.
         However, the mapping $gossiper~name \rightarrow public~key$ is still problematic.
-        Indeed, as of today, any node can transmit any received public key as belonging to it, in the context of a man-in-the-middle attack.
+        In the context of a man-in-the-middle attack, the current implementation does not protect against an attacker creating a new key to replace someone else's and forwarding their communications to the rest of the network.
 
         In the web of trust, it is advised to physically meet the person we are exchanging keys with.
         In our setting, we will propose a transaction containing a public key, along with the name of the owner and this name signed with the private key corresponding to the public key.
@@ -149,7 +148,7 @@
     \subsection{Mix Networks}
 
         Mix networks are a class of anonymous and hard-to-trace routing protocols initially described by David Chaum in the 1981 paper \textit{Untraceable Electronic Mail, Return Addresses, and Digital Pseudonyms} \cite{chaum84}.
-        These protocols aim at implementing \textbf{forward anonymity} (i.e. concealing the identity of the sender of a message) by routing the message through a series of relay (or "mixer") nodes.
+        These protocols aim to implement \textbf{forward anonymity} (i.e. concealing the identity of the sender of a message) by routing the message through a series of relay (or "mixer") nodes.
         % A mixer node will then typically wait until a certain number of messages has been reached before shuffling and forwarding the messages in random order to the next relay.
         Each such node will remove information about the origin of the message and place it in a queue.
         Once a specific condition is met, the mixer node will shuffle the queue and forward the messages in a different order to the next relay.
@@ -159,7 +158,7 @@
         % There are many ways
 
         In practice, mix networks were and are still often used as a way to anonymously browse the web or communicate via e-mail.
-        This second kind is often distinguished in three\footnote{This does not consider type 0 remailers constituted of a single node, as it is less relevant here.} types. \
+        This second kind is often distinguished in three\footnote{This does not consider type 0 remailers comprised of a single node, as it is less relevant here.} types. \
         \textbf{Type I} (or \textit{Cypherpunk}) remailers provide a simple implementation of Chaum's mix network.
         However, the implementation contained several security flaws.
         Mainly, the length of the original message was kept the same, and the messages were always forwarded with a fixed delay (if any).
@@ -167,8 +166,8 @@
         % which made it possible to track a message by looking at the length of packets exchanged between multiple nodes.
         % Secondly, type I remailers usually forwarded messages with a fixed delay (if any), which allowed one to track a message by looking at the timing.
         These issues were addressed in 1995 by Lance Cottrell who released \textit{MixMaster}, an implementation now referred to as a \textbf{type II} remailer.
-        Finally in 2002, a \textbf{type III} remailer known as \textit{MixMinion} \cite{mixminion} further improved on MixMaster.
-        Amongst other things, MixMinion allows users to specify single use reply blocks that enable the recipient to anonymously respond to an incoming message.
+        Finally in 2002, a \textbf{type III} remailer known as \textit{MixMinion} \cite{mixminion} further improved on \textit{MixMaster}.
+        Amongst other things, \textit{MixMinion} allows users to specify single use reply blocks that enable the recipient to anonymously respond to an incoming message.
 
         % Such issues were addressed by Lance Cottrell in his 1995
 
@@ -216,23 +215,23 @@
         % Intro
         Even with a list of public keys and mixer nodes, one still needs to trust these data.
         They might be forged by malicious users in the network and are hardly detectable.
-
         To ensure the security of communication data in the network, there are several ways to proceed.
         First of all, we can of course give the example of the physical meeting between the different users of the networks as well as those hosting mixer nodes to exchange public keys and mixer node addresses.
         But this kind of solution is never used practically speaking for user convenience.
-        Another solution is to have a trusted third party that distributes to all users the required data.
-
+        Another solution is to have a trusted third party that distributes to all users required data.
         %- Type I remailer = third party je crois http://www.noreply.org/echolot/rlist2.html
-        In \textit{Cypherpunk} and \textit{Mixmaster} (types I \& II remailers), those third parties are hosted by trusted groups.
+        In \textit{Cypherpunk} and \textit{MixMaster} (types I \& II remailers), those third parties are hosted by trusted groups.
         For example, a list of available and trusted remailers can be found at all times on \url{noreply.org}\footnote{\url{http://www.noreply.org/echolot/rlist2.html}}
-
+        \bigbreak
         % mixmion = DHT (https://www.mixminion.net/minion-design.pdf)
-        In Mixminion\cite{mixminion}, the third party is a set of directory servers managing a \textit{Distributed Hash Table} (DHT) possibly hosted by the users themselves.
+        In \textit{MixMinion} \cite{mixminion}, the third party is a set of directory servers managing a \textit{Distributed Hash Table} (DHT) possibly hosted by the users themselves.
         These directory servers together manage the state of the mixer node network and the keys of all nodes in the system.
         This system generally makes it possible to distribute reliable data, but several attacks remain possible, in particular by exploiting the difference in knowledge of the different directory servers.
-        An explanation for the attack is given in the Mixminion design\cite{mixminion} paper in Section 6.
-
+        An overview and explanation of such attacks can be found in \cite[section 6]{mixminion}.
+        \bigbreak
         %- Compare vs Blockchain
+        We did not find any projects related to ours using a blockchain to address user's mixing nodes and public keys.
+        Indeed, the blockchain was still young and little known at the time of remailers systems.
 
 
 \section{System goals and functionalities and architecture}
@@ -241,10 +240,9 @@
     We will then precise the foreseen functionalities to reach these goals, to finally discuss the architecture of our system.
 
     \subsection{System goals}\label{subsec:system-goals}
+
         Our main goal is to improve the security and the anonymity of the Peerster.
-
         We decided to focus on the cyphering and signing of all exchanges, with a mapping $gossiper~name \rightarrow public~key$ stored in the blockchain for different nodes to know the same peers.
-
         The second main goal of the project is to anonymize users' messages by using the Mix-network system proposed by David Chaum\cite{chaum84}, creating a route of several mixing nodes before reaching a message recipient, and shuffling messages in random order so that it cannot be traced back in time.
 
     \subsection{Functionalities}\label{subsec:functionalities}
@@ -337,8 +335,8 @@
 
         \subsubsection{Onion Structure}\label{subsec:onion-structure}
 
-            Drawing inspiration from MixMaster, we would like to ensure that packets are uniformly-sized so as to avoid tracking using the length of a message.
-            The size of an \texttt{OnionPacket} will therefore always be exactly TBD. Furthermore, these bytes are separated into an initial \texttt{Header} followed by a \texttt{Payload}.
+            Drawing inspiration from \textit{MixMaster}, we would like to ensure that packets are uniformly-sized so as to avoid tracking using the length of a message.
+            The size of an \texttt{OnionPacket} will therefore always be exactly the same (a value which still needs to be define). Furthermore, these bytes are separated into an initial \texttt{Header} followed by a \texttt{Payload}.
 
             \begin{lstlisting}
                 type OnionPacket struct {
@@ -347,7 +345,7 @@
                 }
             \end{lstlisting}
 
-            In a manner similar to Mixminion, the header will be split into 16 uniformly-sized byte chunks.
+            In a manner similar to \textit{MixMinion}, the header will be split into 16 uniformly-sized byte chunks.
             After decrypting the layer, the first of these byte chunks should be deserializable into the following \texttt{SubHeader} structure.
 
             \begin{lstlisting}
@@ -449,7 +447,7 @@
 
 
 \begin{figure}[h!]
-  \includegraphics[width=\linewidth]{DSE Diagram.png}
+  \includegraphics[width=\linewidth]{Diagram.png}
   \caption{Interaction between the three sub-components}
   \label{fig:taskdiagram}
 \end{figure}
@@ -464,7 +462,7 @@
 
 \bibitem{mixminion}
   George Danezis, Roger Dingledine, Nick Mathewson,
-  \textit{Mixminion: Design of a Type III Anonymous Remailer Protocol},
+  \textit{MixMinion: Design of a Type III Anonymous Remailer Protocol},
   2002.
 
 \bibitem{tor}
