@@ -118,7 +118,7 @@
 
     % Indeed, at the time of this writing, we can spoof the name of any gossiper (existing or not), and every message can be intercepted, modified, duplicated, ...
     % As the Peerster is a tool for a community, and provided that this community is constituted of human beings, we can rightfully expect a certain level of maliciousness.
-    % Thus, we plan to cypher and sign every message send through our gossipers, by using an asymmetric encryption scheme.
+    % Thus, we plan to cipher and sign every message send through our gossipers, by using an asymmetric encryption scheme.
     % Public keys will be shared through the blockchain. We also plan to anonymize the routing of the messages in the gossiping protocol.
 
 \section{Related work}
@@ -134,7 +134,7 @@
         The public key is for public usage: its purpose is to be shared with everybody on the network (and beyond).
         The private key has to be kept secret by its owner.
         In this case, a node signs a message using its private key, and every node having the public key can verify the signature.
-        To cypher a message, a node uses the public key of the destination, and only the private key can reverse the operation.
+        To cipher a message, a node uses the public key of the destination, and only the private key can reverse the operation.
 
         One issue remains: the transmission of the keys.
         Using an asymmetric encryption scheme, we do not bother with exchanging the keys in a secure way, because only the public key, which is common knowledge, is sent.
@@ -149,46 +149,20 @@
 
         Mix networks are a class of anonymous and hard-to-trace routing protocols initially described by David Chaum in the 1981 paper \textit{Untraceable Electronic Mail, Return Addresses, and Digital Pseudonyms} \cite{chaum84}.
         These protocols aim to implement \textbf{forward anonymity} (i.e. concealing the identity of the sender of a message) by routing the message through a series of relay (or "mixer") nodes.
-        % A mixer node will then typically wait until a certain number of messages has been reached before shuffling and forwarding the messages in random order to the next relay.
         Each such node will remove information about the origin of the message and place it in a queue.
         Once a specific condition is met, the mixer node will shuffle the queue and forward the messages in a different order to the next relay.
         Finally, it is important to note that before a message is sent on a mixnet, it needs to be encrypted behind several layers of security (one for each mixer node on the path, who will decrypt it one layer at a time).
         Besides the obvious task of making the input of a shuffle indistinguishable from its output, this multi-layer encryption-decryption scheme (often called an \textit{Onion}) ensures that a given message will follow its intended path and that the mixer nodes cannot read its content.
-        % Finally, in order to ensure that mixer nodes cannot themselves access the content of the messages,
-        % There are many ways
 
         In practice, mix networks were and are still often used as a way to anonymously browse the web or communicate via e-mail.
         This second kind is often distinguished in three\footnote{This does not consider type 0 remailers comprised of a single node, as it is less relevant here.} types. \
-        \textbf{Type I} (or \textit{Cypherpunk}) remailers provide a simple implementation of Chaum's mix network.
+        \textbf{Type I} (or \textit{cipherpunk}) remailers provide a simple implementation of Chaum's mix network.
         However, the implementation contained several security flaws.
         Mainly, the length of the original message was kept the same, and the messages were always forwarded with a fixed delay (if any).
         This made it possible to track the path of a given message through the network by looking at the lengths and timings of the messages exchanged between the mix nodes.
-        % which made it possible to track a message by looking at the length of packets exchanged between multiple nodes.
-        % Secondly, type I remailers usually forwarded messages with a fixed delay (if any), which allowed one to track a message by looking at the timing.
         These issues were addressed in 1995 by Lance Cottrell who released \textit{MixMaster}, an implementation now referred to as a \textbf{type II} remailer.
         Finally in 2002, a \textbf{type III} remailer known as \textit{MixMinion} \cite{mixminion} further improved on \textit{MixMaster}.
-        Amongst other things, \textit{MixMinion} allows users to specify single use reply blocks that enable the recipient to anonymously respond to an incoming message.
-
-        % Such issues were addressed by Lance Cottrell in his 1995
-
-        % This original remailer was improved upon by Lance Cottrell in his 1995 implementation named \textit{MixMaster}.
-        % It has several security flaws however,  \textbf{Type II} remailers such as \textit{Mixmaster} try to fix some of the flaws, namely hiding  \textbf{type III} bla bla
-        % Anonymous
-        % Further work such as \textit{MixMinion} further improved the original models by providing
-
-        % There are many examples of successful mix networks
-
-        % wait until a certain number of messages has been reached before shuffling and forwarding the messages in random order to the next relay.
-        % Each mixer node will remove any information about the origin of the message and store it in a queue of a given size.
-        % that remove any information with the origin of the message,
-
-
-        % In order to do this, mix networks create
-        % were first originated by David Chaum in.
-        % The main idea of mix network is to  conceal the identify of the sender sender anonymity by creating a path through a series of relay (or "mixer") nodes.
-        % These nodes typically wait until a certain number of messages has been reached ("threshold node") or a certain time has elapsed ( .. ) before shuffling and forwarding the messages in random order to the next relay.
-        % The final relay then
-        % We usually distinguish three types of mix networks: \textbf{type I} bla ba bla , \textbf{type II} bla bla, \textbf{type III} bla bla
+        Amongst other things, \textit{MixMinion} allows users to specify single-use reply blocks that enable the recipient to anonymously respond to an incoming message.
 
     % \subsection{Tor}
 
@@ -202,13 +176,6 @@
         First, the network should always be fairly busy.
         This will help disguise the traffic as it blends in with requests from other peers.
         Secondly, it is unlikely that someone will get access to the logs of every single node on the path of a message (which would be required to perform a successful attack on the message).
-        % builds its security on top of the fact that it is unlikely
-        % this has the effect of lowering the overall performance of the protocol.
-
-        % to wait until they reach a certain number
-        % This has the main advantage of
-
-        % Instead, it will simply wait a random delay before forwarding them, relying on a relatively busy traffic.
 
         \subsection{Mixer Node Location and Storage of Keys}
 
@@ -220,7 +187,7 @@
         But this kind of solution is never used practically speaking for user convenience.
         Another solution is to have a trusted third party that distributes the required data to all users.
         %- Type I remailer = third party je crois http://www.noreply.org/echolot/rlist2.html
-        In \textit{Cypherpunk} and \textit{MixMaster} (types I \& II remailers), those third parties are hosted by trusted groups.
+        In \textit{cipherpunk} and \textit{MixMaster} (types I \& II remailers), those third parties are hosted by trusted groups.
         For example, a list of available and trusted remailers can be found at all times on \url{noreply.org}\footnote{\url{http://www.noreply.org/echolot/rlist2.html}}
         \bigbreak
         % mixmion = DHT (https://www.mixminion.net/minion-design.pdf)
@@ -242,7 +209,7 @@
     \subsection{System goals}\label{subsec:system-goals}
 
         Our main goal is to improve the security and the anonymity of the Peerster.
-        We decided to focus on the cyphering and signing of all exchanges, with a mapping $gossiper~name \rightarrow public~key$ stored in the blockchain for different nodes to know the same peers.
+        We decided to focus on the ciphering and signing of all exchanges, with a mapping $gossiper~name \rightarrow public~key$ stored in the blockchain for different nodes to know the same peers.
         The second main goal of the project is to anonymize users' messages by using the Mix-network system proposed by David Chaum\cite{chaum84}, creating a route of several mixing nodes before reaching a message recipient, and shuffling messages in random order so that it cannot be traced back in time.
 
     \subsection{Functionalities}\label{subsec:functionalities}
@@ -253,7 +220,7 @@
         We will add, during the starting process of a node, the creation of a pair (public key, private key), along with the creation of a transaction, broadcast to the network, for the public key to be known by other peers in the network.
         We will still be vulnerable to man-in-the-middle attacks, but if we assume that the public keys are correctly linked to their possessor, as we assume that private keys cannot be forged or stolen, we should be safe against packet modifications and creation.
 
-        \item \textbf{Security} - We will also replace the current calls to \texttt{WriteToUDP} by calls to a function to be implemented, that will cypher and sign a message. Also, we will replace the reception of a message (namely \texttt{ReadFromUDP}) by a call to another function, also to be implemented, that decypher and verify the signature of any received packet.
+        \item \textbf{Security} - We will also replace the current calls to \texttt{WriteToUDP} by calls to a function to be implemented, that will cipher and sign a message. Also, we will replace the reception of a message (namely \texttt{ReadFromUDP}) by a call to another function, also to be implemented, that decipher and verify the signature of any received packet.
 
         \item \textbf{Blockchain-Based Key Directory} -
         It is not enough to create public and private key pairs for the network to be secure.
@@ -318,7 +285,7 @@
             Also, the already existing blockchain handling part of the Peerster will be modified (as already mentioned in Section\ref{subsec:system-goals}) to match the new requirements.
             We did not yet have the time or the energy needed to decide whether we will replace the file handling altogether, or simply enrich the structure and complexify the implementation.
 
-            We will assume that the readers of this report have the minimum required knowledge of asymmetric cryptography schemes, and will spare them the usual drawings about how Alice and Bob can cypher, decypher, sign, and verify the signature of, a message.
+            We will assume that the readers of this report have the minimum required knowledge of asymmetric cryptography schemes, and will spare them the usual drawings about how Alice and Bob can cipher, decipher, sign, and verify the signature of, a message.
 
             As using a blockchain to ensure the unicity of items\footnote{Namely, the names of the files available on the network.} was described in Homework 3, we will not describe it here again.
             We also hope that the flows of this design have already been discussed with enough details for us not to need to report these here again. The Moodle\footnote{https://moodle.epfl.ch/mod/forum/view.php?id=961126} should provide you with far more than enough information.
@@ -361,7 +328,7 @@
             Upon receiving a new \texttt{OnionPacket}, a mixer node is then expected to do several things.
 
             \begin{enumerate}
-                \item First, it peels one layer by decyphering the entire \texttt{OnionPacket} using its private key.
+                \item First, it peels one layer by deciphering the entire \texttt{OnionPacket} using its private key.
 
                 \item Afterwards, it selects the first byte chunk of \texttt{Header} and tries to deserialize it into a \texttt{SubHeader}. If this fails, the packet is dropped silently.
 
@@ -384,7 +351,7 @@
 
         \subsubsection{Keys Registration \& Routing}
 
-           The first step regarding the decentralized blockchain structure will be to allow a node to join the network at any time and therefore to modify its behaviour.
+           The first step regarding the decentralized blockchain structure will be to allow a node to join the network at any time and therefore to modify its behavior.
            A real genesis block will be introduced and will therefore not leave the possibility of parallel blockchains with different "genesis" block as we had in Homework 3.
 
            Two types of messages will be added to the Peerster protocol to make blockchain update requests:
@@ -400,7 +367,7 @@
                     \end{lstlisting}
 
                \item \texttt{BlockReply} in response to the previous \texttt{BlockRequest}, giving the requested block.
-               A field is dedicated to specify if it is the Genesis block, and thus to allow the requester to end his blockchain reconstruction.
+               A field is dedicated to specifying if it is the Genesis block, and thus to allow the requester to end his blockchain reconstruction.
                     \begin{lstlisting}
                         type BlockReply struct {
                            Dest     string
@@ -440,8 +407,8 @@
             We intend to simply drop the anonymous message in this case.
 
             After choosing all intermediate mixer nodes in the path to the final destination, the sending node will have to encrypt its message $N$ times for the $N$ nodes present in this path, respecting the order of the path including the message recipient.
-            Each mixing node will then decypher the message with its own private key before forwarding it to the next mixing node on the route.
-            It will eventually reach the message recipient that will decypher also the anonymous message with its own private key.
+            Each mixing node will then decipher the message with its own private key before forwarding it to the next mixing node on the route.
+            It will eventually reach the message recipient that will decipher also the anonymous message with its own private key.
 
     \subsection{Task share diagram}
 
