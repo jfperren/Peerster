@@ -104,19 +104,22 @@
     First of all, the private messages are sent through the network in plain text.
     Therefore, it is very easy for any node on the direct path of a private message to intercept such messages and listen to the private conversation between two peers.
     Secondly, any node is able to register and announce any possible name to the network.
-    Such a name is then used as is by other nodes, without checking if the node is actually and there is no check for duplicate and/or integrity,  which leaves open the possibility of spoofing\footnote{Explain spoofing here} anyone on the network.
+    Such a name is then used as is by other nodes, without checking if the node is actually and there is no check for duplicate and/or integrity,  which leaves open the possibility of spoofing anyone on the network.
     Finally, the traffic from a node is relayed immediately by the neighbors, in a way that everybody is aware of the originator of a message.
-    Finally, there is no anonymity for the sender of a message. As the messages are relayed directly by the
-    This means that it is not possible to be anonymous on the network.
+    % Finally, there is no anonymity for the sender of a message. As the messages are relayed directly by the
+    % This means that it is not possible to be anonymous on the network.
+    In this project, we aim to fix some of these flaws and overall increase the level of anonymity and privacy of users on Peerster.
+    First, we will implement privacy of content via public key cryptography.
+    Second, a basic mix network routing algorithm will be implemented to guarantee sender anonymity.
+    Finally, we will use the already existing blockchain as a decentralized directory of public keys and mixer nodes.
 
-
-    Secondly, the private messages are sent in plain text.
+    % Secondly, the private messages are sent in plain text.
 
 
     % Indeed, at the time of this writing, we can spoof the name of any gossiper (existing or not), and every message can be intercepted, modified, duplicated, ...
     % As the Peerster is a tool for a community, and provided that this community is constituted of human beings, we can rightfully expect a certain level of maliciousness.
     % Thus, we plan to cypher and sign every message send through our gossipers, by using an asymmetric encryption scheme.
-    Public keys will be shared through the blockchain. We also plan to anonymize the routing of the messages in the gossiping protocol.
+    % Public keys will be shared through the blockchain. We also plan to anonymize the routing of the messages in the gossiping protocol.
 
 \section{Related work}
 
