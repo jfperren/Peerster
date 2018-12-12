@@ -129,18 +129,17 @@
         Symmetric cryptographic schemes use the same key on both participants to the exchange of messages.
         The issue in our case is that we would need to create one key for each pair of peers in our network, leading to a combinatorial explosion of the number of keys.
         In addition, two nodes would need to exchange their common key through a secure channel, which can only be created \textbf{after} they agreed on a key to use.
-
+        \bigbreak
         Asymmetric schemes make each user create a \textbf{pair} of keys: a public key and a private key.
         The public key is for public usage: its purpose is to be shared with everybody on the network (and beyond).
         The private key has to be kept secret by its owner.
         In this case, a node signs a message using its private key, and every node having the public key can verify the signature.
         To cipher a message, a node uses the public key of the destination, and only the private key can reverse the operation.
-
+        \bigbreak
         One issue remains: the transmission of the keys.
         Using an asymmetric encryption scheme, we do not bother with exchanging the keys in a secure way, because only the public key, which is common knowledge, is sent.
         However, the mapping $gossiper~name \rightarrow public~key$ is still problematic.
         In the context of a man-in-the-middle attack, the current implementation does not protect against an attacker creating a new key to replace someone else's and forwarding their communications to the rest of the network.
-
         In the web of trust, it is advised to physically meet the person we are exchanging keys with.
         In our setting, we will propose a transaction containing a public key, along with the name of the owner and this name signed with the private key corresponding to the public key.
         Signing one's public key before sending it on a keys server is a practice advised for distributed systems of trust.
@@ -151,21 +150,19 @@
         These protocols aim to implement \textbf{forward anonymity} (i.e. concealing the identity of the sender of a message) by routing the message through a series of relay (or "mixer") nodes.
         Each such node will remove information about the origin of the message and place it in a queue.
         Once a specific condition is met, the mixer node will shuffle the queue and forward the messages in a different order to the next relay.
-        Finally, it is important to note that before a message is sent on a mixnet, it needs to be encrypted behind several layers of security (one for each mixer node on the path, who will decrypt it one layer at a time).
-        Besides the obvious task of making the input of a shuffle indistinguishable from its output, this multi-layer encryption-decryption scheme (often called an \textit{Onion}) ensures that a given message will follow its intended path and that the mixer nodes cannot read its content.
-
+        It is important to note that before a message is sent on a mixnet, it needs to be encrypted behind several layers of security (one for each mixer node on the path, who will decrypt it one layer at a time).
+        Besides the obvious task of making the input of a shuffle indistinguishable from its output, this multi-layer encryption-decryption scheme (sometimes called an \textit{Onion}) ensures that a given message will follow its intended path and that the mixer nodes cannot read its content.
+        \bigbreak
         In practice, mix networks were and are still often used as a way to anonymously browse the web or communicate via e-mail.
         This second kind is often distinguished in three\footnote{This does not consider type 0 remailers comprised of a single node, as it is less relevant here.} types. \
-        \textbf{Type I} (or \textit{cipherpunk}) remailers provide a simple implementation of Chaum's mix network.
+        \textbf{Type I} (or \textit{Cypherpunk}) remailers provide a simple implementation of Chaum's mix network.
         However, the implementation contained several security flaws.
         Mainly, the length of the original message was kept the same, and the messages were always forwarded with a fixed delay (if any).
         This made it possible to track the path of a given message through the network by looking at the lengths and timings of the messages exchanged between the mix nodes.
         These issues were addressed in 1995 by Lance Cottrell who released \textit{MixMaster}, an implementation now referred to as a \textbf{type II} remailer.
         Finally in 2002, a \textbf{type III} remailer known as \textit{MixMinion} \cite{mixminion} further improved on \textit{MixMaster}.
         Amongst other things, \textit{MixMinion} allows users to specify single-use reply blocks that enable the recipient to anonymously respond to an incoming message.
-
-    % \subsection{Tor}
-
+        \bigbreak
         Lastly, it would be hard to discuss anonymous routing protocols without mentioning \textbf{Tor} (shorthand for \textit{The Onion Router}).
         Initially described in \cite{tor}, Tor is also derived from Chaum's original mix network and is in some ways very similar to the concepts explained above.
         The main difference is that a Tor relay nodes will simply wait a random delay before forwarding an incoming message, without performing any kind of shuffle.
@@ -187,7 +184,7 @@
         But this kind of solution is never used practically speaking for user convenience.
         Another solution is to have a trusted third party that distributes the required data to all users.
         %- Type I remailer = third party je crois http://www.noreply.org/echolot/rlist2.html
-        In \textit{cipherpunk} and \textit{MixMaster} (types I \& II remailers), those third parties are hosted by trusted groups.
+        In \textit{Cypherpunk} and \textit{MixMaster} (types I \& II remailers), those third parties are hosted by trusted groups.
         For example, a list of available and trusted remailers can be found at all times on \url{noreply.org}\footnote{\url{http://www.noreply.org/echolot/rlist2.html}}
         \bigbreak
         % mixmion = DHT (https://www.mixminion.net/minion-design.pdf)
@@ -210,7 +207,7 @@
 
         Our main goal is to improve the security and the anonymity of the Peerster.
         We decided to focus on the ciphering and signing of all exchanges, with a mapping $gossiper~name \rightarrow public~key$ stored in the blockchain for different nodes to know the same peers.
-        The second main goal of the project is to anonymize users' messages by using the Mix-network system proposed by David Chaum\cite{chaum84}, creating a route of several mixing nodes before reaching a message recipient, and shuffling messages in random order so that it cannot be traced back in time.
+        The second main goal of the project is to anonymize users' messages by using the Mix-network system proposed by David Chaum \cite{chaum84}, creating a route of several mixing nodes before reaching a message recipient, and shuffling messages in random order so that it cannot be traced back in time.
 
     \subsection{Functionalities}\label{subsec:functionalities}
 
@@ -283,12 +280,11 @@
 
             As the introduction of cryptography in the Peerster touches almost only the lowest levels, it seems clear what the architecture changes will be: a message-passing structure, dedicated to the direct sending and receiving of messages.
             Also, the already existing blockchain handling part of the Peerster will be modified (as already mentioned in Section\ref{subsec:system-goals}) to match the new requirements.
-            We did not yet have the time or the energy needed to decide whether we will replace the file handling altogether, or simply enrich the structure and complexify the implementation.
-
+            \bigbreak
             We will assume that the readers of this report have the minimum required knowledge of asymmetric cryptography schemes, and will spare them the usual drawings about how Alice and Bob can cipher, decipher, sign, and verify the signature of, a message.
-
-            As using a blockchain to ensure the unicity of items\footnote{Namely, the names of the files available on the network.} was described in Homework 3, we will not describe it here again.
-            We also hope that the flows of this design have already been discussed with enough details for us not to need to report these here again. The Moodle\footnote{https://moodle.epfl.ch/mod/forum/view.php?id=961126} should provide you with far more than enough information.
+            \bigbreak
+            % As using a blockchain to ensure the unicity of items\footnote{Namely, the names of the files available on the network.} was described in Homework 3, we will not describe it here again.
+            % We also hope that the flows of this design have already been discussed with enough details for us not to need to report these here again. The Moodle\footnote{https://moodle.epfl.ch/mod/forum/view.php?id=961126} should provide you with far more than enough information.
 
         \subsubsection{Anonymous Routing}
 
@@ -353,7 +349,7 @@
 
            The first step regarding the decentralized blockchain structure will be to allow a node to join the network at any time and therefore to modify its behavior.
            A real genesis block will be introduced and will therefore not leave the possibility of parallel blockchains with different "genesis" block as we had in Homework 3.
-
+            \bigbreak
            Two types of messages will be added to the Peerster protocol to make blockchain update requests:
            \begin{itemize}
                 \item \texttt{BlockRequest} used to ask another node for a \texttt{Block} with hash \texttt{Hash}. Typically, it will be sent for any unknown block ancestor.
@@ -401,24 +397,26 @@
             Once the network of mixer nodes has been set up, a regular node will be able to choose the route of its anonymous messages.
             A function will allow you to choose the required length of your route and will randomly select mixer nodes to form this pre-computed route.
             The longer the chosen length, the more difficult it will be to determine the source of the message (as long as not all the selected nodes are malicious), but also the longer the transmission time will be.
-
+            \bigbreak
             For security reasons, it will be important to define a threshold of intermediary mixing nodes.
             If too few nodes are available, anonymity will not be guaranteed.
             We intend to simply drop the anonymous message in this case.
 
-            After choosing all intermediate mixer nodes in the path to the final destination, the sending node will have to encrypt its message $N$ times for the $N$ nodes present in this path, respecting the order of the path including the message recipient.
-            Each mixing node will then decipher the message with its own private key before forwarding it to the next mixing node on the route.
-            It will eventually reach the message recipient that will decipher also the anonymous message with its own private key.
+            % After choosing all intermediate mixer nodes in the path to the final destination, the sending node will have to encrypt its message $N$ times for the $N$ nodes present in this path, respecting the order of the path including the message recipient.
+            % Each mixing node will then decipher the message with its own private key before forwarding it to the next mixing node on the route.
+            % It will eventually reach the message recipient that will decipher also the anonymous message with its own private key.
 
     \subsection{Task share diagram}
 
+    In the diagram below, one can find a summary of the above descriptions, their distinct sub-tasks, the owner of each part and the interactions between the different modules.
 
-\begin{figure}[h!]
+\begin{figure}[h]
   \includegraphics[width=\linewidth]{Diagram.png}
   \caption{Interaction between the three sub-components}
   \label{fig:taskdiagram}
 \end{figure}
 
+\newpage
 
 \begin{thebibliography}{9}
 
