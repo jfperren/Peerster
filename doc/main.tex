@@ -125,7 +125,7 @@
 
     \subsection{Signature and encryption}
 
-        Two main schemes exist for cyphering/decyphering messages, and for signing/verifying the signature: using a symmetric cryptographic scheme, or an asymmetric one.
+        Two main schemes exist for ciphering and deciphering messages, as well as signing and verifying the signature: using a symmetric cryptographic scheme, or an asymmetric one.
         Symmetric cryptographic schemes use the same key on both participants to the exchange of messages.
         The issue in our case is that we would need to create one key for each pair of peers in our network, leading to a combinatorial explosion of the number of keys.
         In addition, two nodes would need to exchange their common key through a secure channel, which can only be created \textbf{after} they agreed on a key to use.
@@ -218,7 +218,7 @@
         To ensure the security of communication data in the network, there are several ways to proceed.
         First of all, we can of course give the example of the physical meeting between the different users of the networks as well as those hosting mixer nodes to exchange public keys and mixer node addresses.
         But this kind of solution is never used practically speaking for user convenience.
-        Another solution is to have a trusted third party that distributes to all users required data.
+        Another solution is to have a trusted third party that distributes the required data to all users.
         %- Type I remailer = third party je crois http://www.noreply.org/echolot/rlist2.html
         In \textit{Cypherpunk} and \textit{MixMaster} (types I \& II remailers), those third parties are hosted by trusted groups.
         For example, a list of available and trusted remailers can be found at all times on \url{noreply.org}\footnote{\url{http://www.noreply.org/echolot/rlist2.html}}
@@ -227,7 +227,7 @@
         In \textit{MixMinion} \cite{mixminion}, the third party is a set of directory servers managing a \textit{Distributed Hash Table} (DHT) possibly hosted by the users themselves.
         These directory servers together manage the state of the mixer node network and the keys of all nodes in the system.
         This system generally makes it possible to distribute reliable data, but several attacks remain possible, in particular by exploiting the difference in knowledge of the different directory servers.
-        An overview and explanation of such attacks can be found in \cite[section 6]{mixminion}.
+        An overview and explanation of such attacks can be found in \cite[Section 6]{mixminion}.
         \bigbreak
         %- Compare vs Blockchain
         We did not find any projects related to ours using a blockchain to address user's mixing nodes and public keys.
@@ -336,7 +336,7 @@
         \subsubsection{Onion Structure}\label{subsec:onion-structure}
 
             Drawing inspiration from \textit{MixMaster}, we would like to ensure that packets are uniformly-sized so as to avoid tracking using the length of a message.
-            The size of an \texttt{OnionPacket} will therefore always be exactly the same (a value which still needs to be define). Furthermore, these bytes are separated into an initial \texttt{Header} followed by a \texttt{Payload}.
+            The size of an \texttt{OnionPacket} will therefore always be exactly the same (a value which will be defined during implementation). Furthermore, these bytes are separated into an initial \texttt{Header} (\texttt{M} bytes) followed by a \texttt{Payload} (\texttt{N} bytes).
 
             \begin{lstlisting}
                 type OnionPacket struct {
