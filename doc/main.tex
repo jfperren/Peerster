@@ -126,22 +126,22 @@
     \subsection{Signature and encryption}
 
         Two main schemes exist for cyphering/decyphering messages, and for signing/verifying the signature: using a symmetric cryptographic scheme, or an asymmetric one.
-        \bigbreak
+
         Symmetric cryptographic schemes use the same key on both participants to the exchange of messages.
         The issue in our case is that we would need to create one key for each pair of peers in our network, leading to a combinatory explosion of the number of keys.
         In addition, two nodes would need to exchange their common key through a secure channel, which can only be created \textbf{after} they agreed on a key to use.
-        \bigbreak
+
         Asymmetric schemes make each user create a \textbf{pair} of keys: a public key and a private key.
         The public key is for public usage: its purpose is to be shared with everybody on the network (and beyond).
         The private key has to be kept secret by its owner.
         In this case, a node signs a message using its private key, and every node having the public key can verify the signature.
         To cypher a message, a node uses the public key of the destination, and only the private key can reverse the operation.
-        \bigbreak
+
         One issue remains: the transmission of the keys.
         Using an asymmetric encryption scheme, we do not bother with exchanging the keys in a secure way, because only the public key, which is common knowledge, is sent.
         However, the mapping $gossiper~name \rightarrow public~key$ is still problematic.
-        Indeed, as of today, any node can transmit any received public key as belonging to it, in the context of a man in the middle attack.
-        \bigbreak
+        Indeed, as of today, any node can transmit any received public key as belonging to it, in the context of a man-in-the-middle attack.
+
         In the web of trust, it is advised to physically meet the person we are exchanging keys with.
         In our setting, we will propose a transaction containing a public key, along with the name of the owner and this name signed with the private key corresponding to the public key.
         Signing one's public key before sending it on a keys server is a practice advised for distributed systems of trust.
@@ -157,7 +157,7 @@
         Besides the obvious task of making the input of a shuffle indistinguishable from its output, this multi-layer encryption-decryption scheme (often called an \textit{Onion}) ensures that a given message will follow its intended path and that the mixer nodes cannot read its content.
         % Finally, in order to ensure that mixer nodes cannot themselves access the content of the messages,
         % There are many ways
-        \bigbreak
+
         In practice, mix networks were and are still often used as a way to anonymously browse the web or communicate via e-mail.
         This second kind is often distinguished in three\footnote{This does not consider type 0 remailers constituted of a single node, as it is less relevant here.} types. \
         \textbf{Type I} (or \textit{Cypherpunk}) remailers provide a simple implementation of Chaum's mix network.
@@ -192,7 +192,7 @@
         % We usually distinguish three types of mix networks: \textbf{type I} bla ba bla , \textbf{type II} bla bla, \textbf{type III} bla bla
 
     % \subsection{Tor}
-        \bigbreak
+
         Lastly, it would be hard to discuss anonymous routing protocols without mentioning \textbf{Tor} (shorthand for \textit{The Onion Router}).
         Initially described in \cite{tor}, Tor is also derived from Chaum's original mix network and is in some ways very similar to the concepts explained above.
         The main difference is that a Tor relay nodes will simply wait a random delay before forwarding an incoming message, without performing any kind of shuffle.
@@ -230,7 +230,7 @@
         In Mixminion\cite{mixminion}, the third party is a set of directory servers managing a \textit{Distributed Hash Table} (DHT) possibly hosted by the users themselves.
         These directory servers together manage the state of the mixer node network and the keys of all nodes in the system.
         This system generally makes it possible to distribute reliable data, but several attacks remain possible, in particular by exploiting the difference in knowledge of the different directory servers.
-        The explanation for the attack is given in Mixminion design\cite{mixminion} paper in section 6.
+        An explanation for the attack is given in the Mixminion design\cite{mixminion} paper in Section 6.
 
         %- Compare vs Blockchain
 
@@ -240,13 +240,12 @@
     In this section, we will first discuss the goals of the improvements we plan to make on top of our Peerster implementation(s).
     We will then precise the foreseen functionalities to reach these goals, to finally discuss the architecture of our system.
 
-    \subsection{System goals}a\label{subsec:system-goals}
+    \subsection{System goals}\label{subsec:system-goals}
         Our main goal is to improve the security and the anonymity of the Peerster.
 
-        Starting with such an unsafe specification, and given the little time we have to put our ideas in practice, we had to make tough choices.
-        Thus we decided to focus on the cyphering and signing of all exchanges, with a mapping $gossiper~name \rightarrow public~key$ stored in the blockchain\footnote{We are aware that the so-called ``blockchain'' is not actually a blockchain, but we have to make concessions here.} for different nodes to know the same peers.
+        We decided to focus on the cyphering and signing of all exchanges, with a mapping $gossiper~name \rightarrow public~key$ stored in the blockchain for different nodes to know the same peers.
 
-        The second main goal of the project is to anonymize users' message by using the Mix-network system proposed by David Chaum\cite{chaum84}, creating a route of several mixing nodes before reaching a message recipient, and shuffling messages in random order so that it could not be traced back in time.
+        The second main goal of the project is to anonymize users' messages by using the Mix-network system proposed by David Chaum\cite{chaum84}, creating a route of several mixing nodes before reaching a message recipient, and shuffling messages in random order so that it cannot be traced back in time.
 
     \subsection{Functionalities}\label{subsec:functionalities}
 
@@ -260,28 +259,28 @@
 
         \item \textbf{Blockchain-Based Key Directory} -
         It is not enough to create public and private key pairs for the network to be secure.
-        Having all gossipers exchange directly their public keys through the Peerster network has many flaws, e.g. a simple man-in-the-middle attack, intercepting public key exchange and giving his own public key to catch all messages from the conversation.
+        Having all gossipers exchange directly their public keys through the Peerster network has many flaws, e.g. a simple man-in-the-middle attack, intercepting public key exchanges and giving one's own public key to catch all messages from the conversation.
         We plan to reuse our implemented blockchain to store everyone's public key alongside the current filenames mapping. This shared structure will prevent such attacks or at least make them detectable.
-        We also need to have a trusted third-party to hold the list of mixing nodes and the list of pseudonyms.
+        %We also need to have a trusted third-party to hold the list of mixing nodes and the list of pseudonyms.
 
         \item \textbf{Download Chain History} -
-        In order to allow nodes joining after the creation, we will modify the current implementation of the blockchain by allowing the creation of a genesis block and the ability for a node to download the entire history of the chain from the previous nodes.
+        In order to allow nodes to join after the creation of the blockchain, we will modify the current implementation of the blockchain by allowing the creation of a genesis block and the ability for a node to download the entire history of the chain from the previous nodes.
         We propose to build this using the gossip mechanism already in place, using new type of messages that will be exchanged between nodes arriving in the network and those already up to date.
 
         \item \textbf{Mixer Nodes} -
         Our first step towards the implementation of a mix network will be to upgrade each node to a potential mixer node.
-        That means, each node should be capable of receiving, batching, deciphering, shuffling and forwarding messages to another node.
+        This means that each node should be capable of receiving, batching, deciphering, shuffling and forwarding messages to another nodes.
         In order to batch messages properly, mixer nodes will implement a simple threshold policy: waiting until a constant number of messages has been reached and then simply outputting a message at random.
 
         \item \textbf{Anonymous Routing} -
-        Once mixer nodes are in places, we will give the nodes the possibility to conceal all of their communications by routing them through a series of  nodes.
+        Once mixer nodes are in place, we will give the nodes the possibility to conceal all of their communications by routing them through a series of nodes.
         This will be implemented via a new message type \texttt{OnionPacket} that wraps around a regular \texttt{GossipPacket}.
         When a node receives and deciphers such a packet, it can detect whether the packet is fully decrypted or not.
         If it is, the node will process its content as a regular \texttt{GossipPacket}.
         If it is not, it will forward it to the next node in the chain.
 
         \item \textbf{Blockchain-Based Mixer Nodes Directory} -
-        To plan a routing path through several mixer nodes, one must know in advance multiple mixer nodes addresses.
+        To plan a routing path through several mixer nodes, one must know in advance multiple mixer node addresses.
         As for public keys, we decided to choose the blockchain to store the addresses of all mixer nodes when these mixer nodes manifest as such.
 
         \end{itemize}
@@ -318,15 +317,13 @@
         \subsubsection{Cryptography}
 
             As the introduction of cryptography in the Peerster touches almost only the lowest levels, it seems clear what the architecture changes will be: a message-passing structure, dedicated to the direct sending and receiving of messages.
-            Also, the already existing blockchain handling part of the Peerster will be modifier (as already mentioned in Section\ref{subsec:system-goals}) to match the new requirements.
+            Also, the already existing blockchain handling part of the Peerster will be modified (as already mentioned in Section\ref{subsec:system-goals}) to match the new requirements.
             We did not yet have the time or the energy needed to decide whether we will replace the file handling altogether, or simply enrich the structure and complexify the implementation.
 
             We will assume that the readers of this report have the minimum required knowledge of asymmetric cryptography schemes, and will spare them the usual drawings about how Alice and Bob can cypher, decypher, sign, and verify the signature of, a message.
 
             As using a blockchain to ensure the unicity of items\footnote{Namely, the names of the files available on the network.} was described in Homework 3, we will not describe it here again.
-            We also hope that the flows of this design have already been discussed with enough details for us not to need to report these here again should provide you with far more than enough information.
-
-            This part will be Guillaume's responsability.
+            We also hope that the flows of this design have already been discussed with enough details for us not to need to report these here again. The Moodle\footnote{https://moodle.epfl.ch/mod/forum/view.php?id=961126} should provide you with far more than enough information.
 
         \subsubsection{Anonymous Routing}
 
@@ -375,7 +372,7 @@
                 \item Now,  the \texttt{NextHop} field is empty, in which case we know that we are the last hop on the route.
                 In this case, we can deserialize the \texttt{Payload} into a regular \texttt{GossipPacket} and process the packet as one would normally process it from a direct peer. This ends the process.
                 \item Or, \texttt{NextHop} contains the public key of the next node on the route, in which case we need to forward the \texttt{OnionPacket}.
-                At this point, we then "move up" all byte chunks in \texttt{Header} by one position.
+                At this point, we then ``move up'' all byte chunks in \texttt{Header} by one position.
                 This ensures that the next hop will find its header in the first chunk as well, and effectively erase the routing information from the packet.
                 \item The packet now ready for re-distribution, we simply keep it in a queue with other messages.
                 This queue will grow until it reaches a certain threshold of messages $k$.
@@ -390,7 +387,7 @@
         \subsubsection{Keys Registration \& Routing}
 
            The first step regarding the decentralized blockchain structure will be to allow a node to join the network at any time and therefore to modify its behaviour.
-           A real genesis block will be introduced and will therefore not leave the possibility of parallel blockchains with different "genesis" block as we had in homework 3.
+           A real genesis block will be introduced and will therefore not leave the possibility of parallel blockchains with different "genesis" block as we had in Homework 3.
 
            Two types of messages will be added to the Peerster protocol to make blockchain update requests:
            \begin{itemize}
@@ -404,8 +401,8 @@
                         }
                     \end{lstlisting}
 
-               \item \texttt{BlockReply} in response to the previous \texttt{BlockRequest}, giving the request block.
-               A field is dedicated to specify it is the Genesis block, and thus to allow the requester to end his blockchain reconstruction.
+               \item \texttt{BlockReply} in response to the previous \texttt{BlockRequest}, giving the requested block.
+               A field is dedicated to specify if it is the Genesis block, and thus to allow the requester to end his blockchain reconstruction.
                     \begin{lstlisting}
                         type BlockReply struct {
                            Dest     string
@@ -416,7 +413,7 @@
                     \end{lstlisting}
            \end{itemize}
 
-            On top of these new messages types, transactions stored in our blockchain will be changed to allow the storage of nodes public keys and mixer nodes addresses.
+            On top of these new messages types, transactions stored in our blockchain will be changed to allow the storage of nodes' public keys and mixer nodes addresses.
                 \begin{lstlisting}
                         type TxPublic struct {
                            File      File
@@ -436,7 +433,7 @@
                         }
                 \end{lstlisting}
 
-            Once the network of mixer nodes has been set up, a regular node will be able to choose the route of its anonymous message.
+            Once the network of mixer nodes has been set up, a regular node will be able to choose the route of its anonymous messages.
             A function will allow you to choose the required length of your route and will randomly select mixer nodes to form this pre-computed route.
             The longer the chosen length, the more difficult it will be to determine the source of the message (as long as not all the selected nodes are malicious), but also the longer the transmission time will be.
 
