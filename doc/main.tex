@@ -104,8 +104,8 @@
     First of all, the private messages are sent through the network in plain text.
     Therefore, it is very easy for any node on the direct path of a private message to intercept such messages and listen to the private conversation between two peers.
     Secondly, any node is able to register and announce any possible name to the network.
-    Such a name is then used as is by other nodes, without checking if the node is actually and there is no check for duplicate and/or integrity,  which leaves open the possibility of spoofing anyone on the network.
-    Finally, the traffic from a node is relayed immediately by the neighbors, in a way that everybody is aware of the originator of a message.
+    Such a name is then used as is by other nodes, without checking if the node actually exists and there is no check for uses of the same name by different nodes, which leaves open the possibility of spoofing anyone on the network.
+    Finally, the traffic from a node is relayed immediately by the neighbors, in a way that everybody is aware of the original sender of a message.
     % Finally, there is no anonymity for the sender of a message. As the messages are relayed directly by the
     % This means that it is not possible to be anonymous on the network.
     In this project, we aim to fix some of these flaws and overall increase the level of anonymity and privacy of users on Peerster.
@@ -140,7 +140,7 @@
         One issue remains: the transmission of the keys.
         Using an asymmetric encryption scheme, we do not bother with exchanging the keys in a secure way, because only the public key, which is common knowledge, is sent.
         However, the mapping $gossiper~name \rightarrow public~key$ is still problematic.
-        Indeed, as of today, any node can transmit any received public key as belonging to it.
+        Indeed, as of today, any node can transmit any received public key as belonging to it, in the context of a man in the middle attack.
         \bigbreak
         In the web of trust, it is advised to physically meet the person we are exchanging keys with.
         In our setting, we will propose a transaction containing a public key, along with the name of the owner and this name signed with the private key corresponding to the public key.
@@ -148,8 +148,8 @@
 
     \subsection{Mix Networks}
 
-        Mix networks are a class of anonymous and hard-to-trace routing protocols initially described by David Chaum in 1981 paper \textit{Untraceable Electronic Mail, Return Addresses, and Digital Pseudonyms} \cite{chaum84}.
-        These protocols aim to implement \textbf{forward anonymity} (i.e. concealing the identity of the sender of a message) by routing the message through a series of relay (or "mixer") nodes.
+        Mix networks are a class of anonymous and hard-to-trace routing protocols initially described by David Chaum in the 1981 paper \textit{Untraceable Electronic Mail, Return Addresses, and Digital Pseudonyms} \cite{chaum84}.
+        These protocols aim at implementing \textbf{forward anonymity} (i.e. concealing the identity of the sender of a message) by routing the message through a series of relay (or "mixer") nodes.
         % A mixer node will then typically wait until a certain number of messages has been reached before shuffling and forwarding the messages in random order to the next relay.
         Each such node will remove information about the origin of the message and place it in a queue.
         Once a specific condition is met, the mixer node will shuffle the queue and forward the messages in a different order to the next relay.
@@ -452,7 +452,7 @@
 
 
 \begin{figure}[h!]
-  \includegraphics[width=\linewidth]{Diagram.png}
+  \includegraphics[width=\linewidth]{DSE Diagram.png}
   \caption{Interaction between the three sub-components}
   \label{fig:taskdiagram}
 \end{figure}
