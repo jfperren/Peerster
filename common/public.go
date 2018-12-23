@@ -113,6 +113,19 @@ type Block struct {
 	Transactions []TxPublish
 }
 
+type SignedMessage struct {
+    Origin      string // name of the sender
+    Signature   []byte
+    Payload     []byte // actual content of the message
+    HopLimit    uint32
+}
+
+type CypheredMessage struct {
+    Destination string // name of the destination
+    Payload     []byte // cyphered SignedMessage
+    HopLimit    uint32
+}
+
 // Aggregate of all other fields, should be used as top-level
 // entity for external communication with other nodes.
 type GossipPacket struct {
@@ -126,6 +139,8 @@ type GossipPacket struct {
 	SearchReply   *SearchReply
 	TxPublish     *TxPublish
 	BlockPublish  *BlockPublish
+    Signed        *SignedMessage
+    Cyphered      *CypheredMessage
 }
 
 //
@@ -159,6 +174,23 @@ func NewSearchReply(origin, destination string, results []*SearchResult) *Search
 		HopLimit:    InitialHopLimit,
 		Results:	 results,
 	}
+}
+
+func NewSignedMessage(origin string, signature, payload []byte) *SignedMessage {
+    return &SignedMessage{
+        Origin:    origin,
+        Signature: signature,
+        Payload:   payload,
+        HopLimit:  InitialHopLimit,
+    }
+}
+
+func NewCypheredMessage(destination string, payload []byte) *CypheredMessage {
+    return &CypheredMessage{
+        Destination: destination,
+        Payload:     payload,
+        HopLimit:    InitialHopLimit,
+    }
 }
 
 // Copy the content of a search request but replace the budget.
@@ -256,7 +288,7 @@ func (reply *SearchReply) Packed() *GossipPacket {
 	return &GossipPacket{SearchReply: reply}
 }
 
-// Pack a SearchReply into a GossipPacket
+// Pack a TxPublish into a GossipPacket
 func (publish *TxPublish) Packed() *GossipPacket {
 
 	if publish == nil {
@@ -266,7 +298,7 @@ func (publish *TxPublish) Packed() *GossipPacket {
 	return &GossipPacket{TxPublish: publish}
 }
 
-// Pack a SearchReply into a GossipPacket
+// Pack a BlockPublish into a GossipPacket
 func (publish *BlockPublish) Packed() *GossipPacket {
 
 	if publish == nil {
@@ -274,6 +306,26 @@ func (publish *BlockPublish) Packed() *GossipPacket {
 	}
 
 	return &GossipPacket{BlockPublish: publish}
+}
+
+// Pack a SignedMessage into a GossipPacket
+func (signed *SignedMessage) Packed() *GossipPacket {
+
+	if signed == nil {
+		panic("Cannot pack <nil> signed message into a GossipPacket")
+	}
+
+    return &GossipPacket{Signed: signed}
+}
+
+// Pack a CypheredMessage into a GossipPacket
+func (cyphered *CypheredMessage) Packed() *GossipPacket {
+
+	if cyphered == nil {
+		panic("Cannot pack <nil> cyphered message into a GossipPacket")
+	}
+
+	return &GossipPacket{Cyphered: cyphered}
 }
 
 //
@@ -286,12 +338,14 @@ func (packet *GossipPacket) IsValid() bool {
 		boolCount(packet.Status != nil)+boolCount(packet.Private != nil)+
 		boolCount(packet.DataReply != nil)+boolCount(packet.DataRequest != nil)+
 		boolCount(packet.SearchReply != nil)+boolCount(packet.SearchRequest != nil)+
-		boolCount(packet.TxPublish != nil)+boolCount(packet.BlockPublish != nil) == 1
+		boolCount(packet.TxPublish != nil)+boolCount(packet.BlockPublish != nil)+
+		boolCount(packet.Signed != nil)+boolCount(packet.Cyphered != nil) == 1
 }
 
 // Safety check that we only broadcast packets which are supposed to be broadcast.
 func (packet *GossipPacket) IsEligibleForBroadcast() bool {
-	return !(packet.Simple == nil && packet.SearchRequest == nil && packet.TxPublish == nil && packet.BlockPublish == nil)
+	return !(packet.Simple == nil && packet.SearchRequest == nil && packet.TxPublish == nil && packet.BlockPublish == nil &&
+        packet.Signed == nil)
 }
 
 // Verify that a DataReply has the correct data via computing and comparing the hash
