@@ -3,6 +3,7 @@ package gossiper
 import (
 	"github.com/dedis/protobuf"
 	"github.com/jfperren/Peerster/common"
+    "log"
 	"sync"
 	"time"
 )
@@ -482,4 +483,39 @@ func (gossiper *Gossiper) GenerateRumor(message string) *common.RumorMessage {
 // Generate a route rumor
 func (gossiper *Gossiper) GenerateRouteRumor() *common.RumorMessage {
 	return gossiper.GenerateRumor("")
+}
+
+//////////////
+//  CRYPTO  //
+//////////////
+func (gossiper *Gossiper) SignPacket(packet *common.GossipPacket) *common.SignedMessage {
+    if !packet.IsValid() {
+		log.Panicf("Sending invalid packet: %v", packet)
+	}
+
+	bytes, err := protobuf.Encode(packet)
+	if err != nil {
+		panic(err)
+	}
+
+    return &common.SignedMessage{
+        Origin: gossiper.Name,
+        Signature: gossiper.Crypto.Sign(bytes),
+        Payload: bytes,
+    }
+}
+
+func (gossiper *Gossiper) CypherPacket(packet *common.SignedMessage, destination string) *common.CypheredMessage {
+	bytes, err := protobuf.Encode(packet)
+	if err != nil {
+		panic(err)
+	}
+
+    // get public key of destination
+    publicKey := gossiper.BlockChain.GetPublicKey(destination)
+
+    return &common.CypheredMessage{
+        Destination: destination,
+        Payload: gossiper.Crypto.Cypher(bytes, publicKey),
+    }
 }
