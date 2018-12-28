@@ -2,6 +2,7 @@ package common
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
@@ -126,6 +127,19 @@ type CypheredMessage struct {
     HopLimit    uint32
 }
 
+type OnionPacket struct {
+
+	Header 		[OnionHeaderSize]byte	// To be decrypted inside multiple subheaders
+	Payload 	[OnionHeaderSize]byte	// Encrypted payload
+
+}
+
+type OnionSubHeader struct {
+	PrevHop 	crypto.PublicKey		// Previous node in the route
+	NextHop 	crypto.PublicKey		// Next node in the route
+	Hash 		[32]byte				// Hash of OnionMessage
+}
+
 // Aggregate of all other fields, should be used as top-level
 // entity for external communication with other nodes.
 type GossipPacket struct {
@@ -141,6 +155,7 @@ type GossipPacket struct {
 	BlockPublish  *BlockPublish
     Signed        *SignedMessage
     Cyphered      *CypheredMessage
+	Onion		  *OnionPacket
 }
 
 //
@@ -328,6 +343,16 @@ func (cyphered *CypheredMessage) Packed() *GossipPacket {
 	return &GossipPacket{Cyphered: cyphered}
 }
 
+// Pack an OnionPacket into a GossipPacket
+func (onion *OnionPacket) Packed() *GossipPacket {
+
+	if onion == nil {
+		panic("Cannot pack <nil> onion packet into a GossipPacket")
+	}
+
+	return &GossipPacket{Onion: onion}
+}
+
 //
 //  INTEGRITY CHECKS
 //
@@ -339,7 +364,8 @@ func (packet *GossipPacket) IsValid() bool {
 		boolCount(packet.DataReply != nil)+boolCount(packet.DataRequest != nil)+
 		boolCount(packet.SearchReply != nil)+boolCount(packet.SearchRequest != nil)+
 		boolCount(packet.TxPublish != nil)+boolCount(packet.BlockPublish != nil)+
-		boolCount(packet.Signed != nil)+boolCount(packet.Cyphered != nil) == 1
+		boolCount(packet.Signed != nil)+boolCount(packet.Cyphered != nil) +
+		boolCount(packet.Onion != nil) == 1
 }
 
 // Safety check that we only broadcast packets which are supposed to be broadcast.

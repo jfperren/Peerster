@@ -28,4 +28,7 @@ const TransactionHopLimit = 10
 const BlockHopLimit = 20
 const FileNameSeparator = ","
 const InitialMiningSleepTime = 5 * time.Second
-const MiningSleepTimeFactor = 2
+const MiningSleepTimeFactor = 2const OnionPayloadSize = 12288
+const OnionHeaderSize = SocketBufferSize - OnionPayloadSize
+const OnionSubHeaderCount = 16
+const OnionSubHeaderSize = OnionHeaderSize / OnionSubHeaderCount
