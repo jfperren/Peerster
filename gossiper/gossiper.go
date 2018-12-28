@@ -29,6 +29,8 @@ type Gossiper struct {
 	SpamDetector 	*SpamDetector
 	SearchEngine 	*SearchEngine 	//
 	BlockChain		*BlockChain
+    Crypto          *Crypto         // Stores the RSA keys, and handle the (de)cyphering and
+                                    // signing/validating messages
 }
 
 const (
@@ -78,6 +80,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		SpamDetector:   NewSpamDetector(),
 		SearchEngine: 	NewSearchEngine(),
 		BlockChain:		NewBlockChain(),
+        Crypto:         NewCrypto(),
 	}
 }
 

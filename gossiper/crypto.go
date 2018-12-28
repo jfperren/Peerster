@@ -12,8 +12,14 @@ type Crypto struct {
     PrivateKey *rsa.PrivateKey
 }
 
+func NewCrypto() *Crypto {
+    c := Crypto{}
+    c.GenerateKey()
+    return &c
+}
+
 func (c *Crypto) GenerateKey() {
-    privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+    privateKey, err := rsa.GenerateKey(rand.Reader, 18000)
     if err != nil {
         panic(err)
     }
