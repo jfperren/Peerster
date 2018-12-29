@@ -416,6 +416,22 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 				gossiper.broadcastToNeighborsExcept(packet.BlockPublish.Packed(), &[]string{source})
 			}
 		}
+
+    case packet.Signed != nil:
+        // verify signature
+        publicKey := gossiper.BlockChain.GetPublicKey(packet.Signed.Origin)
+        if gossiper.Crypto.Verify(packet.Signed.Payload, packet.Signed.Signature, publicKey) {
+            gossiper.handleReceivedPacket(packet.Signed.Payload, source)
+        }
+
+    case packet.Cyphered != nil:
+        if packet.Cyphered.Destination == gossiper.Name {
+            signedBytes := gossiper.Crypto.Decypher(packet.Cyphered.Payload)
+            var signed common.SignedMessage
+            protobuf.Decode(signedBytes, &signed)
+
+            gossiper.HandleGossip(&common.GossipPacket{Signed: &signed}, source)
+        }
 	}
 }
 
