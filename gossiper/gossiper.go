@@ -91,6 +91,12 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 
 // Start listening for UDP packets on Gossiper's clientAddress & gossipAddress
 func (gossiper *Gossiper) Start() {
+    transaction := NewTransactionKey(gossiper.Name, gossiper.Crypto.PublicKey())
+
+    if gossiper.BlockChain.TryAddUser(transaction) {
+        gossiper.broadcastToNeighbors(transaction.Packed())
+        common.DebugBroadcastTransaction(transaction)
+    }
 
 	go gossiper.receiveGossip()
 	go gossiper.sendRouteRumors()
