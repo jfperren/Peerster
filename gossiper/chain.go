@@ -64,6 +64,16 @@ func NewTransaction(metaFile *MetaFile) *common.TxPublish {
     }
 }
 
+func NewTransactionKey(username string, publicKey rsa.PublicKey) *common.TxPublish {
+    return &common.TxPublish{
+        User: common.User{
+            Name: username,
+            PublicKey: publicKey,
+        },
+        HopLimit: common.TransactionHopLimit,
+    }
+}
+
 func (gossiper *Gossiper) waitForNewBlocks() {
 
     for {
@@ -100,6 +110,32 @@ func (bc *BlockChain) TryAddFile(candidate *common.TxPublish) bool {
 
     for _, otherCandidates := range bc.Pending {
         if candidate.File.Name == otherCandidates.File.Name {
+            common.DebugIgnoreTransactionAlreadyCandidate(candidate)
+            return false
+        }
+    }
+
+    bc.Pending = append(bc.Pending, *candidate)
+    common.DebugAddCandidateTransaction(candidate)
+
+    return true
+}
+
+// Atomically test and append transaction
+func (bc *BlockChain) TryAddUser(candidate *common.TxPublish) bool {
+
+    bc.lock.Lock()
+    defer bc.lock.Unlock()
+
+    _, found := bc.Peers[candidate.User.Name]
+
+    if found {
+        common.DebugIgnoreTransactionAlreadyInChain(candidate)
+        return false
+    }
+
+    for _, otherCandidates := range bc.Pending {
+        if candidate.User.Name == otherCandidates.User.Name {
             common.DebugIgnoreTransactionAlreadyCandidate(candidate)
             return false
         }
@@ -149,7 +185,11 @@ func (bc *BlockChain) TryAddBlock(candidate *common.Block) bool {
         bc.Latest = hash
 
         for _, transaction := range candidate.Transactions {
-            bc.Files[transaction.File.Name] = &transaction.File
+            if transaction.File.Name != "" {
+                bc.Files[transaction.File.Name] = &transaction.File
+            } else {
+                bc.Peers[transaction.User.Name] = &transaction.User.PublicKey
+            }
         }
 
         bc.updatePendingTransactions()
@@ -194,10 +234,17 @@ func (bc *BlockChain) updatePendingTransactions() {
     newPending := make([]common.TxPublish, 0)
 
     for _, transaction := range bc.Pending {
-        _, found := bc.Files[transaction.File.Name]
+        if transaction.File.Name != "" {
+            _, found := bc.Files[transaction.File.Name]
 
-        if !found {
-            newPending = append(newPending, transaction)
+            if !found {
+                newPending = append(newPending, transaction)
+            }
+        } else {
+            _, found := bc.Peers[transaction.User.Name]
+            if !found {
+                newPending = append(newPending, transaction)
+            }
         }
     }
 
@@ -208,7 +255,11 @@ func (bc *BlockChain) rollback(chain []*common.Block) {
 
     for _, block := range chain {
         for _, transaction := range block.Transactions {
-            delete(bc.Files, transaction.File.Name)
+            if transaction.File.Name != "" {
+                delete(bc.Files, transaction.File.Name)
+            } else {
+                delete(bc.Peers, transaction.User.Name)
+            }
         }
     }
 }
@@ -217,7 +268,11 @@ func (bc *BlockChain) fastForward(chain []*common.Block) {
 
     for _, block := range chain {
         for _, transaction := range block.Transactions {
-            bc.Files[transaction.File.Name] = &transaction.File
+            if transaction.File.Name != "" {
+                bc.Files[transaction.File.Name] = &transaction.File
+            } else {
+                bc.Peers[transaction.User.Name] = &transaction.User.PublicKey
+            }
         }
     }
 
@@ -299,16 +354,27 @@ func (bc *BlockChain) allBlocks() []*common.Block {
 func (bc *BlockChain) IsConsistent(newBlock *common.Block) bool {
 
     names := make(map[string]bool)
+    userNames := make(map[string]bool)
 
     for _, transaction := range newBlock.Transactions {
 
-        _, found := names[transaction.File.Name]
+        if transaction.File.Name != "" {
+            _, found := names[transaction.File.Name]
 
-        if found {
-            return false
+            if found {
+                return false
+            }
+
+            names[transaction.File.Name] = true
+        } else {
+            _, found := userNames[transaction.User.Name]
+
+            if found {
+                return false
+            }
+
+            userNames[transaction.User.Name] = true
         }
-
-        names[transaction.File.Name] = true
     }
 
     hash := newBlock.PrevHash
@@ -322,13 +388,23 @@ func (bc *BlockChain) IsConsistent(newBlock *common.Block) bool {
 
         for _, transaction := range block.Transactions {
 
-            _, found := names[transaction.File.Name]
+            if transaction.File.Name != "" {
+                _, found := names[transaction.File.Name]
 
-            if found {
-                return false
+                if found {
+                    return false
+                }
+
+                names[transaction.File.Name] = true
+            } else {
+                _, found := userNames[transaction.User.Name]
+
+                if found {
+                    return false
+                }
+
+                userNames[transaction.User.Name] = true
             }
-
-            names[transaction.File.Name] = true
         }
 
         hash = block.PrevHash
