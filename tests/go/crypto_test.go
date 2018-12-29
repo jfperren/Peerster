@@ -7,7 +7,7 @@ import (
 )
 
 func TestSignatures(t *testing.T) {
-    crypto := gossiper.NewCrypto(4096)
+    crypto := gossiper.NewCrypto(4096, 2)
 
     payload := []byte("hello")
 
@@ -20,7 +20,7 @@ func TestSignatures(t *testing.T) {
 }
 
 func TestCypher(t *testing.T) {
-    crypto := gossiper.NewCrypto(4096)
+    crypto := gossiper.NewCrypto(4096, 2)
 
     payload := []byte("hello")
     publicKey := crypto.PublicKey()
