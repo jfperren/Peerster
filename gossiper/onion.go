@@ -6,8 +6,7 @@ import (
     "crypto/rand"
     "crypto/rsa"
     "encoding/binary"
-    "fmt"
-    "github.com/dedis/protobuf"
+    "errors"
     "github.com/jfperren/Peerster/common"
 )
 
@@ -19,9 +18,12 @@ const InvalidHeader = 1
 const InvalidPayload = 2
 
 // Errors thrown by the File System type
-type OnionError struct {
-    flag     int
-}
+var (
+    ErrEncodingNotFixedSize =errors.New("Structure provided has variable size, cannot encode.")
+    ErrEncodingNotEnoughSpace = errors.New("Not enough bytes to fit the data. Increase blockSize.")
+    ErrDecodingNoSize = errors.New("Error getting size of bytes to decode")
+)
+
 
 //
 //  WRAP / UNWRAP
@@ -70,13 +72,13 @@ func encode(object interface{}, blockSize int) ([]byte, error) {
     objSize := binary.Size(object)
 
     if objSize == -1 {
-        // Err: Not encodable
+        return []byte{}, ErrEncodingNotFixedSize
     }
 
     totalSize := objSize + 8
 
     if totalSize > blockSize {
-        // Err: Not enough space
+        return []byte{}, ErrEncodingNotEnoughSpace
     }
 
     buf := new(bytes.Buffer)
@@ -108,7 +110,7 @@ func decode(data []byte, structPtr interface{}) error {
     objSize, n := binary.Uvarint(data[:8])
 
     if n <= 0 {
-        // Some error
+        return ErrDecodingNoSize
     }
 
     buf := bytes.NewReader(data[8:objSize+8])
