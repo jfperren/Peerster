@@ -1,6 +1,8 @@
 package tests
 
 import (
+    "bytes"
+    "crypto/rsa"
     "testing"
     "github.com/jfperren/Peerster/gossiper"
 )
@@ -12,7 +14,7 @@ func TestSignatures(t *testing.T) {
 
     signature := crypto.Sign(payload)
 
-    if !crypto.Verify(payload, signature, crypto.PublicKey()) {
+    if !crypto.Verify(payload, signature, crypto.PublicKey().(rsa.PublicKey)) {
         t.Errorf("Wrong signature")
     }
 }
@@ -22,11 +24,11 @@ func TestCypher(t *testing.T) {
 
     payload := []byte("hello")
 
-    cyphered := crypto.Cypher(payload, crypto.PublicKey())
+    cyphered := crypto.Cypher(payload, crypto.PublicKey().(rsa.PublicKey))
 
     decyphered := crypto.Decypher(cyphered)
 
-    if decyphered != payload {
+    if bytes.Equal(decyphered[:], payload[:]) {
         t.Errorf("Incorrect decyphering")
     }
 }
