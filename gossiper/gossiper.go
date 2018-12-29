@@ -425,7 +425,12 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
         }
 
     case packet.Cyphered != nil:
-        if packet.Cyphered.Destination == gossiper.Name {
+        destination := packet.Cyphered.Destination
+		hopLimit := &packet.Cyphered.HopLimit
+
+		destined := gossiper.sendToNode(packet, destination, hopLimit)
+
+		if destined {
             signedBytes := gossiper.Crypto.Decypher(packet.Cyphered.Payload)
             var signed common.SignedMessage
             protobuf.Decode(signedBytes, &signed)
@@ -539,6 +544,7 @@ func (gossiper *Gossiper) CypherPacket(packet *common.SignedMessage, destination
 
     return &common.CypheredMessage{
         Destination: destination,
+        HopLimit: common.InitialHopLimit,
         Payload: gossiper.Crypto.Cypher(bytes, publicKey),
     }
 }
