@@ -348,6 +348,21 @@ func (packet *GossipPacket) IsEligibleForBroadcast() bool {
         packet.Signed == nil)
 }
 
+func (packet *GossipPacket) GetDestination() (string, error) {
+    switch {
+    case packet.Private != nil:
+        return packet.Private.Destination, nil
+    case packet.DataRequest != nil:
+        return packet.DataRequest.Destination, nil
+    case packet.DataReply != nil:
+        return packet.DataReply.Destination, nil
+    case packet.SearchReply != nil:
+        return packet.SearchReply.Destination, nil
+    default:
+        return "", fmt.Errorf("no destination")
+    }
+}
+
 // Verify that a DataReply has the correct data via computing and comparing the hash
 func (reply *DataReply) VerifyHash(expected []byte) bool {
 
