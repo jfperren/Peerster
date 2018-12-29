@@ -4,6 +4,7 @@ import (
     "bytes"
     "crypto/rand"
     "crypto/rsa"
+    "crypto/x509"
     "github.com/jfperren/Peerster/common"
     "sync"
     "time"
@@ -68,7 +69,7 @@ func NewTransactionKey(username string, publicKey rsa.PublicKey) *common.TxPubli
     return &common.TxPublish{
         User: common.User{
             Name: username,
-            PublicKey: publicKey,
+            PublicKey: x509.MarshalPKCS1PublicKey(&publicKey),
         },
         HopLimit: common.TransactionHopLimit,
     }
@@ -188,7 +189,11 @@ func (bc *BlockChain) TryAddBlock(candidate *common.Block) bool {
             if transaction.File.Name != "" {
                 bc.Files[transaction.File.Name] = &transaction.File
             } else {
-                bc.Peers[transaction.User.Name] = &transaction.User.PublicKey
+                pubKey, err := x509.ParsePKCS1PublicKey(transaction.User.PublicKey)
+                if err != nil {
+                    panic(err)
+                }
+                bc.Peers[transaction.User.Name] = pubKey
             }
         }
 
@@ -271,7 +276,11 @@ func (bc *BlockChain) fastForward(chain []*common.Block) {
             if transaction.File.Name != "" {
                 bc.Files[transaction.File.Name] = &transaction.File
             } else {
-                bc.Peers[transaction.User.Name] = &transaction.User.PublicKey
+                pubKey, err := x509.ParsePKCS1PublicKey(transaction.User.PublicKey)
+                if err != nil {
+                    panic(err)
+                }
+                bc.Peers[transaction.User.Name] = pubKey
             }
         }
     }

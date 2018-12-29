@@ -4,6 +4,11 @@ import (
     "bytes"
     "testing"
     "github.com/jfperren/Peerster/gossiper"
+    "crypto/rand"
+    "crypto/rsa"
+    "crypto/x509"
+    "fmt"
+    "log"
 )
 
 func TestSignatures(t *testing.T) {
@@ -32,4 +37,18 @@ func TestCypher(t *testing.T) {
     if !bytes.Equal(decyphered[:], payload[:]) {
         t.Errorf("Incorrect decyphering")
     }
+}
+
+func TestKeySharing(t *testing.T) {
+    priv, _ := rsa.GenerateKey(rand.Reader, 512) // skipped error checking for brevity
+    pub := priv.PublicKey
+    bytes := x509.MarshalPKCS1PublicKey(&pub)
+    pub2, err := x509.ParsePKCS1PublicKey(bytes)
+    if err != nil {
+        panic(err)
+    }
+    if pub.N.Cmp(pub2.N) != 0 || pub.E != pub2.E {
+        log.Fatal("Public Keys at source and destination not equal")
+    }
+    fmt.Printf("OK - %#v\n", pub2)
 }

@@ -2,13 +2,11 @@ package common
 
 import (
 	"bytes"
-    "crypto/rsa"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"strings"
-	"github.com/dedis/protobuf"
 )
 
 //
@@ -91,7 +89,7 @@ type SearchResult struct {
 
 type User struct {
     Name string
-    PublicKey rsa.PublicKey
+    PublicKey []byte
 }
 
 // A message announcing that a new transaction should be processed
@@ -439,11 +437,7 @@ func (t *TxPublish) Hash() (out [32]byte) {
     } else {
         binary.Write(h, binary.LittleEndian, uint32(len(t.User.Name)))
         h.Write([]byte(t.User.Name))
-        b, err := protobuf.Encode(t.User.PublicKey)
-        if err != nil {
-            panic(err)
-        }
-        h.Write(b)
+        h.Write(t.User.PublicKey)
     }
     copy(out[:], h.Sum(nil))
     return
