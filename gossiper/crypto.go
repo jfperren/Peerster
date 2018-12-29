@@ -18,8 +18,8 @@ func NewCrypto() *Crypto {
     return &c
 }
 
-func (c *Crypto) GenerateKey() {
-    privateKey, err := rsa.GenerateKey(rand.Reader, 18000)
+func (c *Crypto) GenerateKey(size int) {
+    privateKey, err := rsa.GenerateKey(rand.Reader, size)
     if err != nil {
         panic(err)
     }
