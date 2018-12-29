@@ -138,38 +138,35 @@ func rotateSubHeadersLeft(onion *common.OnionPacket) {
     }
 }
 
-func rotateSubHeadersRight(onion *common.OnionPacket) {
+func rotateSubHeadersRight(onion *common.OnionPacket, insertion common.OnionSubHeader) {
 
-    for i := 0; i < common.OnionSubHeaderCount; i++ {
+    for i := common.OnionSubHeaderCount - 1; i >= 0; i-- {
 
-        j := i * common.OnionSubHeaderSize
-        k := i + 1 * common.OnionSubHeaderSize
-        l := (i + 2) * common.OnionSubHeaderSize
+        j := (i - 1) * common.OnionSubHeaderSize
+        k := i  * common.OnionSubHeaderSize
+        l := (i + 1) * common.OnionSubHeaderSize
 
-        if i == common.OnionSubHeaderCount - 1 {
-            var padding [common.OnionSubHeaderSize]byte
-            rand.Read(padding[:])
-            copy(onion.Data[j:k], padding[:])
+        if i == 0 {
+            bytes, _ := encode(insertion, common.OnionSubHeaderSize)
+            copy(onion.Data[k:l], bytes)
         } else {
-            copy(onion.Data[j:k], onion.Data[k:l])
+            copy(onion.Data[k:l], onion.Data[j:k])
         }
     }
 }
 
 
-
 // Unwraps one layer of an onion
-func ExtractOnionSubHeader(onion *common.OnionPacket) (*common.OnionSubHeader, *OnionError) {
+func ExtractOnionSubHeader(onion *common.OnionPacket) (*common.OnionSubHeader, error) {
 
-    // The subHeader should be at the beginning of the byte list
-    subHeaderBytes := onion.Payload[:common.OnionSubHeaderSize]
+    subHeaderBytes := onion.Data[:common.OnionSubHeaderSize]
 
-    // Try and decode the bytes via protobuf
     var subHeader common.OnionSubHeader
-    err := protobuf.Decode(subHeaderBytes, &subHeader)
+
+    err := decode(subHeaderBytes, &subHeader)
 
     if err != nil {
-        return nil, &OnionError{flag: InvalidHeader}
+        return nil, err
     }
 
     return &subHeader, nil

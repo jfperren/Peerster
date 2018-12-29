@@ -129,8 +129,7 @@ type CypheredMessage struct {
 
 type OnionPacket struct {
 
-	Header 		[OnionHeaderSize]byte	// To be decrypted inside multiple subheaders
-	Payload 	[OnionHeaderSize]byte	// Encrypted payload
+	Data 		[OnionHeaderSize + OnionPayloadSize]byte
 
 }
 
