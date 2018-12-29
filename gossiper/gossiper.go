@@ -3,6 +3,7 @@ package gossiper
 import (
 	"github.com/dedis/protobuf"
 	"github.com/jfperren/Peerster/common"
+    "log"
 	"sync"
 	"time"
 )
@@ -29,6 +30,8 @@ type Gossiper struct {
 	SpamDetector 	*SpamDetector
 	SearchEngine 	*SearchEngine 	//
 	BlockChain		*BlockChain
+    Crypto          *Crypto         // Stores the RSA keys, and handle the (de)cyphering and
+                                    // signing/validating messages
 }
 
 const (
@@ -48,7 +51,7 @@ const (
 //
 // Note - Use gossiper.Start() to Start listening for messages.
 //
-func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool, rtimer int, separatefs bool) *Gossiper {
+func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool, rtimer int, separatefs bool, keySize, cryptoOpts int) *Gossiper {
 
 	gossipSocket := common.NewUDPSocket(gossipAddress)
 	var clientSocket *common.UDPSocket
@@ -78,6 +81,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		SpamDetector:   NewSpamDetector(),
 		SearchEngine: 	NewSearchEngine(),
 		BlockChain:		NewBlockChain(),
+        Crypto:         NewCrypto(keySize, cryptoOpts),
 	}
 }
 
@@ -121,24 +125,31 @@ func (gossiper *Gossiper) Stop() {
 // Main loop for handling gossip packets from other nodes.
 func (gossiper *Gossiper) receiveGossip() {
 	for {
-		var packet common.GossipPacket
 		bytes, source, alive := gossiper.GossipSocket.Receive()
 
 		if !alive {
 			break
 		}
 
-		protobuf.Decode(bytes, &packet)
-
-		if !packet.IsValid() {
-			common.DebugInvalidPacket(&packet)
-			continue
-		}
+        if gossiper.handleReceivedPacket(bytes, source) {
+            continue
+        }
 
 		gossiper.Router.AddPeerIfNeeded(source)
-
-		go gossiper.HandleGossip(&packet, source)
 	}
+}
+
+func (gossiper *Gossiper) handleReceivedPacket(bytes []byte, source string) bool {
+    var packet common.GossipPacket
+    protobuf.Decode(bytes, &packet)
+
+    if !packet.IsValid() {
+        common.DebugInvalidPacket(&packet)
+        return true
+    }
+
+    go gossiper.HandleGossip(&packet, source)
+    return false
 }
 
 
@@ -405,6 +416,27 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 				gossiper.broadcastToNeighborsExcept(packet.BlockPublish.Packed(), &[]string{source})
 			}
 		}
+
+    case packet.Signed != nil:
+        // verify signature
+        publicKey := gossiper.BlockChain.GetPublicKey(packet.Signed.Origin)
+        if gossiper.Crypto.Verify(packet.Signed.Payload, packet.Signed.Signature, publicKey) {
+            gossiper.handleReceivedPacket(packet.Signed.Payload, source)
+        }
+
+    case packet.Cyphered != nil:
+        destination := packet.Cyphered.Destination
+		hopLimit := &packet.Cyphered.HopLimit
+
+		destined := gossiper.sendToNode(packet, destination, hopLimit)
+
+		if destined {
+            signedBytes := gossiper.Crypto.Decypher(packet.Cyphered.Payload)
+            var signed common.SignedMessage
+            protobuf.Decode(signedBytes, &signed)
+
+            gossiper.HandleGossip(&common.GossipPacket{Signed: &signed}, source)
+        }
 	}
 }
 
@@ -479,4 +511,40 @@ func (gossiper *Gossiper) GenerateRumor(message string) *common.RumorMessage {
 // Generate a route rumor
 func (gossiper *Gossiper) GenerateRouteRumor() *common.RumorMessage {
 	return gossiper.GenerateRumor("")
+}
+
+//////////////
+//  CRYPTO  //
+//////////////
+func (gossiper *Gossiper) SignPacket(packet *common.GossipPacket) *common.SignedMessage {
+    if !packet.IsValid() {
+		log.Panicf("Sending invalid packet: %v", packet)
+	}
+
+	bytes, err := protobuf.Encode(packet)
+	if err != nil {
+		panic(err)
+	}
+
+    return &common.SignedMessage{
+        Origin: gossiper.Name,
+        Signature: gossiper.Crypto.Sign(bytes),
+        Payload: bytes,
+    }
+}
+
+func (gossiper *Gossiper) CypherPacket(packet *common.SignedMessage, destination string) *common.CypheredMessage {
+	bytes, err := protobuf.Encode(packet)
+	if err != nil {
+		panic(err)
+	}
+
+    // get public key of destination
+    publicKey := gossiper.BlockChain.GetPublicKey(destination)
+
+    return &common.CypheredMessage{
+        Destination: destination,
+        HopLimit: common.InitialHopLimit,
+        Payload: gossiper.Crypto.Cypher(bytes, publicKey),
+    }
 }

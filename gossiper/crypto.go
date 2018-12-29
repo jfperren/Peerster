@@ -11,22 +11,32 @@ import (
 
 type Crypto struct {
     PrivateKey *rsa.PrivateKey
+    Options int
 }
 
-func (c *Crypto) GenerateKey() {
-    privateKey, err := rsa.GenerateKey(rand.Reader, common.CryptoKeySize)
+func NewCrypto(size, options int) *Crypto {
+    c := Crypto{
+        Options: options,
+    }
+    c.GenerateKey(size)
+    return &c
+}
+
+func (c *Crypto) GenerateKey(size int) {
+    privateKey, err := rsa.GenerateKey(rand.Reader, size)
     if err != nil {
         panic(err)
     }
     c.PrivateKey = privateKey
 }
 
-func (c *Crypto) PublicKey() crypto.PublicKey {
-    return c.PrivateKey.Public()
+func (c *Crypto) PublicKey() rsa.PublicKey {
+    publicKey := c.PrivateKey.Public().(*rsa.PublicKey)
+    return *publicKey
 }
 
 func (c *Crypto) Decypher(payload []byte) []byte {
-    decyphered, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, c.PrivateKey, payload, []byte{})
+    decyphered, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, c.PrivateKey, payload, []byte(""))
     if err != nil {
         fmt.Printf("Error from decryption: %s\n", err)
         return []byte{}
@@ -35,7 +45,7 @@ func (c *Crypto) Decypher(payload []byte) []byte {
 }
 
 func (c *Crypto) Cypher(payload []byte, publicKey rsa.PublicKey) []byte {
-    cyphered, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, &publicKey, payload, []byte{})
+    cyphered, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, &publicKey, payload, []byte(""))
     if err != nil {
         fmt.Printf("Error from encryption: %s\n", err)
         return []byte{}

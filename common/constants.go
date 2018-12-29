@@ -34,3 +34,5 @@ const OnionPayloadSize = 12288
 const OnionHeaderSize = SocketBufferSize - OnionPayloadSize
 const OnionSubHeaderCount = 16
 const OnionSubHeaderSize = OnionHeaderSize / OnionSubHeaderCount
+const SignOnly = 1
+const CypherIfPossible = 2

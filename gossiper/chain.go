@@ -3,6 +3,7 @@ package gossiper
 import (
     "bytes"
     "crypto/rand"
+    "crypto/rsa"
     "github.com/jfperren/Peerster/common"
     "sync"
     "time"
@@ -18,6 +19,7 @@ type BlockChain struct {
 
     Pending     []common.TxPublish          // Current transactions to be included in next block
     Files       map[string]*common.File     // Current state of the chain: mapping of name to file
+    Peers       map[string]*rsa.PublicKey     // Current state of the chain: mapping of peer name to public key
 
     Blocks      map[[32]byte]*common.Block  // All chain blocks, mapped by hash
     Length      map[[32]byte]int            // Length of chain at each block
@@ -41,6 +43,7 @@ func NewBlockChain() *BlockChain {
     return &BlockChain{
         Pending:     make([]common.TxPublish, 0),
         Files:       make(map[string]*common.File),
+        Peers:       make(map[string]*rsa.PublicKey),
         Blocks:      make(map[[32]byte]*common.Block),
         Length:      make(map[[32]byte]int),
         IsNew:       true,
@@ -421,3 +424,9 @@ func (bc *BlockChain) FirstCommonAncestor(current, new *common.Block) (*common.B
     return ancestor, hasCommonAncestor, currentChain, newChain
 }
 
+/////////////////////////
+// RETRIEVAL FUNCTIONS //
+/////////////////////////
+func (bc *BlockChain) GetPublicKey(peer string) rsa.PublicKey {
+    return *bc.Peers[peer]
+}
