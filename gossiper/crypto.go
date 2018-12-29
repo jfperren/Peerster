@@ -29,12 +29,13 @@ func (c *Crypto) GenerateKey(size int) {
     c.PrivateKey = privateKey
 }
 
-func (c *Crypto) PublicKey() crypto.PublicKey {
-    return c.PrivateKey.Public()
+func (c *Crypto) PublicKey() rsa.PublicKey {
+    publicKey := c.PrivateKey.Public().(*rsa.PublicKey)
+    return *publicKey
 }
 
 func (c *Crypto) Decypher(payload []byte) []byte {
-    decyphered, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, c.PrivateKey, payload, []byte{})
+    decyphered, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, c.PrivateKey, payload, []byte(""))
     if err != nil {
         fmt.Println("Error from decryption: %s\n", err)
         return []byte{}
@@ -43,7 +44,7 @@ func (c *Crypto) Decypher(payload []byte) []byte {
 }
 
 func (c *Crypto) Cypher(payload []byte, publicKey rsa.PublicKey) []byte {
-    cyphered, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, &publicKey, payload, []byte{})
+    cyphered, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, &publicKey, payload, []byte(""))
     if err != nil {
         fmt.Println("Error from encryption: %s\n", err)
         return []byte{}
