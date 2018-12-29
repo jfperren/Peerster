@@ -73,7 +73,9 @@ func encode(object interface{}, blockSize int) ([]byte, error) {
         // Err: Not encodable
     }
 
-    if objSize > blockSize - 8 {
+    totalSize := objSize + 8
+
+    if totalSize > blockSize {
         // Err: Not enough space
     }
 
@@ -96,9 +98,23 @@ func encode(object interface{}, blockSize int) ([]byte, error) {
     copy(data, buf.Bytes())
 
     // Add padding at the end
-    rand.Read(data[objSize + 8:])
+    rand.Read(data[totalSize:])
 
     return data, nil
+}
+
+func decode(data []byte, structPtr interface{}) error {
+
+    objSize, n := binary.Uvarint(data[:8])
+
+    if n <= 0 {
+        // Some error
+    }
+
+    buf := bytes.NewReader(data[8:objSize+8])
+    err := binary.Read(buf, binary.LittleEndian, structPtr)
+
+    return err
 }
 
 
