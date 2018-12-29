@@ -124,6 +124,23 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
 		log.Panicf("Sending invalid packet: %v", packet)
 	}
 
+    if gossiper.Crypto.Options == common.SignOnly {
+        packet = &common.GossipPacket{
+            Signed: gossiper.SignPacket(packet),
+        }
+    } else if gossiper.Crypto.Options == common.CypherIfPossible {
+        destination, err := packet.GetDestination()
+        if err != nil {
+            packet = &common.GossipPacket{
+                Signed: gossiper.SignPacket(packet),
+            }
+        } else {
+            packet = &common.GossipPacket{
+                Cyphered: gossiper.CypherPacket(gossiper.SignPacket(packet), destination),
+            }
+        }
+    }
+
 	bytes, err := protobuf.Encode(packet)
 	if err != nil {
 		panic(err)

@@ -10,11 +10,14 @@ import (
 
 type Crypto struct {
     PrivateKey *rsa.PrivateKey
+    Options int
 }
 
-func NewCrypto() *Crypto {
-    c := Crypto{}
-    c.GenerateKey()
+func NewCrypto(size, options int) *Crypto {
+    c := Crypto{
+        Options: options,
+    }
+    c.GenerateKey(size)
     return &c
 }
 

@@ -51,7 +51,7 @@ const (
 //
 // Note - Use gossiper.Start() to Start listening for messages.
 //
-func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool, rtimer int, separatefs bool) *Gossiper {
+func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool, rtimer int, separatefs bool, keySize, cryptoOpts int) *Gossiper {
 
 	gossipSocket := common.NewUDPSocket(gossipAddress)
 	var clientSocket *common.UDPSocket
@@ -81,7 +81,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		SpamDetector:   NewSpamDetector(),
 		SearchEngine: 	NewSearchEngine(),
 		BlockChain:		NewBlockChain(),
-        Crypto:         NewCrypto(),
+        Crypto:         NewCrypto(keySize, cryptoOpts),
 	}
 }
 

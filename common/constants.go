@@ -29,3 +29,6 @@ const BlockHopLimit = 20
 const FileNameSeparator = ","
 const InitialMiningSleepTime = 5 * time.Second
 const MiningSleepTimeFactor = 2
+
+const SignOnly = 1
+const CypherIfPossible = 2

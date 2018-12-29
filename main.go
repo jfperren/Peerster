@@ -22,17 +22,28 @@ func main() {
 	rtimer := flag.Int("rtimer", 0, "route rumors sending period in seconds, 0 to disable sending of route rumors.")
 	verbose := flag.Bool("verbose", false, "display additional logs (useful for testing)")
 	separatefs := flag.Bool("separatefs", false, "set to true to use its own _Download and _SharedFile folder")
+    keySize := flag.Int("keySize", 4096, "set RSA key size")
+    signOnly := flag.Bool("sign-only", false, "set to true to only sign messages")
+    cypherIfPossible := flag.Bool("cypher-if-possible", false, "set to true to cypher all messages that can be cyphered")
 
 	flag.Parse()
 
 	var g *gossiper.Gossiper
 
+    cryptoOpts := 0
+    if *cypherIfPossible {
+        cryptoOpts = common.CypherIfPossible
+    } else if *signOnly {
+        cryptoOpts = common.SignOnly
+    }
+
+
 	if *server {
-		g = gossiper.NewGossiper(*gossipAddr, "", *name, *peers, *simple, *rtimer, *separatefs)
+		g = gossiper.NewGossiper(*gossipAddr, "", *name, *peers, *simple, *rtimer, *separatefs, *keySize, cryptoOpts)
 		gossiper.StartWebServer(g, *uiPort)
 		common.DebugStartGossiper("no_client_address", g.GossipSocket.Address, g.Name, g.Router.Peers, g.Simple, g.Router.Rtimer)
 	} else {
-		g = gossiper.NewGossiper(*gossipAddr, ":"+*uiPort, *name, *peers, *simple, *rtimer, *separatefs)
+		g = gossiper.NewGossiper(*gossipAddr, ":"+*uiPort, *name, *peers, *simple, *rtimer, *separatefs, *keySize, cryptoOpts)
 		common.DebugStartGossiper(g.ClientSocket.Address, g.GossipSocket.Address, g.Name, g.Router.Peers, g.Simple, g.Router.Rtimer)
 	}
 
