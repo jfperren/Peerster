@@ -2,12 +2,13 @@ package common
 
 import (
 	"bytes"
-	"crypto/rsa"
+    "crypto/rsa"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"github.com/dedis/protobuf"
 )
 
 //
@@ -88,9 +89,15 @@ type SearchResult struct {
 	ChunkCount   uint64
 }
 
+type User struct {
+    Name string
+    PublicKey rsa.PublicKey
+}
+
 // A message announcing that a new transaction should be processed
 type TxPublish struct {
 	File     File
+    User     User
 	HopLimit uint32
 }
 
@@ -425,12 +432,21 @@ func (b *Block) Hash() (out [32]byte) {
 // Hash of a transaction
 func (t *TxPublish) Hash() (out [32]byte) {
 	h := sha256.New()
-	binary.Write(h,binary.LittleEndian,
-		uint32(len(t.File.Name)))
-	h.Write([]byte(t.File.Name))
-	h.Write(t.File.MetafileHash)
-	copy(out[:], h.Sum(nil))
-	return
+    if t.File.Name != "" {
+        binary.Write(h, binary.LittleEndian, uint32(len(t.File.Name)))
+        h.Write([]byte(t.File.Name))
+        h.Write(t.File.MetafileHash)
+    } else {
+        binary.Write(h, binary.LittleEndian, uint32(len(t.User.Name)))
+        h.Write([]byte(t.User.Name))
+        b, err := protobuf.Encode(t.User.PublicKey)
+        if err != nil {
+            panic(err)
+        }
+        h.Write(b)
+    }
+    copy(out[:], h.Sum(nil))
+    return
 }
 
 // Hash of an Onion
@@ -444,13 +460,13 @@ func (onion *OnionPacket) Hash() (out [32]byte) {
 
 func (block *Block) Str() string {
 
-	hash := block.Hash()
-	prev := block.PrevHash
-	files := make([]string, 0)
+    hash := block.Hash()
+    prev := block.PrevHash
+    files := make([]string, 0)
 
-	for _, transaction := range block.Transactions {
-		files = append(files, transaction.File.Name)
-	}
+    for _, transaction := range block.Transactions {
+        files = append(files, transaction.File.Name)
+    }
 
-	return fmt.Sprintf("%v:%v:%v", hex.EncodeToString(hash[:]), hex.EncodeToString(prev[:]), strings.Join(files, FileNameSeparator))
+    return fmt.Sprintf("%v:%v:%v", hex.EncodeToString(hash[:]), hex.EncodeToString(prev[:]), strings.Join(files, FileNameSeparator))
 }
