@@ -425,9 +425,18 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
     case packet.Signed != nil:
         // verify signature
-        publicKey := gossiper.BlockChain.GetPublicKey(packet.Signed.Origin)
-        if gossiper.Crypto.Verify(packet.Signed.Payload, packet.Signed.Signature, publicKey) {
-            gossiper.handleReceivedPacket(packet.Signed.Payload, source)
+        publicKey, exists := gossiper.BlockChain.GetPublicKey(packet.Signed.Origin)
+        if exists {
+            if gossiper.Crypto.Verify(packet.Signed.Payload, packet.Signed.Signature, publicKey) {
+                gossiper.handleReceivedPacket(packet.Signed.Payload, source)
+            }
+        } else {
+            go func() {
+                timer := time.NewTicker(100 * 1000 * 1000 * time.Nanosecond)
+                <-timer.C
+                timer.Stop()
+                gossiper.HandleGossip(packet, source)
+            } ()
         }
 
     case packet.Cyphered != nil:
@@ -540,17 +549,25 @@ func (gossiper *Gossiper) SignPacket(packet *common.GossipPacket) *common.Signed
 }
 
 func (gossiper *Gossiper) CypherPacket(packet *common.SignedMessage, destination string) *common.CypheredMessage {
-	bytes, err := protobuf.Encode(packet)
-	if err != nil {
-		panic(err)
-	}
 
     // get public key of destination
-    publicKey := gossiper.BlockChain.GetPublicKey(destination)
+    publicKey, exists := gossiper.BlockChain.GetPublicKey(destination)
 
-    return &common.CypheredMessage{
-        Destination: destination,
-        HopLimit: common.InitialHopLimit,
-        Payload: gossiper.Crypto.Cypher(bytes, publicKey),
+    if exists {
+        bytes, err := protobuf.Encode(packet)
+        if err != nil {
+            panic(err)
+        }
+
+        return &common.CypheredMessage{
+            Destination: destination,
+            HopLimit: common.InitialHopLimit,
+            Payload: gossiper.Crypto.Cypher(bytes, publicKey),
+        }
+    } else {
+        ticker := time.NewTicker(100 * 1000 * 1000 * time.Nanosecond)
+        <-ticker.C
+        ticker.Stop()
+        return gossiper.CypherPacket(packet, destination)
     }
 }

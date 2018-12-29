@@ -512,6 +512,13 @@ func (bc *BlockChain) FirstCommonAncestor(current, new *common.Block) (*common.B
 /////////////////////////
 // RETRIEVAL FUNCTIONS //
 /////////////////////////
-func (bc *BlockChain) GetPublicKey(peer string) rsa.PublicKey {
-    return *bc.Peers[peer]
+func (bc *BlockChain) GetPublicKey(peer string) (rsa.PublicKey, bool) {
+    bc.lock.Lock()
+    defer bc.lock.Unlock()
+    pubKey, exists := bc.Peers[peer]
+    if exists {
+        return *pubKey, exists
+    } else {
+        return rsa.PublicKey{}, exists
+    }
 }
