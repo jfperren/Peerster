@@ -125,24 +125,31 @@ func (gossiper *Gossiper) Stop() {
 // Main loop for handling gossip packets from other nodes.
 func (gossiper *Gossiper) receiveGossip() {
 	for {
-		var packet common.GossipPacket
 		bytes, source, alive := gossiper.GossipSocket.Receive()
 
 		if !alive {
 			break
 		}
 
-		protobuf.Decode(bytes, &packet)
-
-		if !packet.IsValid() {
-			common.DebugInvalidPacket(&packet)
-			continue
-		}
+        if gossiper.handleReceivedPacket(bytes, source) {
+            continue
+        }
 
 		gossiper.Router.AddPeerIfNeeded(source)
-
-		go gossiper.HandleGossip(&packet, source)
 	}
+}
+
+func (gossiper *Gossiper) handleReceivedPacket(bytes []byte, source string) bool {
+    var packet common.GossipPacket
+    protobuf.Decode(bytes, &packet)
+
+    if !packet.IsValid() {
+        common.DebugInvalidPacket(&packet)
+        return true
+    }
+
+    go gossiper.HandleGossip(&packet, source)
+    return false
 }
 
 
