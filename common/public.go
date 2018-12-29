@@ -2,7 +2,7 @@ package common
 
 import (
 	"bytes"
-	"crypto"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
@@ -134,8 +134,8 @@ type OnionPacket struct {
 }
 
 type OnionSubHeader struct {
-	PrevHop 	crypto.PublicKey		// Previous node in the route
-	NextHop 	crypto.PublicKey		// Next node in the route
+	PrevHop 	rsa.PublicKey			// Previous node in the route
+	NextHop 	rsa.PublicKey			// Next node in the route
 	Hash 		[32]byte				// Hash of OnionMessage
 }
 
@@ -431,6 +431,11 @@ func (t *TxPublish) Hash() (out [32]byte) {
 	h.Write(t.File.MetafileHash)
 	copy(out[:], h.Sum(nil))
 	return
+}
+
+// Hash of an Onion
+func (onion *OnionPacket) Hash() (out [32]byte) {
+	return sha256.Sum256(onion.Data[OnionHeaderSize:])
 }
 
 //
