@@ -6,7 +6,6 @@ import (
     "crypto/rsa"
     "crypto/sha256"
     "fmt"
-    "github.com/jfperren/Peerster/common"
 )
 
 type Crypto struct {

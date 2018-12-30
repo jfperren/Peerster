@@ -4,23 +4,7 @@ import (
     "bytes"
     "crypto/rand"
     "crypto/rsa"
-    "encoding/binary"
-    "errors"
     "github.com/jfperren/Peerster/common"
-)
-
-//
-//  ERRORS
-//
-
-const InvalidHeader = 1
-const InvalidPayload = 2
-
-// Errors thrown by the File System type
-var (
-    ErrEncodingNotFixedSize =errors.New("Structure provided has variable size, cannot encode.")
-    ErrEncodingNotEnoughSpace = errors.New("Not enough bytes to fit the data. Increase blockSize.")
-    ErrDecodingNoSize = errors.New("Error getting size of bytes to decode")
 )
 
 
@@ -31,10 +15,8 @@ var (
 // Wrap a regular GossipPacket into an onion that can be send on the mix network
 func (crypto *Crypto) GenerateOnion(gossipPacket *common.GossipPacket, route []rsa.PublicKey) *common.OnionPacket {
 
-    // destination := route[len(route) - 1]
-
     // Encrypt payload
-    payload, _ := encode(gossipPacket, common.OnionPayloadSize)
+    payload, _ := Encode(gossipPacket, common.OnionPayloadSize)
 
     // Create onion with random sub-headers
     data := [common.OnionHeaderSize + common.OnionPayloadSize]byte{}
@@ -99,60 +81,6 @@ func (crypto *Crypto) unwrap(onion *common.OnionPacket) {
     onion.Data = data
 }
 
-// Encode a structure into a slice of bytes that contains its size and is padded with random bits
-func encode(object interface{}, blockSize int) ([]byte, error) {
-
-    objSize := binary.Size(object)
-
-    if objSize == -1 {
-        return []byte{}, ErrEncodingNotFixedSize
-    }
-
-    totalSize := objSize + 8
-
-    if totalSize > blockSize {
-        return []byte{}, ErrEncodingNotEnoughSpace
-    }
-
-    buf := new(bytes.Buffer)
-
-    err := binary.Write(buf, binary.LittleEndian, int64(objSize))
-
-    if err != nil {
-        return []byte{}, err
-    }
-
-    err = binary.Write(buf, binary.LittleEndian, object)
-
-    if err != nil {
-        return []byte{}, err
-    }
-
-    // Copy buffer bytes into a byte slice
-    data := make([]byte, blockSize)
-    copy(data, buf.Bytes())
-
-    // Add padding at the end
-    rand.Read(data[totalSize:])
-
-    return data, nil
-}
-
-// Decode bytes into a structure
-func decode(data []byte, structPtr interface{}) error {
-
-    objSize, n := binary.Uvarint(data[:8])
-
-    if n <= 0 {
-        return ErrDecodingNoSize
-    }
-
-    buf := bytes.NewReader(data[8:objSize+8])
-    err := binary.Read(buf, binary.LittleEndian, structPtr)
-
-    return err
-}
-
 // Rotate all subheaders by one chunk to the left and fill the last chunk with random bits
 func rotateSubHeadersLeft(onion *common.OnionPacket) {
 
@@ -182,7 +110,7 @@ func rotateSubHeadersRight(onion *common.OnionPacket, insertion common.OnionSubH
         l := (i + 1) * common.OnionSubHeaderSize
 
         if i == 0 {
-            bytes, _ := encode(insertion, common.OnionSubHeaderSize)
+            bytes, _ := Encode(insertion, common.OnionSubHeaderSize)
             copy(onion.Data[k:l], bytes)
         } else {
             copy(onion.Data[k:l], onion.Data[j:k])
@@ -197,7 +125,7 @@ func ExtractOnionSubHeader(onion *common.OnionPacket) (*common.OnionSubHeader, e
 
     var subHeader common.OnionSubHeader
 
-    err := decode(subHeaderBytes, &subHeader)
+    err := Decode(subHeaderBytes, &subHeader)
 
     if err != nil {
         return nil, err
