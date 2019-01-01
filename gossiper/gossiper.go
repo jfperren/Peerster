@@ -402,15 +402,29 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 	case packet.TxPublish != nil:
 
 		common.DebugReceiveTransaction(packet.TxPublish)
+        if packet.TxPublish.File.Name != "" {
 
-		if gossiper.BlockChain.TryAddFile(packet.TxPublish) {
+            if gossiper.BlockChain.TryAddFile(packet.TxPublish) {
 
-			packet.TxPublish.HopLimit--
+                packet.TxPublish.HopLimit--
 
-			if packet.TxPublish.HopLimit > 0 {
-				gossiper.broadcastToNeighborsExcept(packet.TxPublish.Packed(), &[]string{source})
-			}
-		}
+                if packet.TxPublish.HopLimit > 0 {
+                    gossiper.broadcastToNeighborsExcept(packet.TxPublish.Packed(), &[]string{source})
+                }
+            }
+        } else {
+            if packet.TxPublish.User.Name != "" {
+
+                if gossiper.BlockChain.TryAddUser(packet.TxPublish) {
+
+                    packet.TxPublish.HopLimit--
+
+                    if packet.TxPublish.HopLimit > 0 {
+                        gossiper.broadcastToNeighborsExcept(packet.TxPublish.Packed(), &[]string{source})
+                    }
+                }
+            }
+        }
 
 	case packet.BlockPublish != nil:
 
