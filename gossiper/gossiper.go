@@ -91,7 +91,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 
 // Start listening for UDP packets on Gossiper's clientAddress & gossipAddress
 func (gossiper *Gossiper) Start() {
-    transaction := NewTransactionKey(gossiper.Name, gossiper.Crypto.PublicKey())
+    transaction := gossiper.NewTransactionKey(gossiper.Name, gossiper.Crypto.PublicKey())
 
     if gossiper.BlockChain.TryAddUser(transaction) {
         gossiper.broadcastToNeighbors(transaction.Packed())
@@ -239,7 +239,7 @@ func (gossiper *Gossiper) HandleClient(command *common.Command) error {
 		metaFile, err := gossiper.FileSystem.ScanFile(command.Upload.FileName)
 		if err != nil { return err }
 
-		transaction := NewTransaction(metaFile)
+		transaction := gossiper.NewTransaction(metaFile)
 
 		if gossiper.BlockChain.TryAddFile(transaction) {
 			gossiper.broadcastToNeighbors(transaction.Packed())
@@ -281,22 +281,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 		common.LogPeers(gossiper.Router.Peers)
 
-		// We only store & forward if the rumor is our next expected rumo
-		// from the source.
-		if gossiper.Rumors.Expects(packet.Rumor) {
-
-			if gossiper.Name != packet.Rumor.Origin {
-				gossiper.Router.updateRoutingTable(packet.Rumor.Origin, source)
-			}
-
-			gossiper.Rumors.Put(packet.Rumor)
-			peer, found := gossiper.Router.randomPeerExcept(source)
-
-			if found {
-				common.DebugForwardRumor(packet.Rumor)
-				go gossiper.rumormonger(packet.Rumor, peer)
-			}
-		}
+		gossiper.handleRumor(packet.Rumor, source)
 
 		statusPacket := gossiper.GenerateStatusPacket()
 		common.DebugSendStatus(statusPacket, source)
@@ -314,7 +299,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 			rumor, _, _ := gossiper.CompareStatus(packet.Status.Want, ComparisonModeMissingOrNew)
 
 			if rumor != nil {
-				go gossiper.rumormonger(rumor, source)
+				go gossiper.rumormonger(*rumor, source)
 			}
 		}
 
@@ -401,6 +386,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 	case packet.TxPublish != nil:
 
+        gossiper.handleRumor(packet.TxPublish, source)
 		common.DebugReceiveTransaction(packet.TxPublish)
         if packet.TxPublish.File.Name != "" {
 
@@ -428,6 +414,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 	case packet.BlockPublish != nil:
 
+        gossiper.handleRumor(packet.BlockPublish, source)
 		if gossiper.BlockChain.TryAddBlock(&packet.BlockPublish.Block) {
 
 			packet.BlockPublish.HopLimit--
@@ -442,6 +429,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
         publicKey, exists := gossiper.BlockChain.GetPublicKey(packet.Signed.Origin)
         if exists {
             if gossiper.Crypto.Verify(packet.Signed.Payload, packet.Signed.Signature, publicKey) {
+                gossiper.handleRumor(packet.Signed, source)
                 gossiper.handleReceivedPacket(packet.Signed.Payload, source)
             }
         } else {

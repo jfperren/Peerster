@@ -21,6 +21,12 @@ type SimpleMessage struct {
 	Contents      string
 }
 
+type IRumorMessage interface {
+    GetOrigin() string
+    GetID() uint32
+    Packed() *GossipPacket
+}
+
 // A rumor that should be sent to every node.
 type RumorMessage struct {
 	Origin 		string
@@ -98,12 +104,16 @@ type TxPublish struct {
 	File     File
     User     User
 	HopLimit uint32
+    ID       uint32
+    Origin   string
 }
 
 // A message announcing that a new block was found
 type BlockPublish struct {
 	Block    Block
 	HopLimit uint32
+    ID       uint32
+    Origin   string
 }
 
 // A file information
@@ -125,6 +135,7 @@ type SignedMessage struct {
     Signature   []byte
     Payload     []byte // actual content of the message
     HopLimit    uint32
+    ID          uint32
 }
 
 type CypheredMessage struct {
@@ -464,4 +475,41 @@ func (block *Block) Str() string {
     }
 
     return fmt.Sprintf("%v:%v:%v", hex.EncodeToString(hash[:]), hex.EncodeToString(prev[:]), strings.Join(files, FileNameSeparator))
+}
+
+
+//
+//  GETTERS
+//
+
+func (r *RumorMessage) GetOrigin() string {
+    return r.Origin
+}
+
+func (r *RumorMessage) GetID() uint32 {
+    return r.ID
+}
+
+func (r *TxPublish) GetOrigin() string {
+    return r.Origin
+}
+
+func (r *TxPublish) GetID() uint32 {
+    return r.ID
+}
+
+func (r *BlockPublish) GetOrigin() string {
+    return r.Origin
+}
+
+func (r *BlockPublish) GetID() uint32 {
+    return r.ID
+}
+
+func (r *SignedMessage) GetOrigin() string {
+    return r.Origin
+}
+
+func (r *SignedMessage) GetID() uint32 {
+    return r.ID
 }

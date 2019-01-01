@@ -10,7 +10,7 @@ import (
 // while also offer higher-level functions related to those Rumors.
 type RumorDatabase struct {
 	nextID uint32                                     // NextID to be used for Rumors
-	Rumors map[string]map[uint32]*common.RumorMessage // List of rumor Ids per node
+	Rumors map[string]map[uint32]*common.IRumorMessage // List of rumor Ids per node
 	Mutex  *sync.RWMutex                              // Read-write lock to access the database
 }
 
@@ -19,14 +19,14 @@ func NewRumorDatabase() *RumorDatabase {
 
 	return &RumorDatabase{
 		nextID: common.InitialId,
-		Rumors: make(map[string]map[uint32]*common.RumorMessage),
+		Rumors: make(map[string]map[uint32]*common.IRumorMessage),
 		Mutex: &sync.RWMutex{},
 	}
 }
 
 // Get the rumor with given ID and origin node name. If no such rumor
 // exists, return nil.
-func (r *RumorDatabase) Get(origin string, ID uint32) *common.RumorMessage {
+func (r *RumorDatabase) Get(origin string, ID uint32) *common.IRumorMessage {
 
 	r.Mutex.RLock()
 	defer r.Mutex.RUnlock()
@@ -41,14 +41,14 @@ func (r *RumorDatabase) Get(origin string, ID uint32) *common.RumorMessage {
 }
 
 // Return true if the rumor is the next expected rumor from the origin node.
-func (r *RumorDatabase) Expects(rumor *common.RumorMessage) bool {
+func (r *RumorDatabase) Expects(rumor common.IRumorMessage) bool {
 
-	return r.NextIDFor(rumor.Origin) == rumor.ID
+	return r.NextIDFor(rumor.GetOrigin()) == rumor.GetID()
 }
 
 // Return true if a rumor is already contained in the database. Comparison
 // is done using ID and origin node only and does not care about rumor text.
-func (r *RumorDatabase) Put(rumor *common.RumorMessage) {
+func (r *RumorDatabase) Put(rumor common.IRumorMessage) {
 
 	if rumor == nil {
 		panic("Should not try and store and <nil> rumor.")
@@ -58,21 +58,21 @@ func (r *RumorDatabase) Put(rumor *common.RumorMessage) {
 	defer r.Mutex.Unlock()
 
 	nextID := common.InitialId
-	rumors, found := r.Rumors[rumor.Origin]
+	rumors, found := r.Rumors[rumor.GetOrigin()]
 
 	if found {
 		nextID += uint32(len(rumors))
 	}
 
-	if nextID != rumor.ID {
+	if nextID != rumor.GetID() {
 		return
 	}
 
 	if !found {
-		r.Rumors[rumor.Origin] = make(map[uint32]*common.RumorMessage)
+		r.Rumors[rumor.GetOrigin()] = make(map[uint32]*common.IRumorMessage)
 	}
 
-	r.Rumors[rumor.Origin][rumor.ID] = rumor
+	r.Rumors[rumor.GetOrigin()][rumor.GetID()] = &rumor
 }
 
 // Returns, for a given origin node, the first message ID that is NOT
@@ -140,7 +140,7 @@ func (r *RumorDatabase) ConsumeNextID() uint32 {
 //    - If the other vector clock is missing messages, send ALL those messages as a second return value.
 //    - Otherwise, return nil, nil, nil.
 //
-func (gossiper *Gossiper) CompareStatus(statuses []common.PeerStatus, mode int) (*common.RumorMessage, []*common.RumorMessage, []common.PeerStatus) {
+func (gossiper *Gossiper) CompareStatus(statuses []common.PeerStatus, mode int) (*common.IRumorMessage, []*common.IRumorMessage, []common.PeerStatus) {
 
 	if mode > ComparisonModeAllNew || mode < ComparisonModeMissingOrNew {
 		mode = ComparisonModeAllNew
@@ -156,10 +156,10 @@ func (gossiper *Gossiper) CompareStatus(statuses []common.PeerStatus, mode int) 
 	rumorsWanted := false
 
 	//
-	var allRumors []*common.RumorMessage
+	var allRumors []*common.IRumorMessage
 
 	if mode == ComparisonModeAllNew {
-		allRumors = make([]*common.RumorMessage, 0)
+		allRumors = make([]*common.IRumorMessage, 0)
 	}
 
 	for _, myStatus := range myStatuses {
@@ -258,7 +258,7 @@ func (gossiper *Gossiper) CompareStatus(statuses []common.PeerStatus, mode int) 
 //   rumormongering process with the missing rumor.
 //
 // - If the node sends a status that says we are missing messages, we
-func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
+func (gossiper *Gossiper) rumormonger(rumor common.IRumorMessage, peer string) {
 
 	if rumor == nil {
 		panic("Cannot rumormonger with <nil> rumor!")
@@ -290,7 +290,7 @@ func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
 
 		case otherRumor != nil: // Peer is missing messages
 
-			go gossiper.rumormonger(otherRumor, peer)
+			go gossiper.rumormonger(*otherRumor, peer)
 			shouldContinue = true
 
 		default:
@@ -321,6 +321,25 @@ func (gossiper *Gossiper) rumormonger(rumor *common.RumorMessage, peer string) {
 	} else {
 		common.DebugStopMongering(rumor)
 	}
+}
+
+func (gossiper *Gossiper) handleRumor(rumor common.IRumorMessage, source string) {
+    // We only store & forward if the rumor is our next expected rumor
+    // from the source.
+    if gossiper.Rumors.Expects(rumor) {
+
+        if gossiper.Name != rumor.GetOrigin() {
+            gossiper.Router.updateRoutingTable(rumor.GetOrigin(), source)
+        }
+
+        gossiper.Rumors.Put(rumor)
+        peer, found := gossiper.Router.randomPeerExcept(source)
+
+        if found {
+            common.DebugForwardRumor(rumor)
+            go gossiper.rumormonger(rumor, peer)
+        }
+    }
 }
 
 // Main loop for pinging other nodes as part of the anti-entropy algorithm.

@@ -11,7 +11,7 @@ import (
 var g *Gossiper
 
 type RumorsAndStatuses struct {
-	Rumors   []*common.RumorMessage
+	Rumors   []*common.IRumorMessage
 	Statuses []common.PeerStatus
 }
 

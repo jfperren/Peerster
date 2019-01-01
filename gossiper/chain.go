@@ -54,8 +54,8 @@ func NewBlockChain() *BlockChain {
     }
 }
 
-func NewTransaction(metaFile *MetaFile) *common.TxPublish {
-    return &common.TxPublish{
+func (gossiper *Gossiper) NewTransaction(metaFile *MetaFile) *common.TxPublish {
+    tx := common.TxPublish{
         File: common.File{
             Name: metaFile.Name,
             Size: int64(metaFile.Size),
@@ -63,16 +63,24 @@ func NewTransaction(metaFile *MetaFile) *common.TxPublish {
         },
         HopLimit: common.TransactionHopLimit,
     }
+    if gossiper.Crypto.Options == 0 {
+        tx.ID = gossiper.Rumors.ConsumeNextID()
+    }
+    return &tx
 }
 
-func NewTransactionKey(username string, publicKey rsa.PublicKey) *common.TxPublish {
-    return &common.TxPublish{
+func (gossiper *Gossiper) NewTransactionKey(username string, publicKey rsa.PublicKey) *common.TxPublish {
+    tx := &common.TxPublish{
         User: common.User{
             Name: username,
             PublicKey: x509.MarshalPKCS1PublicKey(&publicKey),
         },
         HopLimit: common.TransactionHopLimit,
     }
+    if gossiper.Crypto.Options == 0 {
+        tx.ID = gossiper.Rumors.ConsumeNextID()
+    }
+    return tx
 }
 
 func (gossiper *Gossiper) waitForNewBlocks() {
@@ -84,6 +92,10 @@ func (gossiper *Gossiper) waitForNewBlocks() {
         publish := &common.BlockPublish{
             Block:    *block,
             HopLimit: common.BlockHopLimit,
+        }
+
+        if gossiper.Crypto.Options == 0 {
+            publish.ID = gossiper.Rumors.ConsumeNextID()
         }
 
         common.DebugBroadcastBlock(publish.Block.Hash())

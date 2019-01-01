@@ -26,8 +26,13 @@ func LogSimpleMessage(message *SimpleMessage) {
 		message.OriginalName, message.RelayPeerAddr, message.Contents)
 }
 
-func LogRumor(rumor *RumorMessage, relayAddress string) {
-	fmt.Printf("RUMOR origin %v from %v ID %v contents %v\n", rumor.Origin, relayAddress, rumor.ID, rumor.Text)
+func LogRumor(rumor IRumorMessage, relayAddress string) {
+    switch t := rumor.(type) {
+    default:
+        fmt.Printf("RUMOR origin %v from %v ID %v type %T\n", rumor.GetOrigin(), relayAddress, rumor.GetID(), t)
+    case *RumorMessage:
+        fmt.Printf("RUMOR origin %v from %v ID %v contents %v\n", rumor.GetOrigin(), relayAddress, rumor.GetID(), (rumor.(*RumorMessage)).Text)
+    }
 }
 
 func LogMongering(peerAddress string) {
@@ -127,9 +132,15 @@ func LogForkLongerRewind(current []*Block) {
 //  These are optional messages, not required in the assignment
 //  that might be used for debugging.
 
-func DebugStopMongering(rumor *RumorMessage) {
+func DebugStopMongering(rumor IRumorMessage) {
 	if !Verbose { return }
-	fmt.Printf("STOP MONGERING rumor %v\n", rumor.Text)
+    switch t := rumor.(type) {
+    default:
+        fmt.Printf("STOP MONGERING rumor of type %T\n", t)
+        //fmt.Printf("unexpected type %T\n", t)     // %T prints whatever type t has
+    case *RumorMessage:
+        fmt.Printf("STOP MONGERING rumor %v\n", (rumor.(*RumorMessage)).Text)
+    }
 }
 
 func DebugTimeout(peer string) {
@@ -148,9 +159,14 @@ func DebugSendStatus(status *StatusPacket, to string) {
 	fmt.Printf("\n")
 }
 
-func DebugForwardRumor(rumor *RumorMessage) {
+func DebugForwardRumor(rumor IRumorMessage) {
 	if !Verbose { return }
-	fmt.Printf("FORWARD rumor %v\n", rumor.Text)
+    switch t := rumor.(type) {
+    default:
+        fmt.Printf("FORWARD rumor origin %v from %v ID %v type %T\n", rumor.GetOrigin(), rumor.GetID(), t)
+    case *RumorMessage:
+        fmt.Printf("FORWARD rumor %v\n", (rumor.(*RumorMessage)).Text)
+    }
 }
 
 func DebugAskAndSendStatus(status *StatusPacket, to string) {

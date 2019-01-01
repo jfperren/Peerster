@@ -17,11 +17,11 @@ func TestRumorsPutSameOrigin(t *testing.T) {
 		t.Errorf("Expected length of Rumors to be %v, go %v instead.", 1, len(rumors.Rumors))
 	}
 
-	if !(rumors.Rumors["A"][1].ID == 1 && rumors.Rumors["A"][1].Origin == "A" && rumors.Rumors["A"][1].Text == "Hello") {
+	if !((*rumors.Rumors["A"][1]).GetID() == 1 && (*rumors.Rumors["A"][1]).GetOrigin() == "A" && (*rumors.Rumors["A"][1]).(*common.RumorMessage).Text == "Hello") {
 		t.Errorf("Wrong rumor at Rumors['A'][1] -> %v.", rumors.Rumors["A"][1])
 	}
 
-	if !(rumors.Rumors["A"][2].ID == 2 && rumors.Rumors["A"][2].Origin == "A" && rumors.Rumors["A"][2].Text == "Hi") {
+	if !((*rumors.Rumors["A"][2]).GetID() == 2 && (*rumors.Rumors["A"][2]).GetOrigin() == "A" && (*rumors.Rumors["A"][2]).(*common.RumorMessage).Text == "Hi") {
 		t.Errorf("Wrong rumor at Rumors['A'][2] -> %v.", rumors.Rumors["A"][2])
 	}
 }
@@ -37,11 +37,11 @@ func TestRumorsPutTwoOrigins(t *testing.T) {
 		t.Errorf("Expected length of Rumors to be %v, go %v instead.", 2, len(rumors.Rumors))
 	}
 
-	if !(rumors.Rumors["A"][1].ID == 1 && rumors.Rumors["A"][1].Origin == "A" && rumors.Rumors["A"][1].Text == "Hello") {
+	if !((*rumors.Rumors["A"][1]).GetID() == 1 && (*rumors.Rumors["A"][1]).GetOrigin() == "A" && (*rumors.Rumors["A"][1]).(*common.RumorMessage).Text == "Hello") {
 		t.Errorf("Wrong rumor at Rumors['A'][1] -> %v.", rumors.Rumors["A"][1])
 	}
 
-	if !(rumors.Rumors["B"][1].ID == 1 && rumors.Rumors["B"][1].Origin == "B" && rumors.Rumors["B"][1].Text == "Hi") {
+	if !((*rumors.Rumors["B"][1]).GetID() == 1 && (*rumors.Rumors["B"][1]).GetOrigin() == "B" && (*rumors.Rumors["B"][1]).(*common.RumorMessage).Text == "Hi") {
 		t.Errorf("Wrong rumor at Rumors['B'][1] -> %v.", rumors.Rumors["B"][1])
 	}
 }
@@ -56,11 +56,11 @@ func TestRumorsGetSameOrigin(t *testing.T) {
 	firstRumor := rumors.Get("A", 1)
 	secondRumor := rumors.Get("A", 2)
 
-	if !(firstRumor.ID == 1 && firstRumor.Origin == "A" && firstRumor.Text == "Hello") {
+	if !((*firstRumor).GetID() == 1 && (*firstRumor).GetOrigin() == "A" && (*firstRumor).(*common.RumorMessage).Text == "Hello") {
 		t.Errorf("Wrong rumor at Rumors['A'][1] -> %v.", rumors.Rumors["A"][1])
 	}
 
-	if !(secondRumor.ID == 2 && secondRumor.Origin == "A" && secondRumor.Text == "Hi") {
+	if !((*secondRumor).GetID() == 2 && (*secondRumor).GetOrigin() == "A" && (*secondRumor).(*common.RumorMessage).Text == "Hi") {
 		t.Errorf("Wrong rumor at Rumors['A'][2] -> %v.", rumors.Rumors["A"][2])
 	}
 }
@@ -75,7 +75,7 @@ func TestRumorsGetTwoOrigins(t *testing.T) {
 	firstRumor := rumors.Get("A", 1)
 	secondRumor := rumors.Get("B", 2)
 
-	if !(firstRumor.ID == 1 && firstRumor.Origin == "A" && firstRumor.Text == "Hello") {
+	if !((*firstRumor).GetID() == 1 && (*firstRumor).GetOrigin() == "A" && (*firstRumor).(*common.RumorMessage).Text == "Hello") {
 		t.Errorf("Wrong rumor at Rumors['A'][1] -> %v.", rumors.Rumors["A"][1])
 	}
 
