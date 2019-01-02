@@ -36,3 +36,4 @@ const OnionSubHeaderCount = 16
 const OnionSubHeaderSize = OnionHeaderSize / OnionSubHeaderCount
 const SignOnly = 1
 const CypherIfPossible = 2
+const MixerNodeBufferSize = 8

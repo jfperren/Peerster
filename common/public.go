@@ -94,18 +94,14 @@ type SearchResult struct {
 	ChunkCount   uint64
 }
 
-type User struct {
-    Name string
-    PublicKey []byte
-}
-
 // A message announcing that a new transaction should be processed
 type TxPublish struct {
-	File     File
-    User     User
-	HopLimit uint32
-    ID       uint32
-    Origin   string
+	File      File
+    User      User
+	MixerNode MixerNode
+	HopLimit  uint32
+    ID        uint32
+    Origin    string
 }
 
 // A message announcing that a new block was found
@@ -121,6 +117,18 @@ type File struct {
 	Name          string
 	Size          int64
 	MetafileHash  []byte
+}
+
+// A registered user
+type User struct {
+	Name string
+	PublicKey []byte
+}
+
+// A registered mixer node
+type MixerNode struct {
+	Address   string
+	PublicKey []byte
 }
 
 // A block on the blockchain

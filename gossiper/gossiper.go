@@ -3,7 +3,7 @@ package gossiper
 import (
 	"github.com/dedis/protobuf"
 	"github.com/jfperren/Peerster/common"
-    "log"
+	"log"
 	"sync"
 	"time"
 )
@@ -32,6 +32,7 @@ type Gossiper struct {
 	BlockChain		*BlockChain
     Crypto          *Crypto         // Stores the RSA keys, and handle the (de)cyphering and
                                     // signing/validating messages
+    Mixer 			*Mixer // Stores pending packets to be forwarded through a mix-network
 }
 
 const (
@@ -51,7 +52,7 @@ const (
 //
 // Note - Use gossiper.Start() to Start listening for messages.
 //
-func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool, rtimer int, separatefs bool, keySize, cryptoOpts int) *Gossiper {
+func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool, rtimer int, separatefs bool, keySize, cryptoOpts int, isMixer bool) *Gossiper {
 
 	gossipSocket := common.NewUDPSocket(gossipAddress)
 	var clientSocket *common.UDPSocket
@@ -68,6 +69,12 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		sharedPath = sharedPath + name + "/"
 	}
 
+	var mixer *Mixer
+	if isMixer {
+		mixer = NewMixer()
+
+	}
+
 	return &Gossiper{
 		Name:         name,
 		Simple:       simple,
@@ -82,6 +89,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 		SearchEngine: 	NewSearchEngine(),
 		BlockChain:		NewBlockChain(),
         Crypto:         NewCrypto(keySize, cryptoOpts),
+		Mixer:			mixer,
 	}
 }
 
@@ -91,12 +99,22 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 
 // Start listening for UDP packets on Gossiper's clientAddress & gossipAddress
 func (gossiper *Gossiper) Start() {
-    transaction := gossiper.NewTransactionKey(gossiper.Name, gossiper.Crypto.PublicKey())
+	// start by announcing self to network's blockchain
+	publicKey := gossiper.Crypto.PublicKey()
+	usrTransaction := gossiper.NewTransactionKey(gossiper.Name, publicKey)
+	if gossiper.BlockChain.TryAddUser(usrTransaction) {
+		gossiper.broadcastToNeighbors(usrTransaction.Packed())
+		common.DebugBroadcastTransaction(usrTransaction)
+	}
 
-    if gossiper.BlockChain.TryAddUser(transaction) {
-        gossiper.broadcastToNeighbors(transaction.Packed())
-        common.DebugBroadcastTransaction(transaction)
-    }
+	if gossiper.Mixer != nil {
+	// announce self to mixer network in common blockchain
+		mixerTransaction := gossiper.NewTransactionMixer(gossiper.GossipSocket.Address, publicKey)
+		if gossiper.BlockChain.TryAddMixerNode(mixerTransaction) {
+			gossiper.broadcastToNeighbors(mixerTransaction.Packed())
+			common.DebugBroadcastTransaction(mixerTransaction)
+		}
+	}
 
 	go gossiper.receiveGossip()
 	go gossiper.sendRouteRumors()
