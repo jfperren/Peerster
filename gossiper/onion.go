@@ -4,19 +4,39 @@ import (
     "bytes"
     "crypto/rand"
     "crypto/rsa"
+    "errors"
     "github.com/jfperren/Peerster/common"
 )
 
+
+// Errors thrown by the Onion module
+var (
+
+    // Thrown when the block size given is smaller than the size of the structure to encode
+    ErrTooManyNodesOnRoute = errors.New("route is too long for size of header")
+
+    // Thrown when the block size given is smaller than the size of the structure to encode
+    ErrOnionNextHopNotFound = errors.New("could not find name corresponding to public key in NextHop")
+
+    // Thrown when the block size given is smaller than the size of the structure to encode
+    ErrOnionHashDoNotMatch = errors.New("found hash that does not match computed hash")
+
+)
 
 //
 //  WRAP / UNWRAP
 //
 
 // Wrap a regular GossipPacket into an onion that can be send on the mix network
-func (crypto *Crypto) GenerateOnion(gossipPacket *common.GossipPacket, route []rsa.PublicKey) *common.OnionPacket {
+func (crypto *Crypto) GenerateOnion(gossipPacket *common.GossipPacket, route []rsa.PublicKey) (*common.OnionPacket, error) {
+
+    if len(route) > common.OnionSubHeaderCount {
+        return nil, ErrTooManyNodesOnRoute
+    }
 
     // Encrypt payload
-    payload, _ := Encode(gossipPacket, common.OnionPayloadSize)
+    payload, err := Encode(gossipPacket, common.OnionPayloadSize)
+    if err != nil { return nil, nil }
 
     // Create onion with random sub-headers
     data := [common.OnionHeaderSize + common.OnionPayloadSize]byte{}
@@ -57,7 +77,7 @@ func (crypto *Crypto) GenerateOnion(gossipPacket *common.GossipPacket, route []r
         crypto.wrap(onion, node)
     }
 
-    return onion
+    return onion, nil
 }
 
 func (gossiper *Gossiper) ProcessOnion(onion *common.OnionPacket) (*common.GossipPacket, error) {
@@ -134,6 +154,10 @@ func (crypto *Crypto) unwrap(onion *common.OnionPacket) {
     onion.Data = data
 }
 
+//
+//  HEADER FUNCTIONS
+//
+
 // Rotate all subheaders by one chunk to the left and fill the last chunk with random bits
 func rotateSubHeadersLeft(onion *common.OnionPacket) {
 
@@ -186,6 +210,10 @@ func ExtractOnionSubHeader(onion *common.OnionPacket) (*common.OnionSubHeader, e
 
     return &subHeader, nil
 }
+
+//
+//  VERIFICATION
+//
 
 // Returns true if the onion this sub-header corresponds to has no next hop
 func isLast(subHeader *common.OnionSubHeader) bool {

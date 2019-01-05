@@ -11,7 +11,7 @@ import (
 //  ERRORS
 //
 
-// Errors thrown by the File System type
+// Errors thrown by the Coding module
 var (
 
     // Thrown when the block size given is smaller than the size of the structure to encode
