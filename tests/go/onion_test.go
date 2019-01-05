@@ -39,6 +39,60 @@ var (
     }
 )
 
+func TestSubHeaderLeftRotation(t *testing.T) {
+
+    onionData := [common.OnionSize]byte{}
+    rand.Read(onionData[:])
+    onion := common.OnionPacket{0, "", onionData}
+
+    // Copy onion to keep a separate version
+    onionDataCopy := [common.OnionSize]byte{}
+    copy(onionDataCopy[:], onionData[:])
+
+    gossiper.RotateSubHeadersLeft(&onion)
+
+    for i := 0; i < common.OnionSubHeaderCount - 1; i++ {
+
+        j := i * common.OnionSubHeaderSize
+        k := (i + 1) * common.OnionSubHeaderSize
+        l := (i + 2) * common.OnionSubHeaderSize
+
+        if !bytes.Equal(onion.Data[j:k], onionDataCopy[k:l]) {
+            t.Errorf("Block %v is not rotated correctly", i)
+        }
+    }
+}
+
+func TestSubHeaderRightRotation(t *testing.T) {
+
+    onionData := [common.OnionSize]byte{}
+    rand.Read(onionData[:])
+    onion := common.OnionPacket{0, "", onionData}
+
+    // Copy onion to keep a separate version
+    onionDataCopy := [common.OnionSize]byte{}
+    copy(onionDataCopy[:], onionData[:])
+
+    gossiper.RotateSubHeadersRight(&onion)
+
+    for i := 0; i < common.OnionSubHeaderCount - 1; i++ {
+
+        j := i * common.OnionSubHeaderSize
+        k := (i + 1) * common.OnionSubHeaderSize
+        l := (i + 2) * common.OnionSubHeaderSize
+
+        if !bytes.Equal(onionDataCopy[j:k], onion.Data[k:l]) {
+            t.Errorf("Block %v is not rotated correctly", i+1)
+        }
+    }
+
+    if !bytes.Equal(make([]byte, common.OnionSubHeaderSize), onion.Data[0:common.OnionSubHeaderSize]) {
+        t.Errorf("Block 0 is not rotated correctly")
+    }
+
+
+}
+
 func TestOnionOneLayer(t *testing.T) {
 
     // Create dummy message

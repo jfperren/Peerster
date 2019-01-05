@@ -81,7 +81,7 @@ func (crypto *Crypto) GenerateOnion(
             next = route[i+1]
         }
 
-        rotateSubHeadersRight(onion)
+        RotateSubHeadersRight(onion)
         crypto.wrap(onion, *key, prev, next)
     }
 
@@ -107,7 +107,7 @@ func (gossiper *Gossiper) ProcessOnion(onion *common.OnionPacket) (*common.Gossi
     } else {
 
         // Rotate subHeaders for the next node
-        // rotateSubHeadersLeft(onion)
+        RotateSubHeadersLeft(onion)
 
         // Reset hop limit
         onion.HopLimit = common.InitialHopLimit
@@ -190,12 +190,12 @@ func (crypto *Crypto) unwrap(onion *common.OnionPacket) (*common.OnionSubHeader,
 //
 
 // Rotate all subheaders by one chunk to the left and fill the last chunk with random bits
-func rotateSubHeadersLeft(onion *common.OnionPacket) {
+func RotateSubHeadersLeft(onion *common.OnionPacket) {
 
     for i := 0; i < common.OnionSubHeaderCount; i++ {
 
         j := i * common.OnionSubHeaderSize
-        k := i + 1 * common.OnionSubHeaderSize
+        k := (i + 1) * common.OnionSubHeaderSize
         l := (i + 2) * common.OnionSubHeaderSize
 
         if i == common.OnionSubHeaderCount - 1 {
@@ -209,7 +209,7 @@ func rotateSubHeadersLeft(onion *common.OnionPacket) {
 }
 
 // Insert new sub-header at the start of the list and rotate all other subheaders by one chunk to the right
-func rotateSubHeadersRight(onion *common.OnionPacket) {
+func RotateSubHeadersRight(onion *common.OnionPacket) {
 
     for i := common.OnionSubHeaderCount - 1; i >= 0; i-- {
 
