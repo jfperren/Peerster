@@ -60,6 +60,59 @@ func (crypto *Crypto) GenerateOnion(gossipPacket *common.GossipPacket, route []r
     return onion
 }
 
+func (gossiper *Gossiper) ProcessOnion(onion *common.OnionPacket) (*common.GossipPacket, error) {
+
+    // First, unwrap the onion
+    gossiper.Crypto.unwrap(onion)
+
+    // Get first subHeader
+    subHeader, err := ExtractOnionSubHeader(onion)
+    if err != nil { return nil, err }
+
+    // Check integrity of onion content
+    if !isValid(onion, subHeader) {
+        return nil, ErrOnionHashDoNotMatch
+    }
+
+    // If we are last, we should be able to get the data
+    if isLast(subHeader) {
+
+        // Try to decode payload into a gossip packet
+        var gossipPacket common.GossipPacket
+        err = Decode(onion.Data[common.OnionHeaderSize:], &gossipPacket)
+        if err != nil { return nil, err }
+
+        return &gossipPacket, nil
+
+    } else {
+
+        // Rotate subHeaders for the next node
+        rotateSubHeadersLeft(onion)
+
+        // Finds next destination based on keys
+
+        found := false
+
+        for name, key := range gossiper.BlockChain.MixerNodes {
+            if key.E == subHeader.NextHop.E {
+                onion.Destination = name
+                onion.HopLimit = common.InitialHopLimit
+                found = true
+            }
+        }
+
+        if !found {
+            return nil, ErrOnionNextHopNotFound
+        }
+
+        return nil, nil
+    }
+}
+
+//
+//  WRAP / UNWRAP
+//
+
 func (crypto *Crypto) wrap(onion *common.OnionPacket, key rsa.PublicKey) {
 
     cipher := crypto.Cypher(onion.Data[:], key)
