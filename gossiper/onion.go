@@ -88,11 +88,11 @@ func (crypto *Crypto) GenerateOnion(
     return onion, nil
 }
 
-func (gossiper *Gossiper) ProcessOnion(onion *common.OnionPacket) (*common.GossipPacket, error) {
+func (gossiper *Gossiper) ProcessOnion(onion *common.OnionPacket) (*common.GossipPacket, *common.OnionSubHeader, error) {
 
     // First, unwrap the onion and get subHeader
     subHeader, err := gossiper.Crypto.unwrap(onion)
-    if err != nil { return nil, err }
+    if err != nil { return nil, subHeader, err }
 
     // If we are last, we should be able to get the data
     if isLast(subHeader) {
@@ -100,9 +100,9 @@ func (gossiper *Gossiper) ProcessOnion(onion *common.OnionPacket) (*common.Gossi
         // Try to decode payload into a gossip packet
         var gossipPacket common.GossipPacket
         err = Decode(onion.Data[common.OnionHeaderSize:], &gossipPacket)
-        if err != nil { return nil, err }
+        if err != nil { return nil, subHeader, err }
 
-        return &gossipPacket, nil
+        return &gossipPacket, subHeader, nil
 
     } else {
 
@@ -112,7 +112,7 @@ func (gossiper *Gossiper) ProcessOnion(onion *common.OnionPacket) (*common.Gossi
         // Reset hop limit
         onion.HopLimit = common.InitialHopLimit
 
-        return nil, nil
+        return nil, subHeader, nil
     }
 }
 
@@ -223,22 +223,6 @@ func RotateSubHeadersRight(onion *common.OnionPacket) {
             copy(onion.Data[k:l], onion.Data[j:k])
         }
     }
-}
-
-// Unwraps one layer of an onion
-func ExtractOnionSubHeader(onion *common.OnionPacket) (*common.OnionSubHeader, error) {
-
-    subHeaderBytes := onion.Data[:common.OnionSubHeaderSize]
-
-    var subHeader common.OnionSubHeader
-
-    err := Decode(subHeaderBytes, &subHeader)
-
-    if err != nil {
-        return nil, err
-    }
-
-    return &subHeader, nil
 }
 
 //

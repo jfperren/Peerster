@@ -482,7 +482,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 		if destined {
 
-			gossipPacket, err := gossiper.ProcessOnion(packet.Onion)
+			gossipPacket, _, err := gossiper.ProcessOnion(packet.Onion)
 
 			if err != nil {
 				// Drop the packet
