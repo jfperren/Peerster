@@ -16,10 +16,13 @@ var (
     ErrTooManyNodesOnRoute = errors.New("route is too long for size of header")
 
     // Thrown when the block size given is smaller than the size of the structure to encode
-    ErrOnionNextHopNotFound = errors.New("could not find name corresponding to public key in NextHop")
+    ErrOnionHopKeyNotFound = errors.New("could not find name corresponding to public key in NextHop")
 
     // Thrown when the block size given is smaller than the size of the structure to encode
     ErrOnionHashDoNotMatch = errors.New("found hash that does not match computed hash")
+
+    // Thrown when the block size given is smaller than the size of the structure to encode
+    ErrOnionCouldNotDecipherSubHeader = errors.New("could not decipher subHeader")
 
 )
 
@@ -28,7 +31,12 @@ var (
 //
 
 // Wrap a regular GossipPacket into an onion that can be send on the mix network
-func (crypto *Crypto) GenerateOnion(gossipPacket *common.GossipPacket, route []rsa.PublicKey) (*common.OnionPacket, error) {
+func (crypto *Crypto) GenerateOnion(
+    gossipPacket *common.GossipPacket,
+    route []string,
+    keys map[string]*rsa.PublicKey,
+    name string,
+) (*common.OnionPacket, error) {
 
     if len(route) > common.OnionSubHeaderCount {
         return nil, ErrTooManyNodesOnRoute
@@ -50,12 +58,18 @@ func (crypto *Crypto) GenerateOnion(gossipPacket *common.GossipPacket, route []r
 
         node := route[i]
 
-        var next rsa.PublicKey
-        var prev rsa.PublicKey
+        key, found := keys[node]
+
+        if !found {
+            return nil, ErrOnionHopKeyNotFound
+        }
+
+        var next string
+        var prev string
 
         if i == 0 {
-            // Use our key as previous for the first node
-            prev = crypto.PublicKey()
+            // Use our name as previous for the first node
+            prev = name
         } else {
             prev = route[i-1]
         }
@@ -67,14 +81,8 @@ func (crypto *Crypto) GenerateOnion(gossipPacket *common.GossipPacket, route []r
             next = route[i+1]
         }
 
-        subHeader := common.OnionSubHeader{
-            PrevHop: prev,
-            NextHop: next,
-            Hash: onion.Hash(),
-        }
-
-        rotateSubHeadersRight(onion, subHeader)
-        crypto.wrap(onion, node)
+        rotateSubHeadersRight(onion)
+        crypto.wrap(onion, *key, prev, next)
     }
 
     return onion, nil
@@ -82,17 +90,9 @@ func (crypto *Crypto) GenerateOnion(gossipPacket *common.GossipPacket, route []r
 
 func (gossiper *Gossiper) ProcessOnion(onion *common.OnionPacket) (*common.GossipPacket, error) {
 
-    // First, unwrap the onion
-    gossiper.Crypto.unwrap(onion)
-
-    // Get first subHeader
-    subHeader, err := ExtractOnionSubHeader(onion)
+    // First, unwrap the onion and get subHeader
+    subHeader, err := gossiper.Crypto.unwrap(onion)
     if err != nil { return nil, err }
-
-    // Check integrity of onion content
-    if !isValid(onion, subHeader) {
-        return nil, ErrOnionHashDoNotMatch
-    }
 
     // If we are last, we should be able to get the data
     if isLast(subHeader) {
@@ -107,23 +107,10 @@ func (gossiper *Gossiper) ProcessOnion(onion *common.OnionPacket) (*common.Gossi
     } else {
 
         // Rotate subHeaders for the next node
-        rotateSubHeadersLeft(onion)
+        // rotateSubHeadersLeft(onion)
 
-        // Finds next destination based on keys
-
-        found := false
-
-        for name, key := range gossiper.BlockChain.MixerNodes {
-            if key.E == subHeader.NextHop.E {
-                onion.Destination = name
-                onion.HopLimit = common.InitialHopLimit
-                found = true
-            }
-        }
-
-        if !found {
-            return nil, ErrOnionNextHopNotFound
-        }
+        // Reset hop limit
+        onion.HopLimit = common.InitialHopLimit
 
         return nil, nil
     }
@@ -133,25 +120,69 @@ func (gossiper *Gossiper) ProcessOnion(onion *common.OnionPacket) (*common.Gossi
 //  WRAP / UNWRAP
 //
 
-func (crypto *Crypto) wrap(onion *common.OnionPacket, key rsa.PublicKey) {
+func (crypto *Crypto) wrap(onion *common.OnionPacket, key rsa.PublicKey, prev, next string) error {
 
-    cipher := crypto.Cypher(onion.Data[:], key)
+    symmetricKey := crypto.NewCBCSecret()
 
-    var data [common.OnionHeaderSize + common.OnionPayloadSize]byte
-    copy(data[:], cipher)
+    // Encrypt symmetric part
+    otherData := onion.Data[common.OnionSubHeaderSize:]
+    otherDataCipher, iv, err := crypto.CBCCipher(otherData, symmetricKey)
+    if err != nil { return err }
 
-    onion.Data = data
+    // Create subHeader with information
+    subHeader := &common.OnionSubHeader{
+        PrevHop: prev,
+        NextHop: next,
+        Key: symmetricKey,
+        IV: iv,
+        Hash: onion.Hash(),
+    }
+
+    // Encode subHeader
+    subHeaderData, _ := Encode(subHeader, common.OnionSubHeaderPaddingSize)
+
+    // Encrypt subHeader with asymmetric key
+    cipherSubHeader := crypto.Cypher(subHeaderData, key)
+
+    // Copy subHeader into onion
+    copy(onion.Data[common.OnionSubHeaderSize:], otherDataCipher)
+    copy(onion.Data[:common.OnionSubHeaderSize], cipherSubHeader)
+
+    return nil
 }
 
 // Unwrap one layer of the onion using the node's public key
-func (crypto *Crypto) unwrap(onion *common.OnionPacket) {
+func (crypto *Crypto) unwrap(onion *common.OnionPacket) (*common.OnionSubHeader, error) {
 
-    decipher := crypto.Decypher(onion.Data[:])
+    // First, extract the subHeader bytes
+    subHeaderCipher := onion.Data[:common.OnionSubHeaderSize]
 
-    var data [common.OnionHeaderSize + common.OnionPayloadSize]byte
-    copy(data[:], decipher)
+    // Decipher subHeader with private key
+    subHeaderData := crypto.Decypher(subHeaderCipher)
 
-    onion.Data = data
+    if len(subHeaderData) == 0 {
+        return nil, ErrOnionCouldNotDecipherSubHeader
+    }
+
+    // Extract into subHeader structure
+    var subHeader common.OnionSubHeader
+    err := Decode(subHeaderData, &subHeader)
+    if err != nil { return nil, err }
+
+    // Extract rest of the data
+    otherDataCipher := onion.Data[common.OnionSubHeaderSize:]
+    otherData, err := crypto.CBCDecipher(otherDataCipher, subHeader.Key[:], subHeader.IV[:])
+
+    // Copy it back into the onion
+    copy(onion.Data[:common.OnionSubHeaderSize], subHeaderData)
+    copy(onion.Data[common.OnionSubHeaderSize:], otherData)
+
+    // Check integrity of onion content
+    if !isValid(onion, &subHeader) {
+        return nil, ErrOnionHashDoNotMatch
+    }
+
+    return &subHeader, nil
 }
 
 //
@@ -178,7 +209,7 @@ func rotateSubHeadersLeft(onion *common.OnionPacket) {
 }
 
 // Insert new sub-header at the start of the list and rotate all other subheaders by one chunk to the right
-func rotateSubHeadersRight(onion *common.OnionPacket, insertion common.OnionSubHeader) {
+func rotateSubHeadersRight(onion *common.OnionPacket) {
 
     for i := common.OnionSubHeaderCount - 1; i >= 0; i-- {
 
@@ -187,8 +218,7 @@ func rotateSubHeadersRight(onion *common.OnionPacket, insertion common.OnionSubH
         l := (i + 1) * common.OnionSubHeaderSize
 
         if i == 0 {
-            bytes, _ := Encode(insertion, common.OnionSubHeaderSize)
-            copy(onion.Data[k:l], bytes)
+            copy(onion.Data[k:l], make([]byte, common.OnionSubHeaderSize))
         } else {
             copy(onion.Data[k:l], onion.Data[j:k])
         }

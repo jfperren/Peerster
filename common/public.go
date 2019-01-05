@@ -2,7 +2,6 @@ package common
 
 import (
 	"bytes"
-    "crypto/rsa"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
@@ -161,9 +160,12 @@ type OnionPacket struct {
 }
 
 type OnionSubHeader struct {
-	PrevHop 	rsa.PublicKey			// Previous node in the route
-	NextHop 	rsa.PublicKey			// Next node in the route
-	Hash 		[32]byte				// Hash of OnionMessage
+	PrevHop 	string				// 64B - Previous node in the route
+	NextHop 	string				// 64B - Next node in the route
+	// Signature	[]byte				// Signature of previous node
+	Key			[]byte 				// 16B - Key for decryption
+	IV			[]byte 				// 16B - Initialization vector for decryption
+	Hash 		[]byte				// 32B - Hash of OnionMessage
 }
 
 // Aggregate of all other fields, should be used as top-level
@@ -466,8 +468,9 @@ func (t *TxPublish) Hash() (out [32]byte) {
 }
 
 // Hash of an Onion
-func (onion *OnionPacket) Hash() (out [32]byte) {
-	return sha256.Sum256(onion.Data[OnionHeaderSize:])
+func (onion *OnionPacket) Hash() (out []byte) {
+	hash := sha256.Sum256(onion.Data[OnionHeaderSize:])
+	return hash[:]
 }
 
 //
