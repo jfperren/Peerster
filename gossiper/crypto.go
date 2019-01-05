@@ -91,7 +91,7 @@ func (c *Crypto) Verify(payload, signature []byte, publicKey rsa.PublicKey) bool
 //  SYMMETRIC BLOCK CIPHER
 //
 
-func (c *Crypto) CBCCipher(payload []byte, key []byte) ([]byte, []byte, error) {
+func CBCCipher(payload []byte, key []byte) ([]byte, []byte, error) {
 
     if len(payload) % aes.BlockSize != 0 {
         return nil, nil, ErrPayloadIsNotMultipleOfBlockLength
@@ -117,7 +117,7 @@ func (c *Crypto) CBCCipher(payload []byte, key []byte) ([]byte, []byte, error) {
     return encrypted, iv, nil
 }
 
-func (c *Crypto) CBCDecipher(encrypted, key, iv []byte) ([]byte, error) {
+func CBCDecipher(encrypted, key, iv []byte) ([]byte, error) {
 
     block, err := aes.NewCipher(key)
     if err != nil {
@@ -138,7 +138,7 @@ func (c *Crypto) CBCDecipher(encrypted, key, iv []byte) ([]byte, error) {
     return plain, nil
 }
 
-func (c *Crypto) NewCBCSecret() []byte {
+func NewCBCSecret() []byte {
     key := make([]byte, common.CBCKeySize)
     rand.Read(key)
     return key

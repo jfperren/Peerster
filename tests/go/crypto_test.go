@@ -2,13 +2,14 @@ package tests
 
 import (
     "bytes"
-    "testing"
-    "github.com/jfperren/Peerster/gossiper"
     "crypto/rand"
     "crypto/rsa"
     "crypto/x509"
     "fmt"
+    "github.com/jfperren/Peerster/common"
+    "github.com/jfperren/Peerster/gossiper"
     "log"
+    "testing"
 )
 
 func TestSignatures(t *testing.T) {
@@ -51,4 +52,36 @@ func TestKeySharing(t *testing.T) {
         log.Fatal("Public Keys at source and destination not equal")
     }
     fmt.Printf("OK - %#v\n", pub2)
+}
+
+func TestBCBCipher(t *testing.T) {
+
+    payload := make([]byte, 256)
+    rand.Read(payload)
+
+    key := gossiper.NewCBCSecret()
+
+    if len(key) != common.CBCKeySize {
+        t.Errorf("Key size is expected to be %v bytes, but length is %v.", common.CBCKeySize, len(key))
+    }
+
+    cipher, iv, err := gossiper.CBCCipher(payload, key)
+
+    if err != nil {
+        t.Errorf("Error ciphering payload: %v", err)
+    }
+
+    if len(payload) != len(cipher) {
+        t.Errorf("Payload and Cipher should have same size. Here, payload has % bytes and cipher has %v", len(payload), len(cipher))
+    }
+
+    plain, err := gossiper.CBCDecipher(cipher, key, iv)
+
+    if err != nil {
+        t.Errorf("Error deciphering payload: %v", err)
+    }
+
+    if !bytes.Equal(plain, payload) {
+        t.Errorf("Initial message and deciphered one don't match")
+    }
 }
