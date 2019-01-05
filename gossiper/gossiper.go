@@ -472,6 +472,28 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
             gossiper.HandleGossip(&common.GossipPacket{Signed: &signed}, source)
         }
+
+	case packet.Onion != nil:
+
+		destination := packet.Onion.Destination
+		hopLimit := &packet.Onion.HopLimit
+
+		destined := gossiper.sendToNode(packet, destination, hopLimit)
+
+		if destined {
+
+			gossipPacket, err := gossiper.ProcessOnion(packet.Onion)
+
+			if err != nil {
+				// Drop the packet
+			} else if gossipPacket != nil {
+				// Process the packet as a normal packet
+				gossiper.HandleGossip(gossipPacket, source)
+			} else {
+				// Give it to the mixer logic to store and forward later on
+				gossiper.Mixer.ForwardPacket(packet.Onion)
+			}
+		}
 	}
 }
 

@@ -154,6 +154,8 @@ type CypheredMessage struct {
 
 type OnionPacket struct {
 
+	HopLimit	uint32
+	Destination string
 	Data 		[OnionHeaderSize + OnionPayloadSize]byte
 
 }
