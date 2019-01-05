@@ -63,6 +63,7 @@ func (gossiper *Gossiper) NewTransaction(metaFile *MetaFile) *common.TxPublish {
             MetafileHash: metaFile.Hash,
         },
         HopLimit: common.TransactionHopLimit,
+        Origin: gossiper.Name,
     }
     if gossiper.Crypto.Options == 0 {
         tx.ID = gossiper.Rumors.ConsumeNextID()
@@ -77,6 +78,7 @@ func (gossiper *Gossiper) NewTransactionKey(username string, publicKey rsa.Publi
             PublicKey: x509.MarshalPKCS1PublicKey(&publicKey),
         },
         HopLimit: common.TransactionHopLimit,
+        Origin: gossiper.Name,
     }
     if gossiper.Crypto.Options == 0 {
         tx.ID = gossiper.Rumors.ConsumeNextID()
@@ -91,6 +93,7 @@ func (gossiper *Gossiper) NewTransactionMixer(address string, publicKey rsa.Publ
 			PublicKey: x509.MarshalPKCS1PublicKey(&publicKey),
 		},
 		HopLimit: common.TransactionHopLimit,
+        Origin: gossiper.Name,
 	}
 	if gossiper.Crypto.Options == 0 {
 		tx.ID = gossiper.Rumors.ConsumeNextID()
