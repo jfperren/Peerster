@@ -20,8 +20,8 @@ func (crypto *Crypto) GenerateOnion(gossipPacket *common.GossipPacket, route []r
 
     // Create onion with random sub-headers
     data := [common.OnionHeaderSize + common.OnionPayloadSize]byte{}
-    rand.Read(data[:common.OnionSubHeaderSize])
-    copy(data[common.OnionSubHeaderSize:], payload)
+    rand.Read(data[:common.OnionHeaderSize])
+    copy(data[common.OnionHeaderSize:], payload)
 
     // Create onion with this data
     onion := &common.OnionPacket{Data: data}
