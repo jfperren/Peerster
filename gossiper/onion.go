@@ -122,11 +122,11 @@ func (gossiper *Gossiper) ProcessOnion(onion *common.OnionPacket) (*common.Gossi
 
 func (crypto *Crypto) wrap(onion *common.OnionPacket, key rsa.PublicKey, prev, next string) error {
 
-    symmetricKey := crypto.NewCBCSecret()
+    symmetricKey := NewCTRSecret()
 
     // Encrypt symmetric part
     otherData := onion.Data[common.OnionSubHeaderSize:]
-    otherDataCipher, iv, err := crypto.CBCCipher(otherData, symmetricKey)
+    otherDataCipher, iv, err := CTRCipher(otherData, symmetricKey)
     if err != nil { return err }
 
     // Create subHeader with information
@@ -171,7 +171,7 @@ func (crypto *Crypto) unwrap(onion *common.OnionPacket) (*common.OnionSubHeader,
 
     // Extract rest of the data
     otherDataCipher := onion.Data[common.OnionSubHeaderSize:]
-    otherData, err := crypto.CBCDecipher(otherDataCipher, subHeader.Key[:], subHeader.IV[:])
+    otherData, err := CTRDecipher(otherDataCipher, subHeader.Key[:], subHeader.IV[:])
 
     // Copy it back into the onion
     copy(onion.Data[:common.OnionSubHeaderSize], subHeaderData)
