@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"strings"
+    "sync"
 	"time"
 )
 
@@ -15,6 +16,7 @@ type Router struct {
 	NextHop map[string]string // Routing Table
 	Peers   []string          // List of known peer IP addresses
 	Rtimer  time.Duration     // Interval for sending route rumors
+    Mutex    *sync.RWMutex     // Read-write lock to access the routing table
 }
 
 func NewRouter(peers string, rtimer time.Duration) *Router {
@@ -23,6 +25,7 @@ func NewRouter(peers string, rtimer time.Duration) *Router {
 		NextHop: make(map[string]string),
 		Peers:   strings.Split(peers, ","),
 		Rtimer:  rtimer,
+		Mutex: &sync.RWMutex{},
 	}
 }
 
@@ -68,11 +71,15 @@ func (router *Router) randomPeerExcept(peer string) (string, bool) {
 
 func (router *Router) updateRoutingTable(origin, address string) {
 
+	router.Mutex.RLock()
 	currentAddress, found := router.NextHop[origin]
+	router.Mutex.RUnlock()
 
 	// Only update if needed
 	if !found || currentAddress != address {
+        router.Mutex.Lock()
 		router.NextHop[origin] = address
+        router.Mutex.Unlock()
 		common.LogUpdateRoutingTable(origin, address)
 	}
 }
@@ -105,7 +112,9 @@ func (gossiper *Gossiper) sendToNode(packet *common.GossipPacket, destination st
 		}
 	}
 
+	gossiper.Router.Mutex.RLock()
 	nextPeer, found := gossiper.Router.NextHop[destination]
+	gossiper.Router.Mutex.RUnlock()
 
 	if found {
 		common.DebugForwardPointToPoint(destination, nextPeer)
