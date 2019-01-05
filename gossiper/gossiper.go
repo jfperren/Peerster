@@ -466,7 +466,14 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 		destined := gossiper.sendToNode(packet, destination, hopLimit)
 
 		if destined {
-            signedBytes := gossiper.Crypto.Decypher(packet.Cyphered.Payload)
+            // decypher symmetric key
+            symmetricKey := gossiper.Crypto.Decypher(packet.Cyphered.Key)
+            // decypher payload
+            signedBytes, err := CTRDecipher(packet.Cyphered.Payload, symmetricKey, packet.Cyphered.IV)
+            if err != nil {
+                log.Println(err)
+                return
+            }
             var signed common.SignedMessage
             protobuf.Decode(signedBytes, &signed)
 
@@ -601,10 +608,21 @@ func (gossiper *Gossiper) CypherPacket(packet *common.SignedMessage, destination
             panic(err)
         }
 
+        symmetricKey := NewCTRSecret()
+        cypheredPayload, initialization_vector, err := CTRCipher(bytes, symmetricKey)
+        if err != nil {
+            log.Println(err)
+            return nil
+        }
+
+        cypheredKey := gossiper.Crypto.Cypher(symmetricKey, publicKey)
+
         return &common.CypheredMessage{
             Destination: destination,
             HopLimit: common.InitialHopLimit,
-            Payload: gossiper.Crypto.Cypher(bytes, publicKey),
+            Payload: cypheredPayload,
+            IV: initialization_vector,
+            Key: cypheredKey,
         }
     } else {
         ticker := time.NewTicker(100 * 1000 * 1000 * time.Nanosecond)

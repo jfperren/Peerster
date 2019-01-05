@@ -149,6 +149,8 @@ type CypheredMessage struct {
     Destination string // name of the destination
     Payload     []byte // cyphered SignedMessage
     HopLimit    uint32
+    IV          []byte // initialization vector for the AES cyphering
+    Key         []byte // cyphered symmetric key
 }
 
 type OnionPacket struct {
