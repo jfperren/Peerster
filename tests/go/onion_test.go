@@ -47,10 +47,23 @@ var (
         common.CypherIfPossible,
         true)
 
+    Delta = gossiper.NewGossiper(
+        "127.0.0.1:9093",
+        "",
+        "Delta",
+        "127.0.0.1:9090",
+        false,
+        0,
+        true,
+        common.CryptoKeySize,
+        common.CypherIfPossible,
+        true)
+
     Keys = map[string]*rsa.PublicKey{
         Alice.Name:     &Alice.Crypto.PrivateKey.PublicKey,
         Bob.Name:       &Bob.Crypto.PrivateKey.PublicKey,
         Charlie.Name:   &Charlie.Crypto.PrivateKey.PublicKey,
+        Delta.Name:     &Delta.Crypto.PrivateKey.PublicKey,
     }
 )
 
@@ -243,5 +256,94 @@ func TestOnionTwoLayers(t *testing.T) {
 
     if subHeader.PrevHop != Bob.Name {
         t.Errorf("Onion should have PrevHop equal to %v, instead has %v", Bob.Name, subHeader.PrevHop)
+    }
+}
+
+func TestOnionEightLayers(t *testing.T) {
+
+    // Create dummy message
+    message := common.NewSimpleMessage("origin", "127.0.0.1:8080","contents").Packed()
+
+    // Create route
+    nodes := []*gossiper.Gossiper{Bob, Delta, Charlie, Alice, Charlie, Bob, Delta, Charlie}
+    route := []string{Bob.Name, Delta.Name, Charlie.Name, Alice.Name, Charlie.Name, Bob.Name, Delta.Name, Charlie.Name}
+
+    // Wrap in onion
+    onion, err := Alice.Crypto.GenerateOnion(message, route, Keys, Alice.Name)
+
+    if err != nil {
+        t.Errorf("Error creating onion: %v", err)
+    }
+
+    if len(onion.Data) != common.OnionHeaderSize + common.OnionPayloadSize {
+        t.Errorf("Onion has wrong size, was expecting %v bytes, got %v", len(onion.Data),
+            common.OnionHeaderSize + common.OnionPayloadSize)
+    }
+
+    for i, node := range nodes {
+
+        // Unwrap one layer
+        gossipPacket, subHeader, err := node.ProcessOnion(onion)
+
+        if err != nil {
+            t.Errorf("Error decoding onion: %v", err)
+        }
+
+        if len(onion.Data) != common.OnionHeaderSize+common.OnionPayloadSize {
+            t.Errorf("Onion has wrong size, was expecting %v bytes, got %v", len(onion.Data),
+                common.OnionHeaderSize+common.OnionPayloadSize)
+        }
+
+        if i == 0 {
+
+            if gossipPacket != nil {
+                t.Errorf("The first node should not be able to fully decode the Onion")
+            }
+
+            if subHeader.NextHop != route[i+1] {
+                t.Errorf("Onion should have NextHop equal to %v, instead has %v", Charlie.Name, subHeader.NextHop)
+            }
+
+            if subHeader.PrevHop != Alice.Name {
+                t.Errorf("Onion should have PrevHop equal to %v, instead has %v", Alice.Name, subHeader.PrevHop)
+            }
+
+        } else if i == common.OnionSubHeaderCount-1 {
+
+            if gossipPacket == nil {
+                t.Errorf("The last node should be able to fully decode the Onion")
+            }
+
+            if gossipPacket.Simple == nil {
+                t.Errorf("Could not recover simple message from Onion")
+            }
+
+            if gossipPacket.Simple.Contents != message.Simple.Contents ||
+                gossipPacket.Simple.RelayPeerAddr != message.Simple.RelayPeerAddr ||
+                gossipPacket.Simple.OriginalName != message.Simple.OriginalName {
+                t.Errorf("Got a different message. Original is %v, received %v", message.Simple, gossipPacket.Simple)
+            }
+
+            if subHeader.NextHop != common.NoNextHop {
+                t.Errorf("Onion should have NextHop equal to %v, instead has %v", common.NoNextHop, subHeader.NextHop)
+            }
+
+            if subHeader.PrevHop != route[i-1] {
+                t.Errorf("Onion should have PrevHop equal to %v, instead has %v", Alice.Name, subHeader.PrevHop)
+            }
+
+        } else {
+            if gossipPacket != nil {
+                t.Errorf("The first node should not be able to fully decode the Onion")
+            }
+
+            if subHeader.NextHop != route[i+1] {
+                t.Errorf("Onion should have NextHop equal to %v, instead has %v", Charlie.Name, subHeader.NextHop)
+            }
+
+            if subHeader.PrevHop != route[i-1] {
+                t.Errorf("Onion should have PrevHop equal to %v, instead has %v", Alice.Name, subHeader.PrevHop)
+            }
+        }
     }
 }
