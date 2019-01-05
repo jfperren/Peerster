@@ -35,16 +35,16 @@ func (crypto *Crypto) GenerateOnion(gossipPacket *common.GossipPacket, route []r
 
         if i == 0 {
             // Use our key as previous for the first node
-            next = route[i+1]
             prev = crypto.PublicKey()
-        } else if i == len(route) - 1  {
-            // To signal that a node is the last one, we use their key
-            // in both locations.
-            next = route[i]
+        } else {
             prev = route[i-1]
+        }
+
+        if i == len(route) - 1 {
+            // To signal that a node is the last one, we use their key as nextHop
+            next = route[i]
         } else {
             next = route[i+1]
-            prev = route[i-1]
         }
 
         subHeader := common.OnionSubHeader{
