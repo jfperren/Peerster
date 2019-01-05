@@ -59,13 +59,13 @@ func TestBCBCipher(t *testing.T) {
     payload := make([]byte, 256)
     rand.Read(payload)
 
-    key := gossiper.NewCBCSecret()
+    key := gossiper.NewCTRSecret()
 
-    if len(key) != common.CBCKeySize {
-        t.Errorf("Key size is expected to be %v bytes, but length is %v.", common.CBCKeySize, len(key))
+    if len(key) != common.CTRKeySize {
+        t.Errorf("Key size is expected to be %v bytes, but length is %v.", common.CTRKeySize, len(key))
     }
 
-    cipher, iv, err := gossiper.CBCCipher(payload, key)
+    cipher, iv, err := gossiper.CTRCipher(payload, key)
 
     if err != nil {
         t.Errorf("Error ciphering payload: %v", err)
@@ -75,7 +75,7 @@ func TestBCBCipher(t *testing.T) {
         t.Errorf("Payload and Cipher should have same size. Here, payload has % bytes and cipher has %v", len(payload), len(cipher))
     }
 
-    plain, err := gossiper.CBCDecipher(cipher, key, iv)
+    plain, err := gossiper.CTRDecipher(cipher, key, iv)
 
     if err != nil {
         t.Errorf("Error deciphering payload: %v", err)

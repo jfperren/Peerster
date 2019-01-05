@@ -91,7 +91,7 @@ func (c *Crypto) Verify(payload, signature []byte, publicKey rsa.PublicKey) bool
 //  SYMMETRIC BLOCK CIPHER
 //
 
-func CBCCipher(payload []byte, key []byte) ([]byte, []byte, error) {
+func CTRCipher(payload []byte, key []byte) ([]byte, []byte, error) {
 
     if len(payload) % aes.BlockSize != 0 {
         return nil, nil, ErrPayloadIsNotMultipleOfBlockLength
@@ -111,13 +111,13 @@ func CBCCipher(payload []byte, key []byte) ([]byte, []byte, error) {
     rand.Read(iv)
 
     // Encrypt payload
-    mode := cipher.NewCBCEncrypter(block, iv)
-    mode.CryptBlocks(encrypted, payload)
+    stream := cipher.NewCTR(block, iv)
+    stream.XORKeyStream(encrypted, payload)
 
     return encrypted, iv, nil
 }
 
-func CBCDecipher(encrypted, key, iv []byte) ([]byte, error) {
+func CTRDecipher(encrypted, key, iv []byte) ([]byte, error) {
 
     block, err := aes.NewCipher(key)
     if err != nil {
@@ -129,17 +129,17 @@ func CBCDecipher(encrypted, key, iv []byte) ([]byte, error) {
         return nil, ErrCipherIsNotMultipleOfBlockLength
     }
 
-    mode := cipher.NewCBCDecrypter(block, iv)
+    stream := cipher.NewCTR(block, iv)
 
     // Create buffer for plain text & decrypt
     plain := make([]byte, len(encrypted))
-    mode.CryptBlocks(plain, encrypted)
+    stream.XORKeyStream(plain, encrypted)
 
     return plain, nil
 }
 
-func NewCBCSecret() []byte {
-    key := make([]byte, common.CBCKeySize)
+func NewCTRSecret() []byte {
+    key := make([]byte, common.CTRKeySize)
     rand.Read(key)
     return key
 }
