@@ -582,12 +582,14 @@ func (gossiper *Gossiper) GenerateRouteRumor() *common.RumorMessage {
 //////////////
 func (gossiper *Gossiper) SignPacket(packet *common.GossipPacket) *common.SignedMessage {
     if !packet.IsValid() {
-		log.Panicf("Sending invalid packet: %v", packet)
+		log.Printf("Sending invalid packet: %v\n", packet)
+        return nil
 	}
 
 	bytes, err := protobuf.Encode(packet)
 	if err != nil {
-		panic(err)
+		log.Println(err)
+        return nil
 	}
 
     return &common.SignedMessage{
@@ -605,7 +607,8 @@ func (gossiper *Gossiper) CypherPacket(packet *common.SignedMessage, destination
     if exists {
         bytes, err := protobuf.Encode(packet)
         if err != nil {
-            panic(err)
+            log.Println(err)
+            return nil
         }
 
         symmetricKey := NewCTRSecret()
