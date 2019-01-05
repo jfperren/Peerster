@@ -75,8 +75,8 @@ func (crypto *Crypto) GenerateOnion(
         }
 
         if i == len(route) - 1 {
-            // To signal that a node is the last one, we use their key as nextHop
-            next = route[i]
+            // To signal that a node is the last one, we use an empty string
+            next = common.NoNextHop
         } else {
             next = route[i+1]
         }
@@ -247,7 +247,7 @@ func ExtractOnionSubHeader(onion *common.OnionPacket) (*common.OnionSubHeader, e
 
 // Returns true if the onion this sub-header corresponds to has no next hop
 func isLast(subHeader *common.OnionSubHeader) bool {
-    return subHeader.NextHop == subHeader.PrevHop
+    return subHeader.NextHop == common.NoNextHop
 }
 
 // Checks that the data inside the onion is valid according to the sub-header
