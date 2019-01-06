@@ -45,7 +45,6 @@ func NewBlockChain() *BlockChain {
         Pending:     make([]common.TxPublish, 0),
         Files:       make(map[string]*common.File),
         Peers:       make(map[string]*rsa.PublicKey),
-        MixerNodes:  make(map[string]*rsa.PublicKey),
         Blocks:      make(map[[32]byte]*common.Block),
         Length:      make(map[[32]byte]int),
         IsNew:       true,
