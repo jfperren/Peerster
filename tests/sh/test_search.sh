@@ -15,8 +15,6 @@ do
             ;;
         --package)
             PACKAGE=true
-            source ./scripts/build.sh
-            source ./tests/sh/helpers.sh
             ;;
         -c|--crypto)
             shift
@@ -35,6 +33,10 @@ do
     shift
 done
 
+if ! $PACKAGE; then
+	source ./scripts/build.sh
+	source ./tests/sh/helpers.sh
+fi
 
 # Preparation
 
