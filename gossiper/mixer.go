@@ -6,6 +6,7 @@ import (
 )
 
 type Mixer struct {
+	ToSend chan *common.OnionPacket
 	buffer [common.MixerNodeBufferSize]*common.OnionPacket // buffer to contain packets, and send them when the buffer is filled
 	bufferSize uint
 
@@ -15,6 +16,7 @@ type Mixer struct {
 func NewMixer() *Mixer {
 	var m Mixer
 	m.bufferSize = 0
+	m.ToSend = make(chan *common.OnionPacket)
 	return &m
 }
 
@@ -29,9 +31,10 @@ func (m *Mixer) ForwardPacket(p *common.OnionPacket) {
 }
 
 func (m *Mixer) ReleasePackets() {
+	m.lock.Lock()
 	for _, packet := range m.buffer {
-		// TODO: send onion to next address in mix network
-		_ = packet
+		m.ToSend <- packet
 	}
 	m.bufferSize = 0
+	m.lock.Unlock()
 }
