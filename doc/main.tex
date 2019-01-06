@@ -230,7 +230,7 @@
         %We also need to have a trusted third-party to hold the list of mixing nodes and the list of pseudonyms.
 
         \item \textbf{Download Chain History} -
-        In order to allow nodes to join after the creation of the blockchain, we will modify the current implementation of the blockchain by allowing the creation of a genesis block and the ability for a node to download the entire history of the chain from the previous nodes.
+        In order to allow nodes to join after the creation of the blockchain, we will modify the current implementation of the blockchain by adding the ability for a node to download the entire history of the chain from the previous nodes.
         We propose to build this using the gossip mechanism already in place, using new type of messages that will be exchanged between nodes arriving in the network and those already up to date.
 
         \item \textbf{Mixer Nodes} -
