@@ -147,10 +147,11 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
 
     } else if gossiper.Crypto.Options == common.CypherIfPossible {
 
-		packet.Signature = gossiper.SignPacket(packet)
+    	if packet.ShouldBeSigned() {
+			packet.Signature = gossiper.SignPacket(packet)
+		}
 
         if packet.ShouldBeCiphered() { // Cipher for destination
-
 			packet = gossiper.CypherPacket(packet, *packet.GetDestination()).Packed()
         }
     }
