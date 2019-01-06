@@ -48,6 +48,10 @@
 \sloppy
 
 % code snippets
+\usepackage{color}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
 \lstset{
   language=Golang,
   aboveskip=3mm,
@@ -143,7 +147,7 @@
         In our setting, we will propose a transaction containing a public key, along with the name of the owner and this name signed with the private key corresponding to the public key.
         Signing one's public key before sending it on a keys server is a practice advised for distributed systems of trust.
 
-        Asymmetric cryptography alleviaates the key-sharing problem, but presents other disadvantages: it require more computationnal ressources than symmetric encryption schemes, and also more time. In addition, the length of the asymmetric key limits the size of the messages: we cannot cypher a message longer than the key using asymmetric algorithms. Thus, to cypher a message, we will create a symmetric key for each message, use the symmetric key to cypher the message, cypher the symmetric key using the asymmetric cyphering scheme, and send everything in one packet. This way, we solve both the problem of performance and the problem of key-sharing.
+        Asymmetric cryptography alleviates the key-sharing problem, but presents other disadvantages: it requires more computationnal ressources than symmetric encryption schemes, and also more time. In addition, the length of the asymmetric key limits the size of the messages: we cannot cypher a message longer than the key using asymmetric algorithms. Thus, to cypher a message, we will create a symmetric key for each message, use the symmetric key to cypher the message, cypher the symmetric key using the asymmetric cyphering scheme, and send everything in one packet. This way, we solve both the problem of performance and the problem of key-sharing.
 
     \subsection{Mix Networks}
 
