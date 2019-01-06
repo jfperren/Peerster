@@ -551,5 +551,5 @@ func (bc *BlockChain) GetPublicKey(peer string) (rsa.PublicKey, bool) {
 //
 
 func isValidHash(hash [32]byte) bool {
-    return hash[0] == 0 && hash[1] == 0 && hash[2] < common.MiningDifficulty
+    return hash[0] == 0 && hash[1] == 0 && hash[2] <= common.MiningDifficulty
 }
