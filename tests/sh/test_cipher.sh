@@ -48,7 +48,7 @@ name="A"
 rtimer=1
 
 message_a_c="This is a message from A to C; should be delivered"
-# message_a_d="This is a message from A to D; should not be delivered"
+message_a_d="This is a message from A to D; should not be delivered"
 # message_j_a="This is a message from J to A; should be delivered"
 # message_g_c="This is a message from G to C; should be delivered"
 # message_j_b="This is a message from J to B; should not be delivered"
@@ -117,6 +117,10 @@ expect_missing D "CHAIN ${hex}D"
 
 ./client/client -UIPort=8080 -msg="$message_a_c" -dest="C"
 
+sleep 1
+
+./client/client -UIPort=8080 -msg="$message_a_d" -dest="D"
+
 sleep 20
 
 pkill -f Peerster
@@ -126,15 +130,26 @@ pkill -f Peerster
 echo -e "${NC}# CHECK that A knew where to send${NC}"
 
 expect_missing A "UNKNOWN DESTINATION C"
+expect_missing A "UNKNOWN DESTINATION D"
 
-echo -e "${NC}# CHECK that message was sent and forwarded${NC}"
+echo -e "${NC}# CHECK that messages are sent${NC}"
 
 expect_contains A "ROUTE POINT-TO-POINT MESSAGE destination C"
+expect_contains A "ROUTE POINT-TO-POINT MESSAGE destination D"
+
+echo -e "${NC}# CHECK that message to D was drop${NC}"
+
+expect_contains A "DROP MESSAGE cannot cipher DESTINATION D"
 
 echo -e "${NC}# CHECK that valid recipients got their message${NC}"
 
 expect_contains C "PRIVATE origin A hop-limit "
 expect_contains C " contents $message_a_c"
+
+echo -e "${NC}# CHECK that D did not receive${NC}"
+
+expect_missing D "PRIVATE origin A hop-limit "
+expect_missing D " contents $message_a_d"
 
 if [[ $PACKAGE == false ]]; then
 	print_test_results

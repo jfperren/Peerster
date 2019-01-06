@@ -6,7 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"strings"
-    "sync"
+	"sync"
 	"time"
 )
 
@@ -147,13 +147,20 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
 
     } else if gossiper.Crypto.Options == common.CypherIfPossible {
 
+		if packet.ShouldBeCiphered() { // Cipher for destination
+
+			cipher := gossiper.CypherPacket(packet, *packet.GetDestination())
+
+			if cipher == nil {
+				return
+			}
+
+			packet = cipher.Packed()
+		}
+
     	if packet.ShouldBeSigned() {
 			packet.Signature = gossiper.SignPacket(packet)
 		}
-
-        if packet.ShouldBeCiphered() { // Cipher for destination
-			packet = gossiper.CypherPacket(packet, *packet.GetDestination()).Packed()
-        }
     }
 
 	packet, err := gossiper.wrapInOnionIfNeeded(packet)

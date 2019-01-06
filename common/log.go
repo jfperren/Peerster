@@ -448,5 +448,5 @@ func DebugDropCannotCipher(packet *GossipPacket) {
 	if !Verbose {
 		return
 	}
-	log.Printf("DROP MESSAGE cannot cipher DESTINATION %v\n", packet.GetDestination())
+	log.Printf("DROP MESSAGE cannot cipher DESTINATION %v\n", *packet.GetDestination())
 }
