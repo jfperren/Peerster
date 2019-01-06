@@ -83,7 +83,7 @@ sharedDir="_SharedFiles"
 for i in `seq 1 $nb_nodes`;
 do
 	outFileName="logs/$name.out"
-	peerPort=$((($gossipPort+1)%5+5000))
+	peerPort=$((($gossipPort+1)%$nb_nodes+5000))
 	peer="127.0.0.1:$peerPort"
 	gossipAddr="127.0.0.1:$gossipPort"
   sharedDirName="$sharedDir/$name/"
