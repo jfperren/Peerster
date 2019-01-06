@@ -270,7 +270,7 @@ func (gossiper *Gossiper) wrapInOnionIfNeeded(gossipPacket *common.GossipPacket)
 }
 
 func (gossiper *Gossiper) shouldWrapInOnion(packet *common.GossipPacket) bool {
-    return gossiper.MixLength > 0 && packet.Rumor == nil && (packet.TxPublish == nil || packet.TxPublish.User.Name == "")
+    return gossiper.MixLength > 0
 }
 
 // Return a random mixer node except the one given as parameter.

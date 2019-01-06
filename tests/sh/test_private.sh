@@ -15,8 +15,6 @@ do
             ;;
         --package)
             PACKAGE=true
-            source ./scripts/build.sh
-            source ./tests/sh/helpers.sh
             ;;
         -c|--crypto)
             shift
@@ -34,6 +32,11 @@ do
     esac
     shift
 done
+
+if ! $PACKAGE; then
+	source ./scripts/build.sh
+	source ./tests/sh/helpers.sh
+fi
 
 # Variables
 

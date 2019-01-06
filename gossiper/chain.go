@@ -110,6 +110,15 @@ func (gossiper *Gossiper) waitForNewBlocks() {
 //  UPDATE FUNCTIONS
 //
 
+func (bc *BlockChain) TryAddTransaction(candidate *common.TxPublish) bool {
+
+    if candidate.File.Name != "" {
+        return bc.TryAddFile(candidate)
+    } else {
+        return bc.TryAddUser(candidate)
+    }
+}
+
 // Atomically test and append transaction
 func (bc *BlockChain) TryAddFile(candidate *common.TxPublish) bool {
 
@@ -542,5 +551,5 @@ func (bc *BlockChain) GetPublicKey(peer string) (rsa.PublicKey, bool) {
 //
 
 func isValidHash(hash [32]byte) bool {
-    return hash[0] == 0 && hash[1] == 0 && hash[2] < common.MiningDifficulty
+    return hash[0] == 0 && hash[1] == 0 && hash[2] <= common.MiningDifficulty
 }

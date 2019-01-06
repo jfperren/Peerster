@@ -130,12 +130,9 @@ type Block struct {
 	Transactions []TxPublish
 }
 
-type SignedMessage struct {
-    Origin      string // name of the sender
-    Signature   []byte
-    Payload     []byte // actual content of the message
-    HopLimit    uint32
-    ID          uint32
+type Signature struct {
+	Origin       string // name of the sender
+	Signature    []byte
 }
 
 type CypheredMessage struct {
@@ -176,7 +173,7 @@ type GossipPacket struct {
 	SearchReply   *SearchReply
 	TxPublish     *TxPublish
 	BlockPublish  *BlockPublish
-    Signed        *SignedMessage
+    Signature     *Signature
     Cyphered      *CypheredMessage
 	Onion		  *OnionPacket
 }
@@ -212,15 +209,6 @@ func NewSearchReply(origin, destination string, results []*SearchResult) *Search
 		HopLimit:    InitialHopLimit,
 		Results:	 results,
 	}
-}
-
-func NewSignedMessage(origin string, signature, payload []byte) *SignedMessage {
-    return &SignedMessage{
-        Origin:    origin,
-        Signature: signature,
-        Payload:   payload,
-        HopLimit:  InitialHopLimit,
-    }
 }
 
 func NewCypheredMessage(destination string, payload []byte) *CypheredMessage {
@@ -346,16 +334,6 @@ func (publish *BlockPublish) Packed() *GossipPacket {
 	return &GossipPacket{BlockPublish: publish}
 }
 
-// Pack a SignedMessage into a GossipPacket
-func (signed *SignedMessage) Packed() *GossipPacket {
-
-	if signed == nil {
-		panic("Cannot pack <nil> signed message into a GossipPacket")
-	}
-
-    return &GossipPacket{Signed: signed}
-}
-
 // Pack a CypheredMessage into a GossipPacket
 func (cyphered *CypheredMessage) Packed() *GossipPacket {
 
@@ -387,14 +365,12 @@ func (packet *GossipPacket) IsValid() bool {
 		boolCount(packet.DataReply != nil)+boolCount(packet.DataRequest != nil)+
 		boolCount(packet.SearchReply != nil)+boolCount(packet.SearchRequest != nil)+
 		boolCount(packet.TxPublish != nil)+boolCount(packet.BlockPublish != nil)+
-		boolCount(packet.Signed != nil)+boolCount(packet.Cyphered != nil) +
-		boolCount(packet.Onion != nil) == 1
+		+boolCount(packet.Cyphered != nil) + boolCount(packet.Onion != nil) == 1
 }
 
 // Safety check that we only broadcast packets which are supposed to be broadcast.
 func (packet *GossipPacket) IsEligibleForBroadcast() bool {
-	return !(packet.Simple == nil && packet.SearchRequest == nil && packet.TxPublish == nil && packet.BlockPublish == nil &&
-        packet.Signed == nil)
+	return !(packet.Simple == nil && packet.SearchRequest == nil && packet.TxPublish == nil && packet.BlockPublish == nil)
 }
 
 func (packet *GossipPacket) GetDestination() *string {
@@ -410,6 +386,31 @@ func (packet *GossipPacket) GetDestination() *string {
     default:
         return nil
     }
+}
+
+func (packet *GossipPacket) GetOrigin() *string {
+	switch {
+	case packet.Simple != nil:
+		return &packet.Simple.OriginalName
+	case packet.Rumor != nil:
+		return &packet.Rumor.Origin
+	case packet.Private != nil:
+		return &packet.Private.Origin
+	case packet.DataRequest != nil:
+		return &packet.DataRequest.Origin
+	case packet.DataReply != nil:
+		return &packet.DataReply.Origin
+	case packet.SearchRequest != nil:
+		return &packet.SearchRequest.Origin
+	case packet.SearchReply != nil:
+		return &packet.SearchReply.Origin
+	case packet.BlockPublish != nil:
+		return &packet.BlockPublish.Origin
+	case packet.TxPublish != nil:
+		return &packet.TxPublish.Origin
+	default:
+		return nil
+	}
 }
 
 // Verify that a DataReply has the correct data via computing and comparing the hash
@@ -477,20 +478,32 @@ func (block *Block) Str() string {
     hash := block.Hash()
     prev := block.PrevHash
     files := make([]string, 0)
-    names := make([]string, 0)
+	users := make([]string, 0)
 
     for _, transaction := range block.Transactions {
-        files = append(files, transaction.File.Name)
-        names = append(names, transaction.User.Name)
+		if transaction.File.Name != "" {
+			files = append(files, transaction.File.Name)
+		}
     }
 
-    return fmt.Sprintf("%v:%v:%v|%v", hex.EncodeToString(hash[:]), hex.EncodeToString(prev[:]), strings.Join(files, FileNameSeparator), strings.Join(names, FileNameSeparator))
+	for _, transaction := range block.Transactions {
+		if transaction.User.Name != "" {
+			users = append(users, transaction.User.Name)
+		}
+	}
+
+	return fmt.Sprintf("%v:%v:%v:%v", hex.EncodeToString(hash[:]), hex.EncodeToString(prev[:]),
+		strings.Join(files, FileNameSeparator), strings.Join(users, FileNameSeparator))
 }
 
 
 //
 //  GETTERS
 //
+
+func (r *SimpleMessage) GetOrigin() string {
+	return r.OriginalName
+}
 
 func (r *RumorMessage) GetOrigin() string {
     return r.Origin
@@ -516,10 +529,155 @@ func (r *BlockPublish) GetID() uint32 {
     return r.ID
 }
 
-func (r *SignedMessage) GetOrigin() string {
-    return r.Origin
+//
+//  MORE HASH
+//
+
+func (s *SimpleMessage) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(s.OriginalName))
+	h.Write([]byte(s.Contents))
+	copy(out[:], h.Sum(nil))
+	return
 }
 
-func (r *SignedMessage) GetID() uint32 {
-    return r.ID
+func (r *RumorMessage) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.Origin))
+	h.Write([]byte(r.Text))
+	binary.Write(h, binary.LittleEndian, r.ID)
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (s *PeerStatus) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(s.Identifier))
+	binary.Write(h, binary.LittleEndian, s.NextID)
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (s *StatusPacket) Hash() (out [32]byte) {
+	h := sha256.New()
+	binary.Write(h,binary.LittleEndian,
+		uint32(len(s.Want)))
+	for _, w := range s.Want {
+		wh := w.Hash()
+		h.Write(wh[:])
+	}
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (p *PrivateMessage) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(p.Origin))
+	h.Write([]byte(p.Destination))
+	h.Write([]byte(p.Text))
+	binary.Write(h, binary.LittleEndian, p.ID)
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (r *DataRequest) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.Origin))
+	h.Write([]byte(r.Destination))
+	h.Write(r.HashValue)
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (r *DataReply) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.Origin))
+	h.Write([]byte(r.Destination))
+	h.Write(r.HashValue)
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (r *SearchRequest) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.Origin))
+	binary.Write(h, binary.LittleEndian, r.Budget)
+	binary.Write(h,binary.LittleEndian, uint32(len(r.Keywords)))
+	for _, k := range r.Keywords {
+		h.Write([]byte(k))
+	}
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (r *SearchResult) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.FileName))
+	h.Write(r.MetafileHash)
+	binary.Write(h,binary.LittleEndian, r.ChunkCount)
+	binary.Write(h,binary.LittleEndian, uint32(len(r.ChunkMap)))
+	for _, c := range r.ChunkMap {
+		binary.Write(h,binary.LittleEndian, c)
+	}
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (r *SearchReply) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.Origin))
+	h.Write([]byte(r.Destination))
+	binary.Write(h,binary.LittleEndian, uint32(len(r.Results)))
+	for _, sr := range r.Results {
+		srh := sr.Hash()
+		h.Write(srh[:])
+	}
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (r *BlockPublish) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.Origin))
+	binary.Write(h,binary.LittleEndian, r.ID)
+	bh := r.Block.Hash()
+	h.Write(bh[:])
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (packet *GossipPacket) Hash() (out [32]byte) {
+
+	switch {
+	case packet.Simple != nil:
+		return packet.Simple.Hash()
+	case packet.Rumor != nil:
+		return packet.Rumor.Hash()
+	case packet.Status != nil:
+		return packet.Status.Hash()
+	case packet.Private != nil:
+		return packet.Private.Hash()
+	case packet.DataReply != nil:
+		return packet.DataReply.Hash()
+	case packet.DataRequest != nil:
+		return packet.DataRequest.Hash()
+	case packet.SearchRequest != nil:
+		return packet.SearchRequest.Hash()
+	case packet.SearchReply != nil:
+		return packet.SearchReply.Hash()
+	case packet.TxPublish != nil:
+		return packet.TxPublish.Hash()
+	case packet.BlockPublish != nil:
+		return packet.BlockPublish.Hash()
+	default:
+		panic("Cannot hash")
+	}
+}
+
+func (packet *GossipPacket) ShouldBeSigned() bool {
+	return packet.TxPublish == nil && packet.BlockPublish == nil && packet.Cyphered == nil && packet.Onion == nil && packet.Signature == nil
+}
+
+func (packet *GossipPacket) ShouldBeCiphered() bool {
+	return packet.GetDestination() != nil && packet.Cyphered == nil
 }
