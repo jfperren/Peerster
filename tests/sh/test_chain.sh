@@ -73,8 +73,8 @@ downloadDir="_Downloads"
 sharedDir="_SharedFiles"
 
 # Start Gossipers
-
-for i in `seq 1 10`;
+nb_nodes=3
+for i in `seq 1 $nb_nodes`;
 do
 	outFileName="logs/$name.out"
 
@@ -144,23 +144,29 @@ fi
 ./client/client -UIPort=8081 -file=$file_b
 
 sleep 4
-if [[ "$CRYPTOOPTS" != "" ]]
+if [[ $nb_nodes > 4 ]]
 then
-    sleep 10
+    if [[ "$CRYPTOOPTS" != "" ]]
+    then
+        sleep 10
+    fi
+
+    ./client/client -UIPort=8084 -file=$file_a
+    ./client/client -UIPort=8084 -file=$file_c
+
+    sleep 2
 fi
-
-./client/client -UIPort=8084 -file=$file_a
-./client/client -UIPort=8084 -file=$file_c
-
-sleep 2
-if [[ "$CRYPTOOPTS" != "" ]]
+if [[ $nb_nodes > 3 ]]
 then
-    sleep 5
+    if [[ "$CRYPTOOPTS" != "" ]]
+    then
+        sleep 5
+    fi
+
+    ./client/client -UIPort=8083 -file=$file_b
+
+    sleep 4
 fi
-
-./client/client -UIPort=8083 -file=$file_b
-
-sleep 4
 if [[ "$CRYPTOOPTS" != "" ]]
 then
     sleep 10
@@ -172,91 +178,59 @@ pkill -f Peerster
 
 echo -e "${NC}# CHECK that everybody has found at least one block${NC}"
 
-expect_contains A "FOUND-BLOCK"
-expect_contains B "FOUND-BLOCK"
-expect_contains C "FOUND-BLOCK"
-expect_contains D "FOUND-BLOCK"
-expect_contains E "FOUND-BLOCK"
-expect_contains F "FOUND-BLOCK"
-expect_contains G "FOUND-BLOCK"
-expect_contains H "FOUND-BLOCK"
-expect_contains I "FOUND-BLOCK"
-expect_contains J "FOUND-BLOCK"
+for i in `seq 0 $(($nb_nodes - 1))`
+do
+    expect_contains "${outputFiles[$i]:5:1}" "FOUND-BLOCK"
+done
 
 echo -e "${NC}# CHECK that everybody is printing the chain${NC}"
 
-expect_contains A "CHAIN"
-expect_contains B "CHAIN"
-expect_contains C "CHAIN"
-expect_contains D "CHAIN"
-expect_contains E "CHAIN"
-expect_contains F "CHAIN"
-expect_contains G "CHAIN"
-expect_contains H "CHAIN"
-expect_contains I "CHAIN"
-expect_contains J "CHAIN"
+for i in `seq 0 $(($nb_nodes - 1))`
+do
+    expect_contains "${outputFiles[$i]:5:1}" "CHAIN"
+done
 
 echo -e "${NC}# Check that E received the file from A${NC}"
 
-expect_contains A "FORK-LONGER rewind . blocks"
-expect_contains B "FORK-LONGER rewind . blocks"
-expect_contains C "FORK-LONGER rewind . blocks"
-expect_contains D "FORK-LONGER rewind . blocks"
-expect_contains E "FORK-LONGER rewind . blocks"
-expect_contains F "FORK-LONGER rewind . blocks"
-expect_contains G "FORK-LONGER rewind . blocks"
-expect_contains H "FORK-LONGER rewind . blocks"
-expect_contains I "FORK-LONGER rewind . blocks"
-expect_contains J "FORK-LONGER rewind . blocks"
+for i in `seq 0 $(($nb_nodes - 1))`
+do
+    expect_contains "${outputFiles[$i]:5:1}" "FORK-LONGER rewind . blocks"
+done
 
 echo -e "${NC}# Check that A, B and E successfully added its file${NC}"
 
 expect_contains A "CANDIDATE transaction $file_a| successfully added"
 expect_contains B "CANDIDATE transaction $file_b| successfully added"
-expect_contains E "CANDIDATE transaction $file_c| successfully added"
+if [[ $nb_nodes > 4 ]]
+then
+    expect_contains E "CANDIDATE transaction $file_c| successfully added"
+    echo -e "${NC}# Check that D and E do not add their duplicate names${NC}"
 
-echo -e "${NC}# Check that D and E do not add their duplicate names${NC}"
-
-expect_contains E "IGNORE transaction $file_a| already in chain"
-expect_contains D "IGNORE transaction $file_b| already in chain"
+    expect_contains E "IGNORE transaction $file_a| already in chain"
+    expect_contains D "IGNORE transaction $file_b| already in chain"
+fi
 
 echo -e "${NC}# Check that A,B and E successfully transmitted its file${NC}"
 
 expect_contains A "BROADCAST transaction $file_a|"
 expect_contains B "BROADCAST transaction $file_b|"
-expect_contains E "BROADCAST transaction $file_c|"
+if [[ $nb_nodes > 4 ]]
+then
+    expect_contains E "BROADCAST transaction $file_c|"
+fi
 
 echo -e "${NC}# Check that everybody has the files${NC}"
 
-expect_contains A "CHAIN [a-zA-Z0-9 :,.]*$file_a"
-expect_contains B "CHAIN [a-zA-Z0-9 :,.]*$file_a"
-expect_contains C "CHAIN [a-zA-Z0-9 :,.]*$file_a"
-expect_contains D "CHAIN [a-zA-Z0-9 :,.]*$file_a"
-expect_contains E "CHAIN [a-zA-Z0-9 :,.]*$file_a"
-expect_contains F "CHAIN [a-zA-Z0-9 :,.]*$file_a"
-expect_contains G "CHAIN [a-zA-Z0-9 :,.]*$file_a"
-expect_contains H "CHAIN [a-zA-Z0-9 :,.]*$file_a"
-expect_contains I "CHAIN [a-zA-Z0-9 :,.]*$file_a"
-expect_contains J "CHAIN [a-zA-Z0-9 :,.]*$file_a"
+files="$file_a $file_b"
+if [[ $nb_nodes > 4 ]]
+then
+    files+=" $file_c"
+fi
 
-expect_contains A "CHAIN [a-zA-Z0-9 :,.]*$file_b"
-expect_contains B "CHAIN [a-zA-Z0-9 :,.]*$file_b"
-expect_contains C "CHAIN [a-zA-Z0-9 :,.]*$file_b"
-expect_contains D "CHAIN [a-zA-Z0-9 :,.]*$file_b"
-expect_contains E "CHAIN [a-zA-Z0-9 :,.]*$file_b"
-expect_contains F "CHAIN [a-zA-Z0-9 :,.]*$file_b"
-expect_contains G "CHAIN [a-zA-Z0-9 :,.]*$file_b"
-expect_contains H "CHAIN [a-zA-Z0-9 :,.]*$file_b"
-expect_contains I "CHAIN [a-zA-Z0-9 :,.]*$file_b"
-expect_contains J "CHAIN [a-zA-Z0-9 :,.]*$file_b"
-
-expect_contains A "CHAIN [a-zA-Z0-9 :,.]*$file_c"
-expect_contains B "CHAIN [a-zA-Z0-9 :,.]*$file_c"
-expect_contains C "CHAIN [a-zA-Z0-9 :,.]*$file_c"
-expect_contains D "CHAIN [a-zA-Z0-9 :,.]*$file_c"
-expect_contains E "CHAIN [a-zA-Z0-9 :,.]*$file_c"
-expect_contains F "CHAIN [a-zA-Z0-9 :,.]*$file_c"
-expect_contains G "CHAIN [a-zA-Z0-9 :,.]*$file_c"
-expect_contains H "CHAIN [a-zA-Z0-9 :,.]*$file_c"
-expect_contains I "CHAIN [a-zA-Z0-9 :,.]*$file_c"
-expect_contains J "CHAIN [a-zA-Z0-9 :,.]*$file_c"
+for j in $files
+do
+    for i in `seq 0 $(($nb_nodes - 1))`
+    do
+        expect_contains "${outputFiles[$i]:5:1}" "CHAIN [a-zA-Z0-9 :,.]*$j"
+    done
+done
