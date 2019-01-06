@@ -25,6 +25,7 @@
 # Build
 CRYPTOOPTS=""
 DEBUG=false
+PACKAGE=false
 while [[ $# -gt 0 ]]
 do
     key="$1"
@@ -36,6 +37,7 @@ do
         --package)
             source ./scripts/build.sh
             source ./tests/sh/helpers.sh
+            PACKAGE=true
             ;;
         -c|--crypto)
             shift

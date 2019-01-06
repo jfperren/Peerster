@@ -2,10 +2,38 @@
 
 # Build
 
-if [[ $* != *--package* ]]; then
-	source ./scripts/build.sh
-	source ./tests/sh/helpers.sh
-fi
+CRYPTOOPTS=""
+DEBUG=false
+PACKAGE=false
+while [[ $# -gt 0 ]]
+do
+    key="$1"
+
+    case $key in
+        -v|--verbose|-d|--debug)
+            DEBUG=true
+            ;;
+        --package)
+            PACKAGE=true
+            source ./scripts/build.sh
+            source ./tests/sh/helpers.sh
+            ;;
+        -c|--crypto)
+            shift
+            if [[ "$1" == 1 ]]
+            then
+                CRYPTOOPTS=" -sign-only"
+            elif [[ "$1" == 2 ]]
+            then
+                CRYPTOOPTS=" -cypher-if-possible"
+            fi
+            ;;
+        *)
+            # unknown option
+            ;;
+    esac
+    shift
+done
 
 # Variables
 
@@ -49,7 +77,7 @@ do
     rtimer=0
   fi
 
-	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose > $outFileName &
+	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose$CRYPTOOPTS > $outFileName &
 
 	if [[ "$DEBUG" == "true" ]] ; then
 		echo "$name running at UIPort $UIPort and gossipPort $gossipPort"
@@ -106,6 +134,6 @@ echo -e "${NC}# CHECK that nodes handle unknown routes well${NC}"
 expect_contains A "UNKNOWN DESTINATION D"
 expect_contains J "UNKNOWN DESTINATION B"
 
-if [[ $* != *--package* ]]; then
+if [[ $PACKAGE == false ]]; then
 	print_test_results
 fi

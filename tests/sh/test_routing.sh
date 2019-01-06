@@ -26,6 +26,7 @@
 
 CRYPTOOPTS=""
 DEBUG=false
+PACKAGE=false
 while [[ $# -gt 0 ]]
 do
     key="$1"
@@ -35,6 +36,7 @@ do
             DEBUG=true
             ;;
         --package)
+            PACKAGE=true
             source ./scripts/build.sh
             source ./tests/sh/helpers.sh
             ;;
@@ -259,6 +261,6 @@ expect_missing E "DSDV J"
 # expect_contains D "RECEIVE DATA REQUEST from A to D metahash $hash_file_d_inexistant"
 # expect_contains D "NOT FOUND hash $hash_file_d_inexistant from A"
 
-if [[ $* != *--package* ]]; then
+if [[ $PACKAGE = false ]]; then
 	print_test_results
 fi

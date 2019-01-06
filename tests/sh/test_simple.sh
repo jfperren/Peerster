@@ -2,10 +2,39 @@
 
 # Build
 
-if [[ $* != *--package* ]]; then
-	source ./scripts/build.sh
-	source ./tests/sh/helpers.sh
-fi
+CRYPTOOPTS=""
+DEBUG=false
+PACKAGE=false
+while [[ $# -gt 0 ]]
+do
+    key="$1"
+
+    case $key in
+        -v|--verbose|-d|--debug)
+            DEBUG=true
+            ;;
+        --package)
+            PACKAGE=true
+            source ./scripts/build.sh
+            source ./tests/sh/helpers.sh
+            ;;
+        -c|--crypto)
+            shift
+            if [[ "$1" == 1 ]]
+            then
+                CRYPTOOPTS=" -sign-only"
+            elif [[ "$1" == 2 ]]
+            then
+                CRYPTOOPTS=" -cypher-if-possible"
+            fi
+            ;;
+        *)
+            # unknown option
+            ;;
+    esac
+    shift
+done
+
 
 # Preparation
 
@@ -26,7 +55,7 @@ do
 	peerPort=$((($gossipPort+1)%10+5000))
 	peer="127.0.0.1:$peerPort"
 	gossipAddr="127.0.0.1:$gossipPort"
-	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -simple -peers=$peer > $outFileName &
+	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -simple -peers=$peer$CRYPTOOPTS > $outFileName &
 	outputFiles+=("$outFileName")
 	if [[ "$DEBUG" == "true" ]] ; then
 		echo "$name running at UIPort $UIPort and gossipPort $gossipPort"

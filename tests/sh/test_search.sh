@@ -2,10 +2,39 @@
 
 # Build
 
-if [[ $* != *--package* ]]; then
-	source ./scripts/build.sh
-	source ./tests/sh/helpers.sh
-fi
+CRYPTOOPTS=""
+DEBUG=false
+PACKAGE=false
+while [[ $# -gt 0 ]]
+do
+    key="$1"
+
+    case $key in
+        -v|--verbose|-d|--debug)
+            DEBUG=true
+            ;;
+        --package)
+            PACKAGE=true
+            source ./scripts/build.sh
+            source ./tests/sh/helpers.sh
+            ;;
+        -c|--crypto)
+            shift
+            if [[ "$1" == 1 ]]
+            then
+                CRYPTOOPTS=" -sign-only"
+            elif [[ "$1" == 2 ]]
+            then
+                CRYPTOOPTS=" -cypher-if-possible"
+            fi
+            ;;
+        *)
+            # unknown option
+            ;;
+    esac
+    shift
+done
+
 
 # Preparation
 
@@ -52,7 +81,7 @@ do
   sharedDirName="$sharedDir/$name/"
   downloadDirName="$downloadDir/$name/"
 
-	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose -separatefs > $outFileName &
+	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose -separatefs$CRYPTOOPTS > $outFileName &
 
   rm -rf $downloadDirName && mkdir $downloadDirName
   rm -rf $sharedDirName && mkdir $sharedDirName
@@ -177,6 +206,6 @@ expect_missing A "START search inexistant budget 64 increasing true"
 
 # CHECK THAT NODES WITH HALF OF THINGS CAN STILL REPLY
 
-if [[ $* != *--package* ]]; then
+if [[ $PACKAGE == false ]]; then
 	print_test_results
 fi
