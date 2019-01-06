@@ -97,7 +97,6 @@ type SearchResult struct {
 type TxPublish struct {
 	File      File
     User      User
-	MixerNode MixerNode
 	HopLimit  uint32
     ID        uint32
     Origin    string
