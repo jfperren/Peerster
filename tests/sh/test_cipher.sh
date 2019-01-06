@@ -70,7 +70,7 @@ do
   if [[ $name == "D" ]]; then
     mode=""
   else
-    mode="-sign-only"
+    mode="-cypher-if-possible"
   fi
 
 	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose $mode 2> $outFileName &
@@ -116,10 +116,6 @@ expect_missing C "CHAIN ${hex}D"
 expect_missing D "CHAIN ${hex}D"
 
 ./client/client -UIPort=8080 -msg="$message_a_c" -dest="C"
-# ./client/client -UIPort=8080 -msg="$message_a_d" -dest="D"
-# ./client/client -UIPort=8089 -msg="$message_j_a" -dest="A"
-# ./client/client -UIPort=8086 -msg="$message_g_c" -dest="C"
-# ./client/client -UIPort=8089 -msg="$message_j_b" -dest="B"
 
 sleep 20
 
