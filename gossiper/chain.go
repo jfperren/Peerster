@@ -234,6 +234,7 @@ func (bc *BlockChain) TryAddBlock(candidate *common.Block) bool {
 
         common.LogForkLongerRewind(currentChain)
         common.DebugChainLength(bc.Length[hash])
+        common.LogChain(bc.allBlocks())
 
     } else {
 
