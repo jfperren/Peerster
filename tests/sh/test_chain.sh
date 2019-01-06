@@ -23,11 +23,36 @@
 # - The other nodes are not visible because they don't send any rumor
 
 # Build
+CRYPTOOPTS=""
+DEBUG=false
+while [[ $# -gt 0 ]]
+do
+    key="$1"
 
-if [[ $* != *--package* ]]; then
-	source ./scripts/build.sh
-	source ./tests/sh/helpers.sh
-fi
+    case $key in
+        -v|--verbose|-d|--debug)
+            DEBUG=true
+            ;;
+        --package)
+            source ./scripts/build.sh
+            source ./tests/sh/helpers.sh
+            ;;
+        -c|--crypto)
+            shift
+            if [[ "$1" == 1 ]]
+            then
+                CRYPTOOPTS=" -sign-only"
+            elif [[ "$1" == 2 ]]
+            then
+                CRYPTOOPTS=" -cypher-if-possible"
+            fi
+            ;;
+        *)
+            # unknown option
+            ;;
+    esac
+    shift
+done
 
 # Preparation
 
@@ -72,16 +97,20 @@ do
     rtimer=0
   fi
 
-	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose -separatefs > $outFileName &
+	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose -separatefs$CRYPTOOPTS > $outFileName &
 
 	if [[ "$DEBUG" == "true" ]] ; then
 		echo "$name running at UIPort $UIPort and gossipPort $gossipPort"
 	fi
 
-  outputFiles+=("$outFileName")
+    outputFiles+=("$outFileName")
 	UIPort=$(($UIPort+1))
 	gossipPort=$(($gossipPort+1))
 	name=$(echo "$name" | tr "A-Y" "B-Z")
+    if [[ "$CRYPTOOPTS" != "" ]]
+    then
+        sleep 2
+    fi
 done
 
 # Create files
@@ -104,20 +133,36 @@ echo "Message" > "$sharedDir/E/$file_c"
 # Nothing to do here, we just let them mine
 
 sleep 2
+if [[ "$CRYPTOOPTS" != "" ]]
+then
+    sleep 5
+fi
 
 ./client/client -UIPort=8080 -file=$file_a
 ./client/client -UIPort=8081 -file=$file_b
 
 sleep 4
+if [[ "$CRYPTOOPTS" != "" ]]
+then
+    sleep 10
+fi
 
 ./client/client -UIPort=8084 -file=$file_a
 ./client/client -UIPort=8084 -file=$file_c
 
 sleep 2
+if [[ "$CRYPTOOPTS" != "" ]]
+then
+    sleep 5
+fi
 
 ./client/client -UIPort=8083 -file=$file_b
 
 sleep 4
+if [[ "$CRYPTOOPTS" != "" ]]
+then
+    sleep 10
+fi
 
 pkill -f Peerster
 
