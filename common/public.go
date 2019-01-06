@@ -549,8 +549,151 @@ func (r *BlockPublish) GetID() uint32 {
     return r.ID
 }
 
-func (r *SignedMessage) GetOrigin() string {
-    return r.Origin
+//
+//  MORE HASH
+//
+
+func (s *SimpleMessage) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(s.OriginalName))
+	h.Write([]byte(s.Contents))
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (r *RumorMessage) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.Origin))
+	h.Write([]byte(r.Text))
+	binary.Write(h, binary.LittleEndian, r.ID)
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (s *PeerStatus) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(s.Identifier))
+	binary.Write(h, binary.LittleEndian, s.NextID)
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (s *StatusPacket) Hash() (out [32]byte) {
+	h := sha256.New()
+	binary.Write(h,binary.LittleEndian,
+		uint32(len(s.Want)))
+	for _, w := range s.Want {
+		wh := w.Hash()
+		h.Write(wh[:])
+	}
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (p *PrivateMessage) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(p.Origin))
+	h.Write([]byte(p.Destination))
+	h.Write([]byte(p.Text))
+	binary.Write(h, binary.LittleEndian, p.ID)
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (r *DataRequest) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.Origin))
+	h.Write([]byte(r.Destination))
+	h.Write(r.HashValue)
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (r *DataReply) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.Origin))
+	h.Write([]byte(r.Destination))
+	h.Write(r.HashValue)
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (r *SearchRequest) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.Origin))
+	binary.Write(h, binary.LittleEndian, r.Budget)
+	binary.Write(h,binary.LittleEndian, uint32(len(r.Keywords)))
+	for _, k := range r.Keywords {
+		h.Write([]byte(k))
+	}
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (r *SearchResult) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.FileName))
+	h.Write(r.MetafileHash)
+	binary.Write(h,binary.LittleEndian, r.ChunkCount)
+	binary.Write(h,binary.LittleEndian, uint32(len(r.ChunkMap)))
+	for _, c := range r.ChunkMap {
+		binary.Write(h,binary.LittleEndian, c)
+	}
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (r *SearchReply) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.Origin))
+	h.Write([]byte(r.Destination))
+	binary.Write(h,binary.LittleEndian, uint32(len(r.Results)))
+	for _, sr := range r.Results {
+		srh := sr.Hash()
+		h.Write(srh[:])
+	}
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (r *BlockPublish) Hash() (out [32]byte) {
+	h := sha256.New()
+	h.Write([]byte(r.Origin))
+	binary.Write(h,binary.LittleEndian, r.ID)
+	bh := r.Block.Hash()
+	h.Write(bh[:])
+	copy(out[:], h.Sum(nil))
+	return
+}
+
+func (packet *GossipPacket) Hash() (out [32]byte) {
+
+	switch {
+	case packet.Simple != nil:
+		return packet.Simple.Hash()
+	case packet.Rumor != nil:
+		return packet.Rumor.Hash()
+	case packet.Status != nil:
+		return packet.Status.Hash()
+	case packet.Private != nil:
+		return packet.Private.Hash()
+	case packet.DataReply != nil:
+		return packet.DataReply.Hash()
+	case packet.DataRequest != nil:
+		return packet.DataRequest.Hash()
+	case packet.SearchRequest != nil:
+		return packet.SearchRequest.Hash()
+	case packet.SearchReply != nil:
+		return packet.SearchReply.Hash()
+	case packet.TxPublish != nil:
+		return packet.TxPublish.Hash()
+	case packet.BlockPublish != nil:
+		return packet.BlockPublish.Hash()
+	default:
+		panic("EEEE")
+	}
+}
+
 func (packet *GossipPacket) ShouldBeSigned() bool {
 	return packet.TxPublish == nil && packet.BlockPublish == nil && packet.Signed == nil && packet.Cyphered == nil && packet.Onion == nil
 }
