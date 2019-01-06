@@ -458,7 +458,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
                 return
             }
             var signed common.GossipPacket
-            protobuf.Decode(signedBytes, &signed)
+            err = Decode(signedBytes, &signed)
 
             gossiper.HandleGossip(&signed, source)
         }
@@ -592,7 +592,7 @@ func (gossiper *Gossiper) CypherPacket(packet *common.GossipPacket, destination 
     publicKey, exists := gossiper.BlockChain.GetPublicKey(destination)
 
     if exists {
-        bytes, err := protobuf.Encode(packet)
+        bytes, err := EncodeBlock(packet, common.CTRKeySize)
         if err != nil {
             log.Println(err)
             return nil
