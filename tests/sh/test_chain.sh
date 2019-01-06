@@ -99,7 +99,7 @@ do
     rtimer=0
   fi
 
-	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose -separatefs$CRYPTOOPTS > $outFileName &
+	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose -separatefs$CRYPTOOPTS 2> $outFileName &
 
 	if [[ "$DEBUG" == "true" ]] ; then
 		echo "$name running at UIPort $UIPort and gossipPort $gossipPort"
@@ -211,20 +211,20 @@ expect_contains J "FORK-LONGER rewind . blocks"
 
 echo -e "${NC}# Check that A, B and E successfully added its file${NC}"
 
-expect_contains A "CANDIDATE transaction $file_a successfily added"
-expect_contains B "CANDIDATE transaction $file_b successfily added"
-expect_contains E "CANDIDATE transaction $file_c successfily added"
+expect_contains A "CANDIDATE transaction $file_a| successfully added"
+expect_contains B "CANDIDATE transaction $file_b| successfully added"
+expect_contains E "CANDIDATE transaction $file_c| successfully added"
 
 echo -e "${NC}# Check that D and E do not add their duplicate names${NC}"
 
-expect_contains E "IGNORE transaction $file_a already in chain"
-expect_contains D "IGNORE transaction $file_b already in chain"
+expect_contains E "IGNORE transaction $file_a| already in chain"
+expect_contains D "IGNORE transaction $file_b| already in chain"
 
 echo -e "${NC}# Check that A,B and E successfully transmitted its file${NC}"
 
-expect_contains A "BROADCAST transaction $file_a"
-expect_contains B "BROADCAST transaction $file_b"
-expect_contains E "BROADCAST transaction $file_c"
+expect_contains A "BROADCAST transaction $file_a|"
+expect_contains B "BROADCAST transaction $file_b|"
+expect_contains E "BROADCAST transaction $file_c|"
 
 echo -e "${NC}# Check that everybody has the files${NC}"
 

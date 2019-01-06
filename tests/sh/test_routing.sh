@@ -97,7 +97,7 @@ do
     rtimer=0
   fi
 
-	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose$CRYPTOOPTS > $outFileName &
+	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -peers=$peer -rtimer=$rtimer -verbose$CRYPTOOPTS 2> $outFileName &
 
 	if [[ "$DEBUG" == "true" ]] ; then
 		echo "$name running at UIPort $UIPort and gossipPort $gossipPort"
