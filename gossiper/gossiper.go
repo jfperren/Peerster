@@ -54,7 +54,7 @@ const (
 //
 // Note - Use gossiper.Start() to Start listening for messages.
 //
-func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool, rtimer int, separatefs bool, keySize, cryptoOpts int, isMixer bool, mixLength uint) *Gossiper {
+func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool, rtimer int, separatefs bool, keySize, cryptoOpts int, mixLength uint) *Gossiper {
 
 	gossipSocket := common.NewUDPSocket(gossipAddress)
 	var clientSocket *common.UDPSocket
@@ -72,7 +72,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 	}
 
 	var mixer *Mixer
-	if isMixer && cryptoOpts != 0 {
+	if cryptoOpts != 0 {
 		mixer = NewMixer()
 	}
 
@@ -113,7 +113,7 @@ func (gossiper *Gossiper) Start() {
     }
 
     if gossiper.Mixer != nil {
-	// announce self to mixer network in common blockchain
+		// announce self to mixer network in common blockchain
 		mixerTransaction := gossiper.NewTransactionMixer(gossiper.GossipSocket.Address, publicKey)
 		if gossiper.BlockChain.TryAddMixerNode(mixerTransaction) {
 			gossiper.broadcastToNeighbors(mixerTransaction.Packed())
@@ -134,6 +134,10 @@ func (gossiper *Gossiper) Start() {
 
 	go gossiper.waitForNewBlocks()
 	go gossiper.BlockChain.mine()
+
+	if gossiper.Mixer != nil {
+		go gossiper.ReleaseOnions()
+	}
 
 	// Allows the loops to run indefinitely after the main code is completed.
 	wg := new(sync.WaitGroup)
@@ -501,7 +505,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 			} else if gossipPacket != nil {
 				// Process the packet as a normal packet
 				gossiper.HandleGossip(gossipPacket, source)
-			} else {
+			} else if gossiper.Mixer != nil {
 				// Give it to the mixer logic to store and forward later on
 				gossiper.Mixer.ForwardPacket(packet.Onion)
 			}
@@ -580,6 +584,14 @@ func (gossiper *Gossiper) GenerateRumor(message string) *common.RumorMessage {
 // Generate a route rumor
 func (gossiper *Gossiper) GenerateRouteRumor() *common.RumorMessage {
 	return gossiper.GenerateRumor("")
+}
+
+// Send ready onion packets
+func (gossiper *Gossiper) ReleaseOnions() {
+	for {
+		packet := <- gossiper.Mixer.ToSend
+		gossiper.sendToNode(packet.Packed(), packet.Destination, &packet.HopLimit)
+	}
 }
 
 //////////////

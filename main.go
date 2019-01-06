@@ -25,9 +25,8 @@ func main() {
     keySize := flag.Int("keySize", 4096, "set RSA key size")
     signOnly := flag.Bool("sign-only", false, "set to true to only sign messages")
     cypherIfPossible := flag.Bool("cypher-if-possible", false, "set to true to cypher all messages that can be cyphered")
-    mixerNode := flag.Bool("mixnode", false, "set to true to be part of the mixing network")
     mixLength := flag.Uint("mixlength", 0, "number of mixer nodes messages should go through")
-
+    
 	flag.Parse()
 
 	var g *gossiper.Gossiper
@@ -41,11 +40,11 @@ func main() {
 
 
 	if *server {
-		g = gossiper.NewGossiper(*gossipAddr, "", *name, *peers, *simple, *rtimer, *separatefs, *keySize, cryptoOpts, *mixerNode, *mixLength)
+		g = gossiper.NewGossiper(*gossipAddr, "", *name, *peers, *simple, *rtimer, *separatefs, *keySize, cryptoOpts, *mixLength)
 		gossiper.StartWebServer(g, *uiPort)
 		common.DebugStartGossiper("no_client_address", g.GossipSocket.Address, g.Name, g.Router.Peers, g.Simple, g.Router.Rtimer)
 	} else {
-		g = gossiper.NewGossiper(*gossipAddr, ":"+*uiPort, *name, *peers, *simple, *rtimer, *separatefs, *keySize, cryptoOpts, *mixerNode, *mixLength)
+		g = gossiper.NewGossiper(*gossipAddr, ":"+*uiPort, *name, *peers, *simple, *rtimer, *separatefs, *keySize, cryptoOpts, *mixLength)
 		common.DebugStartGossiper(g.ClientSocket.Address, g.GossipSocket.Address, g.Name, g.Router.Peers, g.Simple, g.Router.Rtimer)
 	}
 
