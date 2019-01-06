@@ -18,6 +18,7 @@ type RumorsAndStatuses struct {
 type User struct {
 	Name    string
 	Address string
+	Secure  bool
 }
 
 type Message struct {
@@ -175,7 +176,11 @@ func handleUser(res http.ResponseWriter, req *http.Request) {
 		users := make([]*User, 0)
 
 		for k, v := range g.Router.NextHop {
-			users = append(users, &User{k, v})
+
+			_, found := g.BlockChain.Peers[k]
+
+			users = append(users, &User{Name: k, Address:v, Secure:found})
+
 		}
 
 		json.NewEncoder(res).Encode(users)

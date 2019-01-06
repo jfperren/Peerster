@@ -240,7 +240,12 @@ function enqueueUsers(newUsers) {
     users = users + newUsers;
 
     $("#users").append($.map(newUsers, function(user) {
-        return `<li><a class="send-private" href="#" to="${user.Name}">${user.Name}</a> (${user.Address})</li>`
+        html = `<li><a class="send-private" href="#" to="${user.Name}">${user.Name}</a>`
+        if (user.Secure) {
+          html += '<b> [S]</b>'
+        }
+        html += ` (${user.Address})</li>`
+        return html
     }));
 }
 
