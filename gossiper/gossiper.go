@@ -1,6 +1,7 @@
 package gossiper
 
 import (
+    "crypto/rsa"
 	"github.com/dedis/protobuf"
 	"github.com/jfperren/Peerster/common"
 	"log"
@@ -70,7 +71,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 	}
 
 	var mixer *Mixer
-	if isMixer {
+	if isMixer && cryptoOpts != 0 {
 		mixer = NewMixer()
 
 	}
@@ -99,15 +100,18 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 
 // Start listening for UDP packets on Gossiper's clientAddress & gossipAddress
 func (gossiper *Gossiper) Start() {
-	// start by announcing self to network's blockchain
-	publicKey := gossiper.Crypto.PublicKey()
-	usrTransaction := gossiper.NewTransactionKey(gossiper.Name, publicKey)
-	if gossiper.BlockChain.TryAddUser(usrTransaction) {
-		gossiper.broadcastToNeighbors(usrTransaction.Packed())
-		common.DebugBroadcastTransaction(usrTransaction)
-	}
+    var publicKey rsa.PublicKey
+    if gossiper.Crypto.Options != 0 {
+        // start by announcing self to network's blockchain
+        publicKey = gossiper.Crypto.PublicKey()
+        userTransaction := gossiper.NewTransactionKey(gossiper.Name, publicKey)
+        if gossiper.BlockChain.TryAddUser(userTransaction) {
+            gossiper.broadcastToNeighbors(userTransaction.Packed())
+            common.DebugBroadcastTransaction(userTransaction)
+        }
+    }
 
-	if gossiper.Mixer != nil {
+    if gossiper.Mixer != nil {
 	// announce self to mixer network in common blockchain
 		mixerTransaction := gossiper.NewTransactionMixer(gossiper.GossipSocket.Address, publicKey)
 		if gossiper.BlockChain.TryAddMixerNode(mixerTransaction) {
