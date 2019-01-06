@@ -18,6 +18,7 @@ import (
 type Gossiper struct {
 	Name   			string // Name of this node
 	Simple 			bool   // Stores if gossiper runs in simple mode.
+	MixLength       uint   // Number of hops messages should go through
 
 	GossipSocket 	*common.UDPSocket // UDP Socket that connects to other nodes
 	ClientSocket 	*common.UDPSocket // UDP Socket that connects to the client
@@ -53,7 +54,7 @@ const (
 //
 // Note - Use gossiper.Start() to Start listening for messages.
 //
-func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool, rtimer int, separatefs bool, keySize, cryptoOpts int, isMixer bool) *Gossiper {
+func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple bool, rtimer int, separatefs bool, keySize, cryptoOpts int, isMixer bool, mixLength uint) *Gossiper {
 
 	gossipSocket := common.NewUDPSocket(gossipAddress)
 	var clientSocket *common.UDPSocket
@@ -73,14 +74,14 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 	var mixer *Mixer
 	if isMixer && cryptoOpts != 0 {
 		mixer = NewMixer()
-
 	}
 
 	return &Gossiper{
-		Name:         name,
-		Simple:       simple,
-		GossipSocket: gossipSocket,
-		ClientSocket: clientSocket,
+		Name:         	name,
+		Simple:       	simple,
+		GossipSocket: 	gossipSocket,
+		ClientSocket: 	clientSocket,
+		MixLength: 		mixLength,
 
 		Rumors:     	NewRumorDatabase(),
 		FileSystem: 	NewFileSystem(sharedPath, downloadPath),

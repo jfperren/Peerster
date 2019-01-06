@@ -150,6 +150,11 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
         }
     }
 
+	packet, err := gossiper.wrapInOnionIfNeeded(packet)
+	if err != nil {
+		panic(err)
+	}
+
 	bytes, err := protobuf.Encode(packet)
 	if err != nil {
 		panic(err)

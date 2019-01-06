@@ -6,6 +6,7 @@ import (
     "crypto/rsa"
     "errors"
     "github.com/jfperren/Peerster/common"
+    mrand "math/rand"
 )
 
 
@@ -24,11 +25,20 @@ var (
     // Thrown when the block size given is smaller than the size of the structure to encode
     ErrOnionCouldNotDecipherSubHeader = errors.New("could not decipher subHeader")
 
+    // Thrown when the block size given is smaller than the size of the structure to encode
+    ErrNotEnoughMixerNodes = errors.New("could not create onion, needs at least 2 mixer nodes")
+
 )
 
 //
 //  WRAP / UNWRAP
 //
+
+func (gossiper *Gossiper) GenerateOnion(gossipPacket *common.GossipPacket, route []string) (*common.OnionPacket, error) {
+
+
+    return gossiper.Crypto.GenerateOnion(gossipPacket, route, gossiper.BlockChain.MixerNodes, gossiper.Name)
+}
 
 // Wrap a regular GossipPacket into an onion that can be send on the mix network
 func (crypto *Crypto) GenerateOnion(
@@ -238,4 +248,66 @@ func isLast(subHeader *common.OnionSubHeader) bool {
 func isValid(onion *common.OnionPacket, subHeader *common.OnionSubHeader) bool {
     hash := onion.Hash()
     return bytes.Equal(hash[:], subHeader.Hash[:])
+}
+
+//
+//  GOSSIPER FUNCTIONS
+//
+
+func (gossiper *Gossiper) wrapInOnionIfNeeded(gossipPacket *common.GossipPacket) (*common.GossipPacket, error) {
+
+    if !gossiper.shouldWrapInOnion() {
+        return gossipPacket, nil
+    }
+
+    route, err := gossiper.randomMixRoute()
+    if err != nil { return nil, err }
+
+    onion, err := gossiper.Crypto.GenerateOnion(gossipPacket, route, gossiper.BlockChain.MixerNodes, gossiper.Name)
+    if err != nil { return nil, err }
+
+    return onion.Packed(), nil
+}
+
+func (gossiper *Gossiper) shouldWrapInOnion() bool {
+    return gossiper.MixLength > 0
+}
+
+// Return a random mixer node except the one given as parameter.
+// Note - This is probably the ugliest piece of code I have ever written,
+// but I am fairly convinced there is not a better way to do that.
+func (gossiper *Gossiper) randomMixerNodeExcept(except string) string {
+
+    for {
+
+        index := mrand.Intn(len(gossiper.BlockChain.MixerNodes))
+        i := 0
+
+        for node, _ := range gossiper.BlockChain.MixerNodes {
+
+            if i == index && node != except {
+                return node
+            }
+
+            i++
+        }
+    }
+}
+
+func (gossiper *Gossiper) randomMixRoute() ([]string, error) {
+
+    if len(gossiper.BlockChain.MixerNodes) < 2 {
+        return nil, ErrNotEnoughMixerNodes
+    }
+
+    route := make([]string, 0)
+    current := gossiper.Name
+
+    for i := uint(0); i < gossiper.MixLength; i++ {
+        node := gossiper.randomMixerNodeExcept(current)
+        route = append(route, node)
+        current = node
+    }
+
+    return route, nil
 }
