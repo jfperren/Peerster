@@ -16,10 +16,10 @@ scripts/build.sh
 
 To run a gossiper node in CLI mode, use the following command:
 ```
-./Peerster -gossipAddr=127.0.0.1:5002 -UIPort=8082 -name="Charlie" -peers=127.0.0.1:5000 [-rtimer 5] [-verbose] [-separatefs]
+./Peerster -gossipAddr=127.0.0.1:5002 -UIPort=8082 -name="Charlie" -peers=127.0.0.1:5000 [-rtimer 5] [-verbose] [-separatefs] [-sign-only|-cypher-if-possible]
 ```
 
-Here, `rtimer` is the number of seconds between route rumors, `verbose` allows to display additional information (it is useful for debugging but might clutter the log) and `separatefs` allows the node to use its own subfolder of the `_Download` and `_SharedFiles` folder (Note: the folder is created using the `name` attribute).
+Here, `rtimer` is the number of seconds between route rumors, `verbose` allows to display additional information (it is useful for debugging but might clutter the log), `separatefs` allows the node to use its own subfolder of the `_Download` and `_SharedFiles` folder (Note: the folder is created using the `name` attribute), `sign-only` forces the signature of all the messages while `cypher-if-possible` cyphers all the messages destined to one node.
 
 
 Alternatively, you can simply use the following command (also works with `bob` instead of `alice`):

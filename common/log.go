@@ -369,27 +369,27 @@ func DebugIgnoreBlockPrevDoesntMatch(block *Block, prev [32]byte) {
 
 func DebugIgnoreTransactionAlreadyInChain(transaction *TxPublish) {
 	if !Verbose { return }
-	fmt.Printf("IGNORE transaction %v already in chain\n", transaction.File.Name)
+	fmt.Printf("IGNORE transaction %v|%v already in chain\n", transaction.File.Name, transaction.User.Name)
 }
 
 func DebugIgnoreTransactionAlreadyCandidate(transaction *TxPublish) {
 	if !Verbose { return }
-	fmt.Printf("IGNORE transaction %v already candidate\n", transaction.File.Name)
+	fmt.Printf("IGNORE transaction %v|%v already candidate\n", transaction.File.Name, transaction.User.Name)
 }
 
 func DebugAddCandidateTransaction(transaction *TxPublish) {
 	if !Verbose { return }
-	fmt.Printf("CANDIDATE transaction %v successfily added\n", transaction.File.Name)
+	fmt.Printf("CANDIDATE transaction %v|%v successfily added\n", transaction.File.Name, transaction.User.Name)
 }
 
 func DebugBroadcastTransaction(transaction *TxPublish) {
 	if !Verbose { return }
-	fmt.Printf("BROADCAST transaction %v\n", transaction.File.Name)
+	fmt.Printf("BROADCAST transaction %v|%v\n", transaction.File.Name, transaction.User.Name)
 }
 
 func DebugReceiveTransaction(transaction *TxPublish) {
 	if !Verbose { return }
-	fmt.Printf("RECEIVE transaction %v\n", transaction.File.Name)
+	fmt.Printf("RECEIVE transaction %v|%v\n", transaction.File.Name, transaction.User.Name)
 }
 
 func DebugSleep(duration time.Duration) {

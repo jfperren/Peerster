@@ -70,7 +70,7 @@
 %% Data
 %%%%%%
 
-\newcommand{\authors}{Julien Perrenoud, Loïc Serafin, Guillaume Vizier}
+\newcommand{\authors}{Julien \textsc{Perrenoud}, Loïc \textsc{Serafin}, Guillaume \textsc{Vizier}}
 \renewcommand{\title}{A Secure Peerster}
 
 \begin{document}
@@ -127,15 +127,14 @@
 
         Two main schemes exist for ciphering and deciphering messages, as well as signing and verifying the signature: using a symmetric cryptographic scheme, or an asymmetric one.
         Symmetric cryptographic schemes use the same key on both participants to the exchange of messages.
-        The issue in our case is that we would need to create one key for each pair of peers in our network, leading to a combinatorial explosion of the number of keys.
-        In addition, two nodes would need to exchange their common key through a secure channel, which can only be created \textbf{after} they agreed on a key to use.
-        \bigbreak
+        The issue in our case is that two nodes would need to exchange their common key through a secure channel, which can only be created \textbf{after} they agreed on a key to use.
+
         Asymmetric schemes make each user create a \textbf{pair} of keys: a public key and a private key.
         The public key is for public usage: its purpose is to be shared with everybody on the network (and beyond).
         The private key has to be kept secret by its owner.
         In this case, a node signs a message using its private key, and every node having the public key can verify the signature.
         To cipher a message, a node uses the public key of the destination, and only the private key can reverse the operation.
-        \bigbreak
+
         One issue remains: the transmission of the keys.
         Using an asymmetric encryption scheme, we do not bother with exchanging the keys in a secure way, because only the public key, which is common knowledge, is sent.
         However, the mapping $gossiper~name \rightarrow public~key$ is still problematic.
@@ -143,6 +142,8 @@
         In the web of trust, it is advised to physically meet the person we are exchanging keys with.
         In our setting, we will propose a transaction containing a public key, along with the name of the owner and this name signed with the private key corresponding to the public key.
         Signing one's public key before sending it on a keys server is a practice advised for distributed systems of trust.
+
+        Asymmetric cryptography alleviaates the key-sharing problem, but presents other disadvantages: it require more computationnal ressources than symmetric encryption schemes, and also more time. In addition, the length of the asymmetric key limits the size of the messages: we cannot cypher a message longer than the key using asymmetric algorithms. Thus, to cypher a message, we will create a symmetric key for each message, use the symmetric key to cypher the message, cypher the symmetric key using the asymmetric cyphering scheme, and send everything in one packet. This way, we solve both the problem of performance and the problem of key-sharing.
 
     \subsection{Mix Networks}
 
@@ -217,7 +218,10 @@
         We will add, during the starting process of a node, the creation of a pair (public key, private key), along with the creation of a transaction, broadcast to the network, for the public key to be known by other peers in the network.
         We will still be vulnerable to man-in-the-middle attacks, but if we assume that the public keys are correctly linked to their possessor, as we assume that private keys cannot be forged or stolen, we should be safe against packet modifications and creation.
 
-        \item \textbf{Security} - We will also replace the current calls to \texttt{WriteToUDP} by calls to a function to be implemented, that will cipher and sign a message. Also, we will replace the reception of a message (namely \texttt{ReadFromUDP}) by a call to another function, also to be implemented, that decipher and verify the signature of any received packet.
+        \item \textbf{Symmetric encryption} -
+            For performance reasons and due to the constrain on the message size, we moved to a hybrid encryption scheme: we cypher message using a symmetric encryption scheme, and send the symmetric key along with the message, once this key has been cyphered using the asymmetric encryption schemes described above.
+
+        \item \textbf{Security} - We encapsulated the messages in an additional cryptographic layer. We allow a user to sign every sent message, and to cypher all messages sent to only one node (e.g. \texttt{PrivateMessage}, \texttt{SearchReply}, ...). Each operation adds a layer to the original message, layers that are unwrapped and checked upon reception of the message.
 
         \item \textbf{Blockchain-Based Key Directory} -
         It is not enough to create public and private key pairs for the network to be secure.
@@ -347,11 +351,11 @@
 
         \subsubsection{Keys Registration \& Routing}
 
-           The first step regarding the decentralized blockchain structure will be to allow a node to join the network at any time and therefore to modify its behavior.
-           A real genesis block will be introduced and will therefore not leave the possibility of parallel blockchains with different "genesis" block as we had in Homework 3.
+            The first step regarding the decentralized blockchain structure will be to allow a node to join the network at any time and therefore to modify its behavior.
+            A real genesis block will be introduced and will therefore not leave the possibility of parallel blockchains with different "genesis" block as we had in Homework 3.
             \bigbreak
-           Two types of messages will be added to the Peerster protocol to make blockchain update requests:
-           \begin{itemize}
+            Two types of messages will be added to the Peerster protocol to make blockchain update requests:
+            \begin{itemize}
                 \item \texttt{BlockRequest} used to ask another node for a \texttt{Block} with hash \texttt{Hash}. Typically, it will be sent for any unknown block ancestor.
                     \begin{lstlisting}
                         type BlockRequest struct {
@@ -362,17 +366,17 @@
                         }
                     \end{lstlisting}
 
-               \item \texttt{BlockReply} in response to the previous \texttt{BlockRequest}, giving the requested block.
-               A field is dedicated to specifying if it is the Genesis block, and thus to allow the requester to end his blockchain reconstruction.
-                    \begin{lstlisting}
-                        type BlockReply struct {
-                           Dest     string
-                           HopLimit uint32
-                           Block    *Block
-                           Genesis  bool
-                        }
-                    \end{lstlisting}
-           \end{itemize}
+                \item \texttt{BlockReply} in response to the previous \texttt{BlockRequest}, giving the requested block.
+                A field is dedicated to specifying if it is the Genesis block, and thus to allow the requester to end his blockchain reconstruction.
+                        \begin{lstlisting}
+                            type BlockReply struct {
+                            Dest     string
+                            HopLimit uint32
+                            Block    *Block
+                            Genesis  bool
+                            }
+                        \end{lstlisting}
+            \end{itemize}
 
             On top of these new messages types, transactions stored in our blockchain will be changed to allow the storage of nodes' public keys and mixer nodes addresses.
                 \begin{lstlisting}
