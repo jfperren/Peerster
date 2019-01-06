@@ -417,11 +417,10 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 	case packet.TxPublish != nil:
 
-        gossiper.handleRumor(packet.TxPublish, source)
+        // gossiper.handleRumor(packet.TxPublish, source)
 		common.DebugReceiveTransaction(packet.TxPublish)
 
 		if gossiper.BlockChain.TryAddTransaction(packet.TxPublish) {
-
 
 			packet.TxPublish.HopLimit--
 
@@ -432,7 +431,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 	case packet.BlockPublish != nil:
 
-        gossiper.handleRumor(packet.BlockPublish, source)
+        // gossiper.handleRumor(packet.BlockPublish, source)
 		if gossiper.BlockChain.TryAddBlock(&packet.BlockPublish.Block) {
 
 			packet.BlockPublish.HopLimit--
@@ -464,6 +463,8 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
         }
 
 	case packet.Onion != nil:
+
+		common.DebugOnionReceived()
 
 		destination := packet.Onion.Destination
 		hopLimit := &packet.Onion.HopLimit

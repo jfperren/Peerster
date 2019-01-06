@@ -254,11 +254,10 @@ func isValid(onion *common.OnionPacket, subHeader *common.OnionSubHeader) bool {
 //  GOSSIPER FUNCTIONS
 //
 
-func (gossiper *Gossiper) wrapInOnionIfNeeded(gossipPacket *common.GossipPacket) (*common.GossipPacket, error) {
+func (gossiper *Gossiper) wrapInOnion(gossipPacket *common.GossipPacket) (*common.GossipPacket, error) {
 
-    if !gossiper.shouldWrapInOnion(gossipPacket) {
-        return gossipPacket, nil
-    }
+
+    gossipPacket.Anonimize()
 
     route, err := gossiper.randomMixRoute()
     if err != nil { return nil, err }
@@ -266,11 +265,16 @@ func (gossiper *Gossiper) wrapInOnionIfNeeded(gossipPacket *common.GossipPacket)
     onion, err := gossiper.Crypto.GenerateOnion(gossipPacket, route, gossiper.BlockChain.Peers, gossiper.Name)
     if err != nil { return nil, err }
 
+    common.DebugOnionGenerated(route)
+
     return onion.Packed(), nil
 }
 
 func (gossiper *Gossiper) shouldWrapInOnion(packet *common.GossipPacket) bool {
-    return gossiper.MixLength > 0
+
+    return gossiper.MixLength > 0 &&
+        ((packet.Rumor != nil && packet.Rumor.Text != "" && packet.Rumor.Origin == gossiper.Name) ||
+            (packet.Private != nil && packet.Private.Origin == gossiper.Name))
 }
 
 // Return a random mixer node except the one given as parameter.

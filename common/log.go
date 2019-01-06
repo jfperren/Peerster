@@ -151,13 +151,13 @@ func DebugTimeout(peer string) {
 
 func DebugSendStatus(status *StatusPacket, to string) {
 	if !Verbose { return }
-	log.Printf("SEND STATUS to %v ", to)
+	str := fmt.Sprintf("SEND STATUS to %v ", to)
 
 	for _, peerStatus := range status.Want {
-		log.Printf("peer %v nextID %v ", peerStatus.Identifier, peerStatus.NextID)
+		str += fmt.Sprintf("peer %v nextID %v ", peerStatus.Identifier, peerStatus.NextID)
 	}
 
-	log.Printf("\n")
+	log.Printf(str)
 }
 
 func DebugForwardRumor(rumor IRumorMessage) {
@@ -277,7 +277,7 @@ func DebugFileTooBig(name string) {
 	log.Printf("WARNING file %v is too big for Peerster (max. 2Mb)\n", name)
 }
 
-func DebugStartGossiper(clientAddress, gossipAddress, name string, peers []string, simple bool, rtimer time.Duration) {
+func DebugStartGossiper(clientAddress, gossipAddress, name string, peers []string, simple bool, rtimer time.Duration, mixlength uint) {
 	if !Verbose { return }
 	log.Printf("START GOSSIPER\n")
 	log.Printf("client address %v\n", clientAddress)
@@ -286,6 +286,7 @@ func DebugStartGossiper(clientAddress, gossipAddress, name string, peers []strin
 	log.Printf("peers %v\n", peers)
 	log.Printf("simple %v\n", simple)
 	log.Printf("rtimer %v\n", rtimer)
+	log.Printf("mixlength %v\n", mixlength)
 }
 
 func DebugStopGossiper() {
@@ -449,4 +450,18 @@ func DebugDropCannotCipher(packet *GossipPacket) {
 		return
 	}
 	log.Printf("DROP MESSAGE cannot cipher DESTINATION %v\n", *packet.GetDestination())
+}
+
+func DebugOnionGenerated(route []string) {
+	if !Verbose {
+		return
+	}
+	log.Printf("ONION GENERATED route %v\n", strings.Join(route, SearchKeywordSeparator))
+}
+
+func DebugOnionReceived() {
+	if !Verbose {
+		return
+	}
+	log.Printf("ONION RECEIVED")
 }

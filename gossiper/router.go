@@ -133,7 +133,9 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
 		log.Panicf("Sending invalid packet: %v", packet)
 	}
 
-	if gossiper.ShouldAuthenticate() && !gossiper.IsAuthenticated() && packet.ShouldBeSigned() {
+	// If the gossiper needs to authenticate, is not authenticated and should sign this packet,
+	// we fail here and log an error that the gossiper needs to wait until it is authenticated.
+	if gossiper.ShouldAuthenticate() && !gossiper.IsAuthenticated() && gossiper.shouldSignPacket(packet) {
 
 		if _, found := gossiper.BlockChain.Peers[gossiper.Name]; !found {
 			common.DebugSkipSendNotAuthenticated()
@@ -141,16 +143,20 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
 		}
 	}
 
-    if gossiper.Crypto.Options == common.SignOnly && packet.ShouldBeSigned() {
+	// Before signing / ciphering, check if we need to wrap in onion afterwards
+	shouldWrapInOnion := gossiper.shouldWrapInOnion(packet)
+
+    if gossiper.Crypto.Options == common.SignOnly && gossiper.shouldSignPacket(packet) {
 
     	packet.Signature = gossiper.SignPacket(packet)
 
     } else if gossiper.Crypto.Options == common.CypherIfPossible {
 
-		if packet.ShouldBeCiphered() { // Cipher for destination
+		if gossiper.shouldCipherPacket(packet) { // Cipher for destination
 
 			cipher := gossiper.CypherPacket(packet, *packet.GetDestination())
 
+			// If the cipher failed, stop everything
 			if cipher == nil {
 				return
 			}
@@ -158,14 +164,19 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
 			packet = cipher.Packed()
 		}
 
-    	if packet.ShouldBeSigned() {
+    	if gossiper.shouldSignPacket(packet) {
 			packet.Signature = gossiper.SignPacket(packet)
 		}
     }
 
-	packet, err := gossiper.wrapInOnionIfNeeded(packet)
-	if err != nil {
-		panic(err)
+	var err error
+
+	// If onion is needed, wrap it here
+	if shouldWrapInOnion {
+		packet, err = gossiper.wrapInOnion(packet)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	bytes, err := protobuf.Encode(packet)
@@ -215,4 +226,22 @@ func (gossiper *Gossiper) sendRouteRumors() {
 
 		time.Sleep(gossiper.Router.Rtimer)
 	}
+}
+
+func (gossiper *Gossiper) shouldSignPacket(packet *common.GossipPacket) bool {
+
+	if packet.GetOrigin() == nil || *packet.GetOrigin() != gossiper.Name {
+		return false
+	}
+
+	return packet.TxPublish == nil && packet.BlockPublish == nil && packet.Cyphered == nil && packet.Onion == nil && packet.Signature == nil
+}
+
+func (gossiper *Gossiper) shouldCipherPacket(packet *common.GossipPacket) bool {
+
+	if packet.GetOrigin() == nil || *packet.GetOrigin() != gossiper.Name {
+		return false
+	}
+
+	return packet.GetDestination() != nil && packet.Cyphered == nil
 }

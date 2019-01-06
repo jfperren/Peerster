@@ -154,7 +154,6 @@ type OnionPacket struct {
 type OnionSubHeader struct {
 	PrevHop 	string				// 64B - Previous node in the route
 	NextHop 	string				// 64B - Next node in the route
-	// Signature	[]byte				// Signature of previous node
 	Key			[]byte 				// 16B - Key for decryption
 	IV			[]byte 				// 16B - Initialization vector for decryption
 	Hash 		[]byte				// 32B - Hash of OnionMessage
@@ -674,10 +673,14 @@ func (packet *GossipPacket) Hash() (out [32]byte) {
 	}
 }
 
-func (packet *GossipPacket) ShouldBeSigned() bool {
-	return packet.TxPublish == nil && packet.BlockPublish == nil && packet.Cyphered == nil && packet.Onion == nil && packet.Signature == nil
-}
+func (packet *GossipPacket) Anonimize() {
 
-func (packet *GossipPacket) ShouldBeCiphered() bool {
-	return packet.GetDestination() != nil && packet.Cyphered == nil
+	switch {
+	case packet.Private != nil:
+		packet.Rumor.Origin = "Anon"
+	case packet.Rumor != nil:
+		packet.Rumor.Origin = "Anon"
+	default:
+		// Nothing
+	}
 }

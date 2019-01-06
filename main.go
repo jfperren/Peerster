@@ -42,10 +42,10 @@ func main() {
 	if *server {
 		g = gossiper.NewGossiper(*gossipAddr, "", *name, *peers, *simple, *rtimer, *separatefs, *keySize, cryptoOpts, *mixLength)
 		gossiper.StartWebServer(g, *uiPort)
-		common.DebugStartGossiper("no_client_address", g.GossipSocket.Address, g.Name, g.Router.Peers, g.Simple, g.Router.Rtimer)
+		common.DebugStartGossiper("no_client_address", g.GossipSocket.Address, g.Name, g.Router.Peers, g.Simple, g.Router.Rtimer, g.MixLength)
 	} else {
 		g = gossiper.NewGossiper(*gossipAddr, ":"+*uiPort, *name, *peers, *simple, *rtimer, *separatefs, *keySize, cryptoOpts, *mixLength)
-		common.DebugStartGossiper(g.ClientSocket.Address, g.GossipSocket.Address, g.Name, g.Router.Peers, g.Simple, g.Router.Rtimer)
+		common.DebugStartGossiper(g.ClientSocket.Address, g.GossipSocket.Address, g.Name, g.Router.Peers, g.Simple, g.Router.Rtimer, g.MixLength)
 	}
 
 	common.Verbose = *verbose
