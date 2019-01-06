@@ -103,7 +103,7 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 func (gossiper *Gossiper) Start() {
 
 	if gossiper.ShouldAuthenticate() {
-		go gossiper.Authenticate()
+		go gossiper.tryAuthenticate()
 	}
 
 	go gossiper.receiveGossip()

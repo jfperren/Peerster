@@ -159,17 +159,6 @@ func (gossiper *Gossiper) IsAuthenticated() bool {
     return found
 }
 
-func (gossiper *Gossiper) Authenticate() {
-
-    for {
-        if gossiper.ShouldAuthenticate() {
-            gossiper.tryAuthenticate()
-        }
-
-        time.Sleep(2 * time.Second)
-    }
-}
-
 func (gossiper *Gossiper) tryAuthenticate() {
 
     userTransaction := gossiper.NewTransactionKey(gossiper.Name, gossiper.Crypto.PublicKey())
