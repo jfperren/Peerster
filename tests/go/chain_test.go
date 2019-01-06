@@ -450,7 +450,7 @@ func newValidBlock(prevHash [32]byte, files []string) *common.Block {
 
         hash := candidate.Hash()
 
-        if hash[0] == 0 && hash[1] == 0 {
+        if hash[0] == 0 && hash[1] == 0 && hash[2] < common.MiningDifficulty {
             return candidate
         }
     }
