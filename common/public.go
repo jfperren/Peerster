@@ -130,10 +130,9 @@ type Block struct {
 	Transactions []TxPublish
 }
 
-type SignedMessage struct {
-    Origin      string // name of the sender
-    Signature    []byte
-    Payload      []byte
+type Signature struct {
+	Origin       string // name of the sender
+	Signature    []byte
 }
 
 type CypheredMessage struct {
@@ -174,7 +173,7 @@ type GossipPacket struct {
 	SearchReply   *SearchReply
 	TxPublish     *TxPublish
 	BlockPublish  *BlockPublish
-    Signed        *SignedMessage
+    Signature     *Signature
     Cyphered      *CypheredMessage
 	Onion		  *OnionPacket
 }
@@ -210,13 +209,6 @@ func NewSearchReply(origin, destination string, results []*SearchResult) *Search
 		HopLimit:    InitialHopLimit,
 		Results:	 results,
 	}
-}
-
-func NewSignedMessage(signature, payload []byte) *SignedMessage {
-    return &SignedMessage{
-        Signature: signature,
-        Payload:   payload,
-    }
 }
 
 func NewCypheredMessage(destination string, payload []byte) *CypheredMessage {
@@ -342,16 +334,6 @@ func (publish *BlockPublish) Packed() *GossipPacket {
 	return &GossipPacket{BlockPublish: publish}
 }
 
-// Pack a SignedMessage into a GossipPacket
-func (signed *SignedMessage) Packed() *GossipPacket {
-
-	if signed == nil {
-		panic("Cannot pack <nil> signed message into a GossipPacket")
-	}
-
-    return &GossipPacket{Signed: signed}
-}
-
 // Pack a CypheredMessage into a GossipPacket
 func (cyphered *CypheredMessage) Packed() *GossipPacket {
 
@@ -383,14 +365,12 @@ func (packet *GossipPacket) IsValid() bool {
 		boolCount(packet.DataReply != nil)+boolCount(packet.DataRequest != nil)+
 		boolCount(packet.SearchReply != nil)+boolCount(packet.SearchRequest != nil)+
 		boolCount(packet.TxPublish != nil)+boolCount(packet.BlockPublish != nil)+
-		boolCount(packet.Signed != nil)+boolCount(packet.Cyphered != nil) +
-		boolCount(packet.Onion != nil) == 1
+		+boolCount(packet.Cyphered != nil) + boolCount(packet.Onion != nil) == 1
 }
 
 // Safety check that we only broadcast packets which are supposed to be broadcast.
 func (packet *GossipPacket) IsEligibleForBroadcast() bool {
-	return !(packet.Simple == nil && packet.SearchRequest == nil && packet.TxPublish == nil && packet.BlockPublish == nil &&
-        packet.Signed == nil)
+	return !(packet.Simple == nil && packet.SearchRequest == nil && packet.TxPublish == nil && packet.BlockPublish == nil)
 }
 
 func (packet *GossipPacket) GetDestination() *string {
@@ -690,12 +670,12 @@ func (packet *GossipPacket) Hash() (out [32]byte) {
 	case packet.BlockPublish != nil:
 		return packet.BlockPublish.Hash()
 	default:
-		panic("EEEE")
+		panic("Cannot hash")
 	}
 }
 
 func (packet *GossipPacket) ShouldBeSigned() bool {
-	return packet.TxPublish == nil && packet.BlockPublish == nil && packet.Signed == nil && packet.Cyphered == nil && packet.Onion == nil
+	return packet.TxPublish == nil && packet.BlockPublish == nil && packet.Cyphered == nil && packet.Onion == nil && packet.Signature == nil
 }
 
 func (packet *GossipPacket) ShouldBeCiphered() bool {

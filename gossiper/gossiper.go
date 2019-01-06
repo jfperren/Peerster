@@ -274,6 +274,25 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 		return // Fail gracefully
 	}
 
+	destination := packet.GetDestination()
+
+	if packet.Signature != nil && (destination == nil || *destination == gossiper.Name) {
+
+		publicKey, exists := gossiper.BlockChain.GetPublicKey(packet.Signature.Origin)
+
+		if !exists {
+			common.DebugDropUnauthenticatedOrigin(packet.Signature)
+			return
+		}
+
+		hash := packet.Hash()
+
+		if !gossiper.Crypto.Verify(hash[:], packet.Signature.Signature, publicKey) {
+			common.DebugDropIncorrectSignature(packet.Signature)
+			return
+		}
+	}
+
 	switch {
 
 	case packet.Simple != nil:
@@ -423,28 +442,6 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 			}
 		}
 
-    case packet.Signed != nil:
-
-        // Try and get public key from the blockchain
-        publicKey, exists := gossiper.BlockChain.GetPublicKey(packet.Signed.Origin)
-
-        if !exists {
-			common.DebugDropUnauthenticatedOrigin(packet.Signed)
-			return
-		}
-
-		if !gossiper.Crypto.Verify(packet.Signed.Payload, packet.Signed.Signature, publicKey) {
-			common.DebugDropIncorrectSignature(packet.Signed)
-			return
-		}
-
-		if packet.GetOrigin() != nil && *packet.GetOrigin() != packet.Signed.Origin {
-			common.DebugDropWrongOrigin(packet.Signed)
-			return
-		}
-
-		gossiper.handleReceivedPacket(packet.Signed.Payload, source)
-
     case packet.Cyphered != nil:
         destination := packet.Cyphered.Destination
 		hopLimit := &packet.Cyphered.HopLimit
@@ -460,10 +457,10 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
                 log.Println(err)
                 return
             }
-            var signed common.SignedMessage
+            var signed common.GossipPacket
             protobuf.Decode(signedBytes, &signed)
 
-            gossiper.HandleGossip(&common.GossipPacket{Signed: &signed}, source)
+            gossiper.HandleGossip(&signed, source)
         }
 
 	case packet.Onion != nil:
@@ -574,27 +571,22 @@ func (gossiper *Gossiper) ReleaseOnions() {
 //////////////
 //  CRYPTO  //
 //////////////
-func (gossiper *Gossiper) SignPacket(packet *common.GossipPacket) *common.SignedMessage {
+func (gossiper *Gossiper) SignPacket(packet *common.GossipPacket) *common.Signature {
 
     if !packet.IsValid() {
 		log.Printf("Sending invalid packet: %v\n", packet)
         return nil
 	}
 
-	bytes, err := protobuf.Encode(packet)
-	if err != nil {
-		log.Println(err)
-        return nil
-	}
+    hash := packet.Hash()
 
-    return &common.SignedMessage{
+    return &common.Signature{
         Origin: gossiper.Name,
-        Signature: gossiper.Crypto.Sign(bytes),
-        Payload: bytes,
+        Signature: gossiper.Crypto.Sign(hash[:]),
     }
 }
 
-func (gossiper *Gossiper) CypherPacket(packet *common.SignedMessage, destination string) *common.CypheredMessage {
+func (gossiper *Gossiper) CypherPacket(packet *common.GossipPacket, destination string) *common.CypheredMessage {
 
     // get public key of destination
     publicKey, exists := gossiper.BlockChain.GetPublicKey(destination)

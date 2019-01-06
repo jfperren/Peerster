@@ -424,21 +424,21 @@ func DebugSkipSendNotAuthenticated() {
 	fmt.Printf("NOT AUTHENTICATED skip send packet\n")
 }
 
-func DebugDropUnauthenticatedOrigin(signed *SignedMessage) {
+func DebugDropUnauthenticatedOrigin(signed *Signature) {
 	if !Verbose {
 		return
 	}
 	fmt.Printf("DROP SIGNED MESSAGE no key ORIGIN %v\n", signed.Origin)
 }
 
-func DebugDropIncorrectSignature(signed *SignedMessage) {
+func DebugDropIncorrectSignature(signed *Signature) {
 	if !Verbose {
 		return
 	}
 	fmt.Printf("DROP SIGNED MESSAGE incorrect signature ORIGIN %v\n", signed.Origin)
 }
 
-func DebugDropWrongOrigin(signed *SignedMessage) {
+func DebugDropWrongOrigin(signed *Signature) {
 	if !Verbose { return }
 	fmt.Printf("DROP SIGNED MESSAGE origin mismatch ORIGIN %v\n", signed.Origin)
 }
