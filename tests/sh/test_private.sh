@@ -5,6 +5,7 @@
 CRYPTOOPTS=""
 DEBUG=false
 PACKAGE=false
+nb_nodes=10
 while [[ $# -gt 0 ]]
 do
     key="$1"
@@ -25,6 +26,10 @@ do
             then
                 CRYPTOOPTS=" -cypher-if-possible"
             fi
+            ;;
+        -n|--nb-nodes)
+            shift
+            nb_nodes="$1"
             ;;
         *)
             # unknown option
@@ -55,7 +60,7 @@ message_j_b="This is a message from J to B; should not be delivered"
 
 # Create Gossipers
 
-for i in `seq 1 10`;
+for i in `seq 1 $nb_nodes`;
 do
 	outFileName="logs/$name.out"
 
@@ -96,11 +101,26 @@ done
 
 sleep 2
 
-./client/client -UIPort=8080 -msg="$message_a_c" -dest="C"
-./client/client -UIPort=8080 -msg="$message_a_d" -dest="D"
-./client/client -UIPort=8089 -msg="$message_j_a" -dest="A"
-./client/client -UIPort=8086 -msg="$message_g_c" -dest="C"
-./client/client -UIPort=8089 -msg="$message_j_b" -dest="B"
+if [[ $nb_nodes > 2 ]]
+then
+    ./client/client -UIPort=8080 -msg="$message_a_c" -dest="C"
+fi
+if [[ $nb_nodes > 3 ]]
+then
+    ./client/client -UIPort=8080 -msg="$message_a_d" -dest="D"
+fi
+if [[ $nb_nodes > 9 ]]
+then
+    ./client/client -UIPort=8089 -msg="$message_j_a" -dest="A"
+fi
+if [[ $nb_nodes > 6 ]]
+then
+    ./client/client -UIPort=8086 -msg="$message_g_c" -dest="C"
+fi
+if [[ $nb_nodes > 9 ]]
+then
+    ./client/client -UIPort=8089 -msg="$message_j_b" -dest="B"
+fi
 
 sleep 2
 
@@ -110,32 +130,71 @@ pkill -f Peerster
 
 echo -e "${NC}# CHECK that valid recipients got their message${NC}"
 
-expect_contains C "PRIVATE origin A hop-limit "
-expect_contains C " contents $message_a_c"
-expect_contains A "PRIVATE origin J hop-limit"
-expect_contains A " contents $message_j_a"
-expect_contains C "PRIVATE origin G hop-limit "
-expect_contains C " contents $message_g_c"
+if [[ $nb_nodes > 2 ]]
+then
+    expect_contains C "PRIVATE origin A hop-limit "
+    expect_contains C " contents $message_a_c"
+fi
+if [[ $nb_nodes > 9 ]]
+then
+    expect_contains A "PRIVATE origin J hop-limit"
+    expect_contains A " contents $message_j_a"
+fi
+if [[ $nb_nodes > 6 ]]
+then
+    expect_contains C "PRIVATE origin G hop-limit "
+    expect_contains C " contents $message_g_c"
+fi
 
 echo -e "${NC}# CHECK that other recipients cannot see the messages${NC}"
 
-expect_missing D "$message_a_c"
-expect_missing D "$message_j_a"
-expect_missing D "$message_g_c"
+if [[ $nb_nodes > 3 ]]
+then
+    expect_missing D "$message_a_c"
+    if [[ $nb_nodes > 9 ]]
+    then
+        expect_missing D "$message_j_a"
+    fi
+    if [[ $nb_nodes > 6 ]]
+    then
+        expect_missing D "$message_g_c"
+    fi
+fi
 
-expect_missing E "$message_a_c"
-expect_missing E "$message_j_a"
-expect_missing E "$message_g_c"
+if [[ $nb_nodes > 4 ]]
+then
+    expect_missing E "$message_a_c"
+    if [[ $nb_nodes > 9 ]]
+    then
+        expect_missing E "$message_j_a"
+    fi
+    if [[ $nb_nodes > 6 ]]
+    then
+        expect_missing E "$message_g_c"
+    fi
+fi
 
 echo -e "${NC}# CHECK that messages to unknown nodes were not delivered${NC}"
 
-expect_missing D "$message_a_d"
-expect_missing B "$message_j_b"
+if [[ $nb_nodes > 3 ]]
+then
+    expect_missing D "$message_a_d"
+fi
+if [[ $nb_nodes > 9 ]]
+then
+    expect_missing B "$message_j_b"
+fi
 
 echo -e "${NC}# CHECK that nodes handle unknown routes well${NC}"
 
+if [[ $nb_nodes > 3 ]]
+then
 expect_contains A "UNKNOWN DESTINATION D"
+fi
+if [[ $nb_nodes > 9 ]]
+then
 expect_contains J "UNKNOWN DESTINATION B"
+fi
 
 if [[ $PACKAGE == false ]]; then
 	print_test_results
