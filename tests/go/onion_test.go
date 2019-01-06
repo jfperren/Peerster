@@ -21,7 +21,7 @@ var (
         true,
         common.CryptoKeySize,
         common.CypherIfPossible,
-        true)
+        1)
 
     Bob = gossiper.NewGossiper(
         "127.0.0.1:9091",
@@ -33,7 +33,7 @@ var (
         true,
         common.CryptoKeySize,
         common.CypherIfPossible,
-        true)
+        2)
 
     Charlie = gossiper.NewGossiper(
         "127.0.0.1:9092",
@@ -45,7 +45,7 @@ var (
         true,
         common.CryptoKeySize,
         common.CypherIfPossible,
-        true)
+        1)
 
     Delta = gossiper.NewGossiper(
         "127.0.0.1:9093",
@@ -57,7 +57,7 @@ var (
         true,
         common.CryptoKeySize,
         common.CypherIfPossible,
-        true)
+        2)
 
     Keys = map[string]*rsa.PublicKey{
         Alice.Name:     &Alice.Crypto.PrivateKey.PublicKey,
