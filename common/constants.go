@@ -21,6 +21,7 @@ const MaxSearchBudget = 32
 const SearchKeywordSeparator = ","
 const SearchRequestTimeThreshold = int64(500 * time.Millisecond)
 const SearchRequestBudgetIncreaseDT = 1 * time.Second
+const UnverifiableMessageRetryDT = 1 * time.Second
 const SearchNoBudget = uint64(0)
 const SearchRequestResultsThreshold = 2
 const SearchTimeout = 1 * time.Second

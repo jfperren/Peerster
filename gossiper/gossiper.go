@@ -452,7 +452,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
             }
         } else {
             go func() {
-                timer := time.NewTicker(100 * 1000 * 1000 * time.Nanosecond)
+                timer := time.NewTicker(common.UnverifiableMessageRetryDT)
                 <-timer.C
                 timer.Stop()
                 gossiper.HandleGossip(packet, source)

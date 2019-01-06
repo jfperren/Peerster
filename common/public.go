@@ -397,18 +397,18 @@ func (packet *GossipPacket) IsEligibleForBroadcast() bool {
         packet.Signed == nil)
 }
 
-func (packet *GossipPacket) GetDestination() (string, error) {
+func (packet *GossipPacket) GetDestination() *string {
     switch {
     case packet.Private != nil:
-        return packet.Private.Destination, nil
+        return &packet.Private.Destination
     case packet.DataRequest != nil:
-        return packet.DataRequest.Destination, nil
+        return &packet.DataRequest.Destination
     case packet.DataReply != nil:
-        return packet.DataReply.Destination, nil
+        return &packet.DataReply.Destination
     case packet.SearchReply != nil:
-        return packet.SearchReply.Destination, nil
+        return &packet.SearchReply.Destination
     default:
-        return "", fmt.Errorf("no destination")
+        return nil
     }
 }
 

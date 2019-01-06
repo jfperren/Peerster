@@ -138,15 +138,17 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
             Signed: gossiper.SignPacket(packet),
         }
     } else if gossiper.Crypto.Options == common.CypherIfPossible {
-        destination, err := packet.GetDestination()
-        if err != nil {
-            packet = &common.GossipPacket{
-                Signed: gossiper.SignPacket(packet),
-            }
-        } else {
-            packet = &common.GossipPacket{
-                Cyphered: gossiper.CypherPacket(gossiper.SignPacket(packet), destination),
-            }
+
+        destination := packet.GetDestination()
+
+        if destination != nil { // Cipher for destination
+			packet = &common.GossipPacket{
+				Cyphered: gossiper.CypherPacket(gossiper.SignPacket(packet), *destination),
+			}
+        } else { // Only sign, no need for encryption
+			packet = &common.GossipPacket{
+				Signed: gossiper.SignPacket(packet),
+			}
         }
     }
 
