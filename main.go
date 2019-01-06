@@ -22,7 +22,7 @@ func main() {
 	rtimer := flag.Int("rtimer", 0, "route rumors sending period in seconds, 0 to disable sending of route rumors.")
 	verbose := flag.Bool("verbose", false, "display additional logs (useful for testing)")
 	separatefs := flag.Bool("separatefs", false, "set to true to use its own _Download and _SharedFile folder")
-    keySize := flag.Int("keySize", 4096, "set RSA key size")
+    keySize := flag.Int("keySize", common.CryptoKeySize, "set RSA key size")
     signOnly := flag.Bool("sign-only", false, "set to true to only sign messages")
     cypherIfPossible := flag.Bool("cypher-if-possible", false, "set to true to cypher all messages that can be cyphered")
     mixLength := flag.Uint("mixlength", 0, "number of mixer nodes messages should go through")
