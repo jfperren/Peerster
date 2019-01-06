@@ -32,7 +32,9 @@ func NewCrypto(size, options int) *Crypto {
     c := Crypto{
         Options: options,
     }
-    c.GenerateKey(size)
+    if options != 0 {
+        c.GenerateKey(size)
+    }
     return &c
 }
 
