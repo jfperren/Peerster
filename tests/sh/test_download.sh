@@ -5,6 +5,7 @@
 CRYPTOOPTS=""
 DEBUG=false
 PACKAGE=false
+nb_nodes=5
 while [[ $# -gt 0 ]]
 do
     key="$1"
@@ -26,6 +27,14 @@ do
             elif [[ "$1" == 2 ]]
             then
                 CRYPTOOPTS=" -cypher-if-possible"
+            fi
+            ;;
+        -n|--nb-nodes)
+            shift
+            nb_nodes="$1"
+            if [[ $nb_nodes < 3 ]]
+            then
+                nb_nodes=3
             fi
             ;;
         *)
@@ -71,7 +80,7 @@ sharedDir="_SharedFiles"
 
 # Start Gossipers & Clean folders
 
-for i in `seq 1 5`;
+for i in `seq 1 $nb_nodes`;
 do
 	outFileName="logs/$name.out"
 	peerPort=$((($gossipPort+1)%5+5000))
@@ -137,16 +146,25 @@ done
 # Upload files & start downloading
 
 ./client/client -UIPort=8080 -file="$file_a"
-./client/client -UIPort=8084 -file="$file_b"
+if [[ $nb_nodes > 4 ]]
+then
+    ./client/client -UIPort=8084 -file="$file_b"
+fi
 ./client/client -UIPort=8082 -file="$file_c"
 ./client/client -UIPort=8081 -file="$file_d"
-./client/client -UIPort=8084 -file="$file_e"
+if [[ $nb_nodes > 4 ]]
+then
+    ./client/client -UIPort=8084 -file="$file_e"
+fi
 
 sleep 3
 
 ./client/client -UIPort=8082 -keywords="hell"
 ./client/client -UIPort=8080 -keywords="inexistant"
-./client/client -UIPort=8083 -keywords="txt" -budget 1
+if [[ $nb_nodes > 3 ]]
+then
+    ./client/client -UIPort=8083 -keywords="txt" -budget 1
+fi
 
 sleep 3
 

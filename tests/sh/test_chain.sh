@@ -26,6 +26,7 @@
 CRYPTOOPTS=""
 DEBUG=false
 PACKAGE=false
+nb_nodes=10
 while [[ $# -gt 0 ]]
 do
     key="$1"
@@ -48,6 +49,10 @@ do
             then
                 CRYPTOOPTS=" -cypher-if-possible"
             fi
+            ;;
+        -n|--nb-nodes)
+            shift
+            nb_nodes="$1"
             ;;
         *)
             # unknown option
@@ -73,7 +78,6 @@ downloadDir="_Downloads"
 sharedDir="_SharedFiles"
 
 # Start Gossipers
-nb_nodes=3
 for i in `seq 1 $nb_nodes`;
 do
 	outFileName="logs/$name.out"

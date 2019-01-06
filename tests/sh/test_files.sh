@@ -93,6 +93,10 @@ do
 done
 
 sleep 2
+if [[ "$CRYPTOOPTS" != "" ]]
+then
+    sleep 18
+fi
 
 # Create files
 
