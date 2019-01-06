@@ -170,7 +170,7 @@ func (bc *BlockChain) TryAddBlock(candidate *common.Block) bool {
 
     hash := candidate.Hash()
 
-    if !(hash[0] == 0 && hash[1] == 0) {
+    if !isValidHash(hash) {
         common.DebugIgnoreBlockIsNotValid(candidate)
         return false
     }
@@ -330,7 +330,7 @@ func (bc *BlockChain) mine() {
 
         hash := candidate.Hash()
 
-        if hash[0] == 0 && hash[1] == 0 {
+        if isValidHash(hash) {
 
             common.LogFoundBlock(hash)
 
@@ -535,4 +535,12 @@ func (bc *BlockChain) GetPublicKey(peer string) (rsa.PublicKey, bool) {
     } else {
         return rsa.PublicKey{}, exists
     }
+}
+
+//
+//  HELPERS
+//
+
+func isValidHash(hash [32]byte) bool {
+    return hash[0] == 0 && hash[1] == 0 && hash[2] < common.MiningDifficulty
 }
