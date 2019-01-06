@@ -679,9 +679,5 @@ func (packet *GossipPacket) ShouldBeSigned() bool {
 }
 
 func (packet *GossipPacket) ShouldBeCiphered() bool {
-	return packet.GetDestination() != nil
-}
-
-func (packet *GossipPacket) CanSkipAuthentication() bool {
-	return !packet.ShouldBeSigned()
+	return packet.GetDestination() != nil && packet.Cyphered == nil
 }
