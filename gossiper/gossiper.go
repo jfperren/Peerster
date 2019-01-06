@@ -112,15 +112,6 @@ func (gossiper *Gossiper) Start() {
         }
     }
 
-    if gossiper.Mixer != nil {
-		// announce self to mixer network in common blockchain
-		mixerTransaction := gossiper.NewTransactionMixer(gossiper.GossipSocket.Address, publicKey)
-		if gossiper.BlockChain.TryAddMixerNode(mixerTransaction) {
-			gossiper.broadcastToNeighbors(mixerTransaction.Packed())
-			common.DebugBroadcastTransaction(mixerTransaction)
-		}
-	}
-
 	go gossiper.receiveGossip()
 	go gossiper.sendRouteRumors()
 

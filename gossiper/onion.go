@@ -37,7 +37,7 @@ var (
 func (gossiper *Gossiper) GenerateOnion(gossipPacket *common.GossipPacket, route []string) (*common.OnionPacket, error) {
 
 
-    return gossiper.Crypto.GenerateOnion(gossipPacket, route, gossiper.BlockChain.MixerNodes, gossiper.Name)
+    return gossiper.Crypto.GenerateOnion(gossipPacket, route, gossiper.BlockChain.Peers, gossiper.Name)
 }
 
 // Wrap a regular GossipPacket into an onion that can be send on the mix network
@@ -263,7 +263,7 @@ func (gossiper *Gossiper) wrapInOnionIfNeeded(gossipPacket *common.GossipPacket)
     route, err := gossiper.randomMixRoute()
     if err != nil { return nil, err }
 
-    onion, err := gossiper.Crypto.GenerateOnion(gossipPacket, route, gossiper.BlockChain.MixerNodes, gossiper.Name)
+    onion, err := gossiper.Crypto.GenerateOnion(gossipPacket, route, gossiper.BlockChain.Peers, gossiper.Name)
     if err != nil { return nil, err }
 
     return onion.Packed(), nil
@@ -280,10 +280,10 @@ func (gossiper *Gossiper) randomMixerNodeExcept(except string) string {
 
     for {
 
-        index := mrand.Intn(len(gossiper.BlockChain.MixerNodes))
+        index := mrand.Intn(len(gossiper.BlockChain.Peers))
         i := 0
 
-        for node, _ := range gossiper.BlockChain.MixerNodes {
+        for node, _ := range gossiper.BlockChain.Peers {
 
             if i == index && node != except {
                 return node
@@ -296,7 +296,7 @@ func (gossiper *Gossiper) randomMixerNodeExcept(except string) string {
 
 func (gossiper *Gossiper) randomMixRoute() ([]string, error) {
 
-    if len(gossiper.BlockChain.MixerNodes) < 2 {
+    if len(gossiper.BlockChain.Peers) < 2 {
         return nil, ErrNotEnoughMixerNodes
     }
 

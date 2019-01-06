@@ -21,7 +21,6 @@ type BlockChain struct {
     Pending     []common.TxPublish          // Current transactions to be included in next block
     Files       map[string]*common.File     // Current state of the chain: mapping of name to file
     Peers       map[string]*rsa.PublicKey     // Current state of the chain: mapping of peer name to public key
-    MixerNodes  map[string]*rsa.PublicKey	// Current of the chain: mapping of mixer nodes addresses to public key
 
     Blocks      map[[32]byte]*common.Block  // All chain blocks, mapped by hash
     Length      map[[32]byte]int            // Length of chain at each block
@@ -84,21 +83,6 @@ func (gossiper *Gossiper) NewTransactionKey(username string, publicKey rsa.Publi
         tx.ID = gossiper.Rumors.ConsumeNextID()
     }
     return tx
-}
-
-func (gossiper *Gossiper) NewTransactionMixer(address string, publicKey rsa.PublicKey) *common.TxPublish {
-	tx := &common.TxPublish{
-		MixerNode: common.MixerNode{
-			Address: address,
-			PublicKey: x509.MarshalPKCS1PublicKey(&publicKey),
-		},
-		HopLimit: common.TransactionHopLimit,
-        Origin: gossiper.Name,
-	}
-	if gossiper.Crypto.Options == 0 {
-		tx.ID = gossiper.Rumors.ConsumeNextID()
-	}
-	return tx
 }
 
 func (gossiper *Gossiper) waitForNewBlocks() {
@@ -178,32 +162,6 @@ func (bc *BlockChain) TryAddUser(candidate *common.TxPublish) bool {
     return true
 }
 
-// Atomically test and append transaction of mixer node
-func (bc *BlockChain) TryAddMixerNode(candidate *common.TxPublish) bool {
-
-	bc.lock.Lock()
-	defer bc.lock.Unlock()
-
-	_, found := bc.MixerNodes[candidate.MixerNode.Address]
-
-	if found {
-		common.DebugIgnoreTransactionAlreadyInChain(candidate)
-		return false
-	}
-
-	for _, otherCandidates := range bc.Pending {
-		if candidate.MixerNode.Address == otherCandidates.MixerNode.Address {
-			common.DebugIgnoreTransactionAlreadyCandidate(candidate)
-			return false
-		}
-	}
-
-	bc.Pending = append(bc.Pending, *candidate)
-	common.DebugAddCandidateTransaction(candidate)
-
-	return true
-}
-
 // Atomically test and append block
 func (bc *BlockChain) TryAddBlock(candidate *common.Block) bool {
 
@@ -250,13 +208,7 @@ func (bc *BlockChain) TryAddBlock(candidate *common.Block) bool {
                     panic(err)
                 }
                 bc.Peers[transaction.User.Name] = pubKey
-            } else {
-				pubKey, err := x509.ParsePKCS1PublicKey(transaction.MixerNode.PublicKey)
-				if err != nil {
-					panic(err)
-				}
-            	bc.MixerNodes[transaction.MixerNode.Address] = pubKey
-			}
+            }
         }
 
         bc.updatePendingTransactions()
@@ -312,12 +264,7 @@ func (bc *BlockChain) updatePendingTransactions() {
             if !found {
                 newPending = append(newPending, transaction)
             }
-        } else {
-			_, found := bc.MixerNodes[transaction.MixerNode.Address]
-			if !found {
-				newPending = append(newPending, transaction)
-			}
-		}
+        }
     }
 
     bc.Pending = newPending
@@ -331,9 +278,7 @@ func (bc *BlockChain) rollback(chain []*common.Block) {
                 delete(bc.Files, transaction.File.Name)
             } else if transaction.User.Name != "" {
                 delete(bc.Peers, transaction.User.Name)
-            } else {
-            	delete(bc.MixerNodes, transaction.MixerNode.Address)
-			}
+            }
         }
     }
 }
@@ -350,13 +295,7 @@ func (bc *BlockChain) fastForward(chain []*common.Block) {
                     panic(err)
                 }
                 bc.Peers[transaction.User.Name] = pubKey
-            } else {
-				pubKey, err := x509.ParsePKCS1PublicKey(transaction.MixerNode.PublicKey)
-				if err != nil {
-					panic(err)
-				}
-				bc.Peers[transaction.MixerNode.Address] = pubKey
-			}
+            }
         }
     }
 

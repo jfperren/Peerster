@@ -41,4 +41,5 @@ const CTRKeySize = 32
 const SignOnly = 1
 const CypherIfPossible = 2
 const MixerNodeBufferSize = 8
+const MixerRandomTimeSleepRange = 1000
 const NoNextHop = ""

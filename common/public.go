@@ -124,12 +124,6 @@ type User struct {
 	PublicKey []byte
 }
 
-// A registered mixer node
-type MixerNode struct {
-	Address   string
-	PublicKey []byte
-}
-
 // A block on the blockchain
 type Block struct {
 	PrevHash     [32]byte

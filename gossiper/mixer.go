@@ -2,7 +2,9 @@ package gossiper
 
 import (
 	"github.com/jfperren/Peerster/common"
+	"math/rand"
 	"sync"
+	"time"
 )
 
 type Mixer struct {
@@ -25,13 +27,17 @@ func (m *Mixer) ForwardPacket(p *common.OnionPacket) {
 	m.buffer[m.bufferSize] = p
 	m.bufferSize++
 	if m.bufferSize == common.MixerNodeBufferSize {
-		defer m.ReleasePackets()
+		m.lock.Unlock()
+		m.ReleasePackets()
+	} else {
+		m.lock.Unlock()
 	}
-	m.lock.Unlock()
 }
 
 func (m *Mixer) ReleasePackets() {
 	m.lock.Lock()
+	var randomDuration = time.Duration(rand.Intn(common.MixerRandomTimeSleepRange)) * time.Millisecond
+	time.Sleep(randomDuration)
 	for _, packet := range m.buffer {
 		m.ToSend <- packet
 	}
