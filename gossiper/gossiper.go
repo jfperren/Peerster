@@ -599,7 +599,7 @@ func (gossiper *Gossiper) CypherPacket(packet *common.GossipPacket, destination 
         }
 
         symmetricKey := NewCTRSecret()
-        cypheredPayload, initialization_vector, err := CTRCipher(bytes, symmetricKey)
+        cypheredPayload, iv, err := CTRCipher(bytes, symmetricKey)
         if err != nil {
             log.Println(err)
             return nil
@@ -611,13 +611,11 @@ func (gossiper *Gossiper) CypherPacket(packet *common.GossipPacket, destination 
             Destination: destination,
             HopLimit: common.InitialHopLimit,
             Payload: cypheredPayload,
-            IV: initialization_vector,
+            IV: iv,
             Key: cypheredKey,
         }
     } else {
-        ticker := time.NewTicker(100 * 1000 * 1000 * time.Nanosecond)
-        <-ticker.C
-        ticker.Stop()
-        return gossiper.CypherPacket(packet, destination)
+		common.DebugDropCannotCipher(packet)
+        return nil
     }
 }

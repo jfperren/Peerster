@@ -442,3 +442,10 @@ func DebugDropWrongOrigin(signed *Signature) {
 	if !Verbose { return }
 	fmt.Printf("DROP SIGNED MESSAGE origin mismatch ORIGIN %v\n", signed.Origin)
 }
+
+func DebugDropCannotCipher(packet *GossipPacket) {
+	if !Verbose {
+		return
+	}
+	fmt.Printf("DROP MESSAGE cannot cipher DESTINATION %v\n", packet.GetDestination())
+}
