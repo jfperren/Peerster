@@ -256,7 +256,7 @@ func isValid(onion *common.OnionPacket, subHeader *common.OnionSubHeader) bool {
 
 func (gossiper *Gossiper) wrapInOnionIfNeeded(gossipPacket *common.GossipPacket) (*common.GossipPacket, error) {
 
-    if !gossiper.shouldWrapInOnion() {
+    if !gossiper.shouldWrapInOnion(gossipPacket) {
         return gossipPacket, nil
     }
 
@@ -269,8 +269,8 @@ func (gossiper *Gossiper) wrapInOnionIfNeeded(gossipPacket *common.GossipPacket)
     return onion.Packed(), nil
 }
 
-func (gossiper *Gossiper) shouldWrapInOnion() bool {
-    return gossiper.MixLength > 0
+func (gossiper *Gossiper) shouldWrapInOnion(packet *common.GossipPacket) bool {
+    return gossiper.MixLength > 0 && packet.Rumor == nil && (packet.TxPublish == nil || packet.TxPublish.User.Name == "")
 }
 
 // Return a random mixer node except the one given as parameter.

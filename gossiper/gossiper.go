@@ -418,9 +418,7 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
             }
         } else {
             if packet.TxPublish.User.Name != "" {
-
                 if gossiper.BlockChain.TryAddUser(packet.TxPublish) {
-
                     packet.TxPublish.HopLimit--
 
                     if packet.TxPublish.HopLimit > 0 {
@@ -451,12 +449,24 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
                 gossiper.handleReceivedPacket(packet.Signed.Payload, source)
             }
         } else {
-            go func() {
-                timer := time.NewTicker(common.UnverifiableMessageRetryDT)
-                <-timer.C
-                timer.Stop()
-                gossiper.HandleGossip(packet, source)
-            } ()
+            // check if it contains a signed key
+            var signedPacket common.GossipPacket
+            protobuf.Decode(packet.Signed.Payload, &signedPacket)
+            if signedPacket.TxPublish != nil && signedPacket.TxPublish.User.Name != "" {// contains a public key
+                if gossiper.BlockChain.TryAddUser(signedPacket.TxPublish) {
+                    signedPacket.TxPublish.HopLimit--
+                    if signedPacket.TxPublish.HopLimit > 0 {
+                        gossiper.broadcastToNeighborsExcept(signedPacket.TxPublish.Packed(), &[]string{source})
+                    }
+                }
+            } else {
+                go func() {
+                    timer := time.NewTicker(common.UnverifiableMessageRetryDT)
+                    <-timer.C
+                    timer.Stop()
+                    gossiper.HandleGossip(packet, source)
+                } ()
+            }
         }
 
     case packet.Cyphered != nil:
