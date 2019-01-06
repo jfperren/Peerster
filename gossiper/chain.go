@@ -110,6 +110,15 @@ func (gossiper *Gossiper) waitForNewBlocks() {
 //  UPDATE FUNCTIONS
 //
 
+func (bc *BlockChain) TryAddTransaction(candidate *common.TxPublish) bool {
+
+    if candidate.File.Name != "" {
+        return bc.TryAddFile(candidate)
+    } else {
+        return bc.TryAddUser(candidate)
+    }
+}
+
 // Atomically test and append transaction
 func (bc *BlockChain) TryAddFile(candidate *common.TxPublish) bool {
 

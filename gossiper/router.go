@@ -133,17 +133,25 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
 		log.Panicf("Sending invalid packet: %v", packet)
 	}
 
-    if gossiper.Crypto.Options == common.SignOnly {
+	if gossiper.ShouldAuthenticate() && !gossiper.IsAuthenticated() && packet.ShouldBeSigned() {
+
+		if _, found := gossiper.BlockChain.Peers[gossiper.Name]; !found {
+			common.DebugSkipSendNotAuthenticated()
+			return
+		}
+	}
+
+    if gossiper.Crypto.Options == common.SignOnly && packet.ShouldBeSigned() {
+
         packet = &common.GossipPacket{
             Signed: gossiper.SignPacket(packet),
         }
+
     } else if gossiper.Crypto.Options == common.CypherIfPossible {
 
-        destination := packet.GetDestination()
-
-        if destination != nil { // Cipher for destination
+        if packet.ShouldBeCiphered() { // Cipher for destination
 			packet = &common.GossipPacket{
-				Cyphered: gossiper.CypherPacket(gossiper.SignPacket(packet), *destination),
+				Cyphered: gossiper.CypherPacket(gossiper.SignPacket(packet), *packet.GetDestination()),
 			}
         } else { // Only sign, no need for encryption
 			packet = &common.GossipPacket{

@@ -145,3 +145,38 @@ func NewCTRSecret() []byte {
     rand.Read(key)
     return key
 }
+
+//
+//  AUTHENTICATION
+//
+
+func (gossiper *Gossiper) ShouldAuthenticate() bool {
+    return gossiper.Crypto.Options != 0
+}
+
+func (gossiper *Gossiper) IsAuthenticated() bool {
+    _, found := gossiper.BlockChain.Peers[gossiper.Name]
+    return found
+}
+
+func (gossiper *Gossiper) Authenticate() {
+
+    for {
+        if gossiper.ShouldAuthenticate() {
+            gossiper.tryAuthenticate()
+        }
+
+        time.Sleep(2 * time.Second)
+    }
+}
+
+func (gossiper *Gossiper) tryAuthenticate() {
+
+    userTransaction := gossiper.NewTransactionKey(gossiper.Name, gossiper.Crypto.PublicKey())
+
+    if gossiper.BlockChain.TryAddUser(userTransaction) {
+
+        gossiper.broadcastToNeighbors(userTransaction.Packed())
+        common.DebugBroadcastTransaction(userTransaction)
+    }
+}

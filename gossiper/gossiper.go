@@ -1,7 +1,6 @@
 package gossiper
 
 import (
-    "crypto/rsa"
 	"github.com/dedis/protobuf"
 	"github.com/jfperren/Peerster/common"
 	"log"
@@ -99,18 +98,13 @@ func NewGossiper(gossipAddress, clientAddress, name string, peers string, simple
 // --  START & STOP
 // --
 
+
 // Start listening for UDP packets on Gossiper's clientAddress & gossipAddress
 func (gossiper *Gossiper) Start() {
-    var publicKey rsa.PublicKey
-    if gossiper.Crypto.Options != 0 {
-        // start by announcing self to network's blockchain
-        publicKey = gossiper.Crypto.PublicKey()
-        userTransaction := gossiper.NewTransactionKey(gossiper.Name, publicKey)
-        if gossiper.BlockChain.TryAddUser(userTransaction) {
-            gossiper.broadcastToNeighbors(userTransaction.Packed())
-            common.DebugBroadcastTransaction(userTransaction)
-        }
-    }
+
+	if gossiper.ShouldAuthenticate() {
+		go gossiper.Authenticate()
+	}
 
 	go gossiper.receiveGossip()
 	go gossiper.sendRouteRumors()
@@ -406,27 +400,16 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
         gossiper.handleRumor(packet.TxPublish, source)
 		common.DebugReceiveTransaction(packet.TxPublish)
-        if packet.TxPublish.File.Name != "" {
 
-            if gossiper.BlockChain.TryAddFile(packet.TxPublish) {
+		if gossiper.BlockChain.TryAddTransaction(packet.TxPublish) {
 
-                packet.TxPublish.HopLimit--
 
-                if packet.TxPublish.HopLimit > 0 {
-                    gossiper.broadcastToNeighborsExcept(packet.TxPublish.Packed(), &[]string{source})
-                }
-            }
-        } else {
-            if packet.TxPublish.User.Name != "" {
-                if gossiper.BlockChain.TryAddUser(packet.TxPublish) {
-                    packet.TxPublish.HopLimit--
+			packet.TxPublish.HopLimit--
 
-                    if packet.TxPublish.HopLimit > 0 {
-                        gossiper.broadcastToNeighborsExcept(packet.TxPublish.Packed(), &[]string{source})
-                    }
-                }
-            }
-        }
+			if packet.TxPublish.HopLimit > 0 {
+				gossiper.broadcastToNeighborsExcept(packet.TxPublish.Packed(), &[]string{source})
+			}
+		}
 
 	case packet.BlockPublish != nil:
 
@@ -441,33 +424,26 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 		}
 
     case packet.Signed != nil:
-        // verify signature
+
+        // Try and get public key from the blockchain
         publicKey, exists := gossiper.BlockChain.GetPublicKey(packet.Signed.Origin)
-        if exists {
-            if gossiper.Crypto.Verify(packet.Signed.Payload, packet.Signed.Signature, publicKey) {
-                gossiper.handleRumor(packet.Signed, source)
-                gossiper.handleReceivedPacket(packet.Signed.Payload, source)
-            }
-        } else {
-            // check if it contains a signed key
-            var signedPacket common.GossipPacket
-            protobuf.Decode(packet.Signed.Payload, &signedPacket)
-            if signedPacket.TxPublish != nil && signedPacket.TxPublish.User.Name != "" {// contains a public key
-                if gossiper.BlockChain.TryAddUser(signedPacket.TxPublish) {
-                    signedPacket.TxPublish.HopLimit--
-                    if signedPacket.TxPublish.HopLimit > 0 {
-                        gossiper.broadcastToNeighborsExcept(signedPacket.TxPublish.Packed(), &[]string{source})
-                    }
-                }
-            } else {
-                go func() {
-                    timer := time.NewTicker(common.UnverifiableMessageRetryDT)
-                    <-timer.C
-                    timer.Stop()
-                    gossiper.HandleGossip(packet, source)
-                } ()
-            }
-        }
+
+        if !exists {
+			common.DebugDropUnauthenticatedOrigin(packet.Signed)
+			return
+		}
+
+		if !gossiper.Crypto.Verify(packet.Signed.Payload, packet.Signed.Signature, publicKey) {
+			common.DebugDropIncorrectSignature(packet.Signed)
+			return
+		}
+
+		if packet.GetOrigin() != nil && *packet.GetOrigin() != packet.Signed.Origin {
+			common.DebugDropWrongOrigin(packet.Signed)
+			return
+		}
+
+		gossiper.handleReceivedPacket(packet.Signed.Payload, source)
 
     case packet.Cyphered != nil:
         destination := packet.Cyphered.Destination
@@ -599,6 +575,7 @@ func (gossiper *Gossiper) ReleaseOnions() {
 //  CRYPTO  //
 //////////////
 func (gossiper *Gossiper) SignPacket(packet *common.GossipPacket) *common.SignedMessage {
+
     if !packet.IsValid() {
 		log.Printf("Sending invalid packet: %v\n", packet)
         return nil

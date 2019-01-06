@@ -132,10 +132,8 @@ type Block struct {
 
 type SignedMessage struct {
     Origin      string // name of the sender
-    Signature   []byte
-    Payload     []byte // actual content of the message
-    HopLimit    uint32
-    ID          uint32
+    Signature    []byte
+    Payload      []byte
 }
 
 type CypheredMessage struct {
@@ -214,12 +212,10 @@ func NewSearchReply(origin, destination string, results []*SearchResult) *Search
 	}
 }
 
-func NewSignedMessage(origin string, signature, payload []byte) *SignedMessage {
+func NewSignedMessage(signature, payload []byte) *SignedMessage {
     return &SignedMessage{
-        Origin:    origin,
         Signature: signature,
         Payload:   payload,
-        HopLimit:  InitialHopLimit,
     }
 }
 
@@ -412,6 +408,31 @@ func (packet *GossipPacket) GetDestination() *string {
     }
 }
 
+func (packet *GossipPacket) GetOrigin() *string {
+	switch {
+	case packet.Simple != nil:
+		return &packet.Simple.OriginalName
+	case packet.Rumor != nil:
+		return &packet.Rumor.Origin
+	case packet.Private != nil:
+		return &packet.Private.Origin
+	case packet.DataRequest != nil:
+		return &packet.DataRequest.Origin
+	case packet.DataReply != nil:
+		return &packet.DataReply.Origin
+	case packet.SearchRequest != nil:
+		return &packet.SearchRequest.Origin
+	case packet.SearchReply != nil:
+		return &packet.SearchReply.Origin
+	case packet.BlockPublish != nil:
+		return &packet.BlockPublish.Origin
+	case packet.TxPublish != nil:
+		return &packet.TxPublish.Origin
+	default:
+		return nil
+	}
+}
+
 // Verify that a DataReply has the correct data via computing and comparing the hash
 func (reply *DataReply) VerifyHash(expected []byte) bool {
 
@@ -477,18 +498,32 @@ func (block *Block) Str() string {
     hash := block.Hash()
     prev := block.PrevHash
     files := make([]string, 0)
+	users := make([]string, 0)
 
     for _, transaction := range block.Transactions {
-        files = append(files, transaction.File.Name)
+		if transaction.File.Name != "" {
+			files = append(files, transaction.File.Name)
+		}
     }
 
-    return fmt.Sprintf("%v:%v:%v", hex.EncodeToString(hash[:]), hex.EncodeToString(prev[:]), strings.Join(files, FileNameSeparator))
+	for _, transaction := range block.Transactions {
+		if transaction.User.Name != "" {
+			users = append(users, transaction.User.Name)
+		}
+	}
+
+	return fmt.Sprintf("%v:%v:%v:%v", hex.EncodeToString(hash[:]), hex.EncodeToString(prev[:]),
+		strings.Join(files, FileNameSeparator), strings.Join(users, FileNameSeparator))
 }
 
 
 //
 //  GETTERS
 //
+
+func (r *SimpleMessage) GetOrigin() string {
+	return r.OriginalName
+}
 
 func (r *RumorMessage) GetOrigin() string {
     return r.Origin
@@ -516,8 +551,14 @@ func (r *BlockPublish) GetID() uint32 {
 
 func (r *SignedMessage) GetOrigin() string {
     return r.Origin
+func (packet *GossipPacket) ShouldBeSigned() bool {
+	return packet.TxPublish == nil && packet.BlockPublish == nil && packet.Signed == nil && packet.Cyphered == nil && packet.Onion == nil
 }
 
-func (r *SignedMessage) GetID() uint32 {
-    return r.ID
+func (packet *GossipPacket) ShouldBeCiphered() bool {
+	return packet.GetDestination() != nil
+}
+
+func (packet *GossipPacket) CanSkipAuthentication() bool {
+	return !packet.ShouldBeSigned()
 }

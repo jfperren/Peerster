@@ -379,7 +379,7 @@ func DebugIgnoreTransactionAlreadyCandidate(transaction *TxPublish) {
 
 func DebugAddCandidateTransaction(transaction *TxPublish) {
 	if !Verbose { return }
-	fmt.Printf("CANDIDATE transaction %v successfily added\n", transaction.File.Name)
+	fmt.Printf("CANDIDATE transaction %v successfully added\n", transaction.File.Name)
 }
 
 func DebugBroadcastTransaction(transaction *TxPublish) {
@@ -417,4 +417,28 @@ func DebugServeSeachReply(reply *SearchReply) {
 	}
 
 	fmt.Printf("SERVE SEARCH REPLY to %v results %v\n", reply.Destination, strings.Join(results, ","))
+}
+
+func DebugSkipSendNotAuthenticated() {
+	if !Verbose { return }
+	fmt.Printf("NOT AUTHENTICATED skip send packet\n")
+}
+
+func DebugDropUnauthenticatedOrigin(signed *SignedMessage) {
+	if !Verbose {
+		return
+	}
+	fmt.Printf("DROP SIGNED MESSAGE no key ORIGIN %v\n", signed.Origin)
+}
+
+func DebugDropIncorrectSignature(signed *SignedMessage) {
+	if !Verbose {
+		return
+	}
+	fmt.Printf("DROP SIGNED MESSAGE incorrect signature ORIGIN %v\n", signed.Origin)
+}
+
+func DebugDropWrongOrigin(signed *SignedMessage) {
+	if !Verbose { return }
+	fmt.Printf("DROP SIGNED MESSAGE origin mismatch ORIGIN %v\n", signed.Origin)
 }
