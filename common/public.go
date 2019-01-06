@@ -477,12 +477,14 @@ func (block *Block) Str() string {
     hash := block.Hash()
     prev := block.PrevHash
     files := make([]string, 0)
+    names := make([]string, 0)
 
     for _, transaction := range block.Transactions {
         files = append(files, transaction.File.Name)
+        names = append(names, transaction.User.Name)
     }
 
-    return fmt.Sprintf("%v:%v:%v", hex.EncodeToString(hash[:]), hex.EncodeToString(prev[:]), strings.Join(files, FileNameSeparator))
+    return fmt.Sprintf("%v:%v:%v|%v", hex.EncodeToString(hash[:]), hex.EncodeToString(prev[:]), strings.Join(files, FileNameSeparator), strings.Join(names, FileNameSeparator))
 }
 
 
