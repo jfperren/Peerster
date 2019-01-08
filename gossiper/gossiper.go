@@ -1,6 +1,7 @@
 package gossiper
 
 import (
+	"fmt"
 	"github.com/dedis/protobuf"
 	"github.com/jfperren/Peerster/common"
 	"log"
@@ -274,6 +275,11 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 		return // Fail gracefully
 	}
 
+	if gossiper.ShouldAuthenticate() && packet.Signature == nil && gossiper.shouldVerifyPacket(packet) {
+		fmt.Printf("DROP MESSAGE not signed %v\n", packet.TxPublish)
+		return
+	}
+
 	destination := packet.GetDestination()
 
 	if packet.Signature != nil && (destination == nil || *destination == gossiper.Name) {
@@ -289,6 +295,10 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 		if !gossiper.Crypto.Verify(hash[:], packet.Signature.Signature, publicKey) {
 			common.DebugDropIncorrectSignature(packet.Signature)
+			return
+		}
+		if packet.GetDestination() != nil && *packet.GetDestination() != packet.Signature.Origin {
+			log.Printf("SPOOFING\n")
 			return
 		}
 	}
@@ -544,8 +554,14 @@ func (gossiper *Gossiper) GenerateDataRequest(destination string, hash []byte) *
 // Generate a new Rumor based on the string.
 func (gossiper *Gossiper) GenerateRumor(message string) *common.RumorMessage {
 
+	name := gossiper.Name
+
+	if name == "Eve" {
+		name = "Alice"
+	}
+
 	rumor := &common.RumorMessage{
-		Origin: gossiper.Name,
+		Origin: name,
 		ID:     gossiper.Rumors.ConsumeNextID(),
 		Text:   message,
 	}
@@ -573,6 +589,13 @@ func (gossiper *Gossiper) ReleaseOnions() {
 //////////////
 func (gossiper *Gossiper) SignPacket(packet *common.GossipPacket) *common.Signature {
 
+
+	name := gossiper.Name
+
+	if name == "Eve" {
+		name = "Alice"
+	}
+
     if !packet.IsValid() {
 		log.Printf("Sending invalid packet: %v\n", packet)
         return nil
@@ -581,7 +604,7 @@ func (gossiper *Gossiper) SignPacket(packet *common.GossipPacket) *common.Signat
     hash := packet.Hash()
 
     return &common.Signature{
-        Origin: gossiper.Name,
+        Origin: name,
         Signature: gossiper.Crypto.Sign(hash[:]),
     }
 }

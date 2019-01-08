@@ -160,7 +160,7 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
 	if err != nil {
 		panic(err)
 	}
-
+	
 	bytes, err := protobuf.Encode(packet)
 	if err != nil {
 		panic(err)
@@ -208,4 +208,26 @@ func (gossiper *Gossiper) sendRouteRumors() {
 
 		time.Sleep(gossiper.Router.Rtimer)
 	}
+}
+
+func (gossiper *Gossiper) shouldVerifyPacket(packet *common.GossipPacket) bool {
+	return packet.TxPublish == nil && packet.BlockPublish == nil
+}
+
+func (gossiper *Gossiper) shouldSignPacket(packet *common.GossipPacket) bool {
+
+	if packet.GetOrigin() == nil || *packet.GetOrigin() != gossiper.Name {
+		return false
+	}
+
+	return packet.TxPublish == nil && packet.BlockPublish == nil && packet.Cyphered == nil && packet.Onion == nil && packet.Signature == nil
+}
+
+func (gossiper *Gossiper) shouldCipherPacket(packet *common.GossipPacket) bool {
+
+	if packet.GetOrigin() == nil || *packet.GetOrigin() != gossiper.Name {
+		return false
+	}
+
+	return packet.GetDestination() != nil && packet.Cyphered == nil
 }
