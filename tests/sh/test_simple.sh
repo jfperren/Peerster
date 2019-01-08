@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 # Build
-
 CRYPTOOPTS=""
 DEBUG=false
 PACKAGE=false
+nb_nodes=10
 while [[ $# -gt 0 ]]
 do
     key="$1"
@@ -25,6 +25,10 @@ do
             then
                 CRYPTOOPTS=" -cypher-if-possible"
             fi
+            ;;
+        -n|--nb-nodes)
+            shift
+            nb_nodes="$1"
             ;;
         *)
             # unknown option
@@ -51,10 +55,10 @@ name='A'
 # General peerster (gossiper) command
 #./Peerster -UIPort=12345 -gossipPort=127.0.0.1:5001 -name=A -peers=127.0.0.1:5002 > A.out &
 
-for i in `seq 1 10`;
+for i in `seq 1 $nb_nodes`;
 do
 	outFileName="$name.out"
-	peerPort=$((($gossipPort+1)%10+5000))
+	peerPort=$((($gossipPort+1)%$nb_nodes+5000))
 	peer="127.0.0.1:$peerPort"
 	gossipAddr="127.0.0.1:$gossipPort"
 	./Peerster -UIPort=$UIPort -gossipAddr=$gossipAddr -name=$name -simple -peers=$peer$CRYPTOOPTS 2> $outFileName &
@@ -74,7 +78,7 @@ pkill -f Peerster
 
 # Testing
 
-if !(grep -q "CLIENT MESSAGE $message" "E.out") ; then
+if [[ $nb_nodes > 4 ]] && !(grep -q "CLIENT MESSAGE $message" "E.out") ; then
 	failed="T"
 fi
 
@@ -87,13 +91,13 @@ if [[ "$failed" == "T" ]] ; then
 fi
 
 gossipPort=5000
-for i in `seq 0 9`;
+for i in `seq 0 $nb_nodes`;
 do
 	relayPort=$(($gossipPort-1))
 	if [[ "$relayPort" == 4999 ]] ; then
-		relayPort=5009
+        relayPort=$((4999 + $nb_nodes))
 	fi
-	nextPort=$((($gossipPort+1)%10+5000))
+	nextPort=$((($gossipPort+1)%$nb_nodes+5000))
 	msgLine="SIMPLE MESSAGE origin E from 127.0.0.1:$relayPort contents $message"
 	msgLine2="SIMPLE MESSAGE origin B from 127.0.0.1:$relayPort contents $message2"
 	peersLine="127.0.0.1:$nextPort,127.0.0.1:$relayPort"
@@ -103,7 +107,7 @@ do
 		echo "check 3 $peersLine"
 	fi
 	gossipPort=$(($gossipPort+1))
-	if !(grep -q "$msgLine" "${outputFiles[$i]}") ; then
+	if [[ $nb_nodes > 4 ]] && !(grep -q "$msgLine" "${outputFiles[$i]}") ; then
    		failed="T"
 	fi
 	if !(grep -q "$peersLine" "${outputFiles[$i]}") ; then

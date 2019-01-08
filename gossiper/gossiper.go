@@ -1,6 +1,7 @@
 package gossiper
 
 import (
+	"fmt"
 	"github.com/dedis/protobuf"
 	"github.com/jfperren/Peerster/common"
 	"log"
@@ -272,6 +273,11 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 	if packet == nil || !packet.IsValid() {
 		common.DebugInvalidPacket(packet)
 		return // Fail gracefully
+	}
+
+	if gossiper.ShouldAuthenticate() && packet.Signature == nil {
+		fmt.Printf("DROP MESSAGE not signed\n")
+		return
 	}
 
 	destination := packet.GetDestination()

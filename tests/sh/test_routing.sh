@@ -23,10 +23,10 @@
 # - The other nodes are not visible because they don't send any rumor
 
 # Build
-
 CRYPTOOPTS=""
 DEBUG=false
 PACKAGE=false
+nb_nodes=10
 while [[ $# -gt 0 ]]
 do
     key="$1"
@@ -47,6 +47,10 @@ do
             then
                 CRYPTOOPTS=" -cypher-if-possible"
             fi
+            ;;
+        -n|--nb-nodes)
+            shift
+            nb_nodes="$1"
             ;;
         *)
             # unknown option
@@ -72,7 +76,7 @@ rtimer=1
 
 # Start Gossipers
 
-for i in `seq 1 10`;
+for i in `seq 1 $nb_nodes`;
 do
 	outFileName="logs/$name.out"
 
@@ -83,7 +87,13 @@ do
   elif [ $name = "J" ]; then
     peerPort=5004
   else
-    peerPort=$((($i)%7+5000))
+      if [[ $nb_nodes > 6 ]]
+      then
+          peerPort=$((($i)%7+5000))
+      else
+          peerPort=$(($i%$nb_nodes+5000))
+      fi
+
   fi
 
 	peer="127.0.0.1:$peerPort"
@@ -121,7 +131,7 @@ then
     sleep 10
 fi
 
-./client/client -UIPort=8088 -msg="Hello"
+./client/client -UIPort=8080 -msg="Hello"
 
 sleep 2
 if [[ "$CRYPTOOPTS" != "" ]]
@@ -135,42 +145,87 @@ pkill -f Peerster
 
 echo -e "${NC}# CHECK that visible nodes updated their routing table correctly${NC}"
 
-expect_contains A "DSDV C"
-expect_contains A "DSDV F"
+if [[ $nb_nodes > 2 ]]
+then
+    expect_contains A "DSDV C"
+    if [[ $nb_nodes > 5 ]]
+    then
+        expect_contains A "DSDV F"
+    fi
 
-expect_contains C "DSDV A"
-expect_contains C "DSDV F"
+    expect_contains C "DSDV A"
+    if [[ $nb_nodes > 5 ]]
+    then
+        expect_contains C "DSDV F"
 
-expect_contains F "DSDV A"
-expect_contains F "DSDV C"
+    expect_contains F "DSDV A"
+    expect_contains F "DSDV C"
+    fi
+fi
 
 echo -e "${NC}# CHECK that other nodes can see as well${NC}"
 
 expect_contains B "DSDV A"
-expect_contains B "DSDV C"
-expect_contains B "DSDV F"
+if [[ $nb_nodes > 2 ]]
+then
+    expect_contains B "DSDV C"
+fi
+if [[ $nb_nodes > 5 ]]
+then
+    expect_contains B "DSDV F"
+fi
 
-expect_contains D "DSDV A"
-expect_contains D "DSDV C"
-expect_contains D "DSDV F"
+if [[ $nb_nodes > 3 ]]
+then
+    expect_contains D "DSDV A"
+    expect_contains D "DSDV C"
+    if [[ $nb_nodes > 5 ]]
+    then
+        expect_contains D "DSDV F"
+    fi
+fi
 
-expect_contains E "DSDV A"
-expect_contains E "DSDV C"
-expect_contains E "DSDV F"
+if [[ $nb_nodes > 4 ]]
+then
+    expect_contains E "DSDV A"
+    expect_contains E "DSDV C"
+    if [[ $nb_nodes > 5 ]]
+    then
+        expect_contains E "DSDV F"
+    fi
+fi
 
 echo -e "${NC}# CHECK that silent nodes are not seen${NC}"
 
 expect_missing A "DSDV B"
-expect_missing A "DSDV D"
-expect_missing A "DSDV E"
+if [[ $nb_nodes > 3 ]]
+then
+    expect_missing A "DSDV D"
+fi
+if [[ $nb_nodes > 4 ]]
+then
+    expect_missing A "DSDV E"
+fi
 
-expect_missing C "DSDV B"
-expect_missing C "DSDV D"
-expect_missing C "DSDV E"
+if [[ $nb_nodes > 2 ]]
+then
+    expect_missing C "DSDV B"
+    if [[ $nb_nodes > 3 ]]
+    then
+        expect_missing C "DSDV D"
+    fi
+    if [[ $nb_nodes > 4 ]]
+    then
+        expect_missing C "DSDV E"
+    fi
+fi
 
-expect_missing F "DSDV B"
-expect_missing F "DSDV D"
-expect_missing F "DSDV E"
+if [[ $nb_nodes > 5 ]]
+then
+    expect_missing F "DSDV B"
+    expect_missing F "DSDV D"
+    expect_missing F "DSDV E"
+fi
 
 echo -e "${NC}# CHECK that A overwrite its routing table${NC}"
 
@@ -179,44 +234,74 @@ echo -e "${NC}# CHECK that A overwrite its routing table${NC}"
 
 echo -e "${NC}# CHECK that H and I update their routing table${NC}"
 
-expect_contains H "DSDV A 127.0.0.1:5000"
-expect_contains H "DSDV C 127.0.0.1:5000"
-expect_contains H "DSDV F 127.0.0.1:5000"
+if [[ $nb_nodes > 7 ]]
+then
+    expect_contains H "DSDV A 127.0.0.1:5000"
+    expect_contains H "DSDV C 127.0.0.1:5000"
+    expect_contains H "DSDV F 127.0.0.1:5000"
+fi
 
-expect_contains I "DSDV A 127.0.0.1:5002"
-expect_contains I "DSDV C 127.0.0.1:5002"
-expect_contains I "DSDV F 127.0.0.1:5002"
+if [[ $nb_nodes > 8 ]]
+then
+    expect_contains I "DSDV A 127.0.0.1:5002"
+    expect_contains I "DSDV C 127.0.0.1:5002"
+    expect_contains I "DSDV F 127.0.0.1:5002"
+fi
 
 echo -e "${NC}# CHECK that J also update its routing table${NC}"
 
-expect_contains J "DSDV A 127.0.0.1:5004"
-expect_contains J "DSDV C 127.0.0.1:5004"
-expect_contains J "DSDV F 127.0.0.1:5004"
+if [[ $nb_nodes > 9 ]]
+then
+    expect_contains J "DSDV A 127.0.0.1:5004"
+    expect_contains J "DSDV C 127.0.0.1:5004"
+    expect_contains J "DSDV F 127.0.0.1:5004"
+fi
 
 echo -e "${NC}# CHECK that H and I become visible${NC}"
 
-expect_contains A "DSDV H 127.0.0.1:5007"
-expect_contains A "DSDV I 127.0.0.1:5001"
+if [[ $nb_nodes > 7 ]]
+then
+    expect_contains A "DSDV H 127.0.0.1:5007"
+    if [[ $nb_nodes > 8 ]]
+    then
+        expect_contains A "DSDV I 127.0.0.1:5001"
+    fi
 
-expect_contains B "DSDV H 127.0.0.1:5000"
-expect_contains B "DSDV I 127.0.0.1:5002"
+    expect_contains B "DSDV H 127.0.0.1:5000"
+    if [[ $nb_nodes > 8 ]]
+    then
+        expect_contains B "DSDV I 127.0.0.1:5002"
+    fi
 
-expect_contains C "DSDV H 127.0.0.1:5001"
-expect_contains C "DSDV I"
+    expect_contains C "DSDV H 127.0.0.1:5001"
+    if [[ $nb_nodes > 8 ]]
+    then
+        expect_contains C "DSDV I"
+    fi
 
-expect_contains D "DSDV H"
-expect_contains D "DSDV I"
+    expect_contains D "DSDV H"
+    if [[ $nb_nodes > 8 ]]
+    then
+        expect_contains D "DSDV I"
+    fi
 
-expect_contains E "DSDV H"
-expect_contains E "DSDV I"
+    expect_contains E "DSDV H"
+    if [[ $nb_nodes > 8 ]]
+    then
+        expect_contains E "DSDV I"
+    fi
+fi
 
 echo -e "${NC}# CHECK that J is not visible${NC}"
 
-expect_missing A "DSDV J"
-expect_missing B "DSDV J"
-expect_missing C "DSDV J"
-expect_missing D "DSDV J"
-expect_missing E "DSDV J"
+if [[ $nb_nodes > 9 ]]
+then
+    expect_missing A "DSDV J"
+    expect_missing B "DSDV J"
+    expect_missing C "DSDV J"
+    expect_missing D "DSDV J"
+    expect_missing E "DSDV J"
+fi
 
 
 # echo -e "${NC}# Check that E received the file from A${NC}"

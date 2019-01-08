@@ -71,7 +71,12 @@ do
   elif [ $name = "J" ]; then
     peerPort=5004
   else
-    peerPort=$((($i)%7+5000))
+      if [[ $nb_nodes > 6 ]]
+      then
+          peerPort=$((($i)%7+5000))
+      else
+          peerPort=$(($i%$nb_nodes+5000))
+      fi
   fi
 
 	peer="127.0.0.1:$peerPort"
