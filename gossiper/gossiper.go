@@ -275,9 +275,8 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 		return // Fail gracefully
 	}
 
-	if gossiper.ShouldAuthenticate() && packet.Signature == nil {
+	if gossiper.ShouldAuthenticate() && packet.Signature == nil && gossiper.shouldVerifyPacket(packet) {
 		fmt.Printf("DROP MESSAGE not signed\n")
-		return
 	}
 
 	destination := packet.GetDestination()
@@ -295,6 +294,10 @@ func (gossiper *Gossiper) HandleGossip(packet *common.GossipPacket, source strin
 
 		if !gossiper.Crypto.Verify(hash[:], packet.Signature.Signature, publicKey) {
 			common.DebugDropIncorrectSignature(packet.Signature)
+			return
+		}
+		if packet.GetDestination() != nil && *packet.GetDestination() != packet.Signature.Origin {
+			log.Printf("SPOOFING\n")
 			return
 		}
 	}
@@ -551,8 +554,14 @@ func (gossiper *Gossiper) GenerateDataRequest(destination string, hash []byte) *
 // Generate a new Rumor based on the string.
 func (gossiper *Gossiper) GenerateRumor(message string) *common.RumorMessage {
 
+	name := gossiper.Name
+
+	if name == "Eve" {
+		name = "Alice"
+	}
+
 	rumor := &common.RumorMessage{
-		Origin: gossiper.Name,
+		Origin: name,
 		ID:     gossiper.Rumors.ConsumeNextID(),
 		Text:   message,
 	}
@@ -580,6 +589,13 @@ func (gossiper *Gossiper) ReleaseOnions() {
 //////////////
 func (gossiper *Gossiper) SignPacket(packet *common.GossipPacket) *common.Signature {
 
+
+	name := gossiper.Name
+
+	if name == "Eve" {
+		name = "Alice"
+	}
+
     if !packet.IsValid() {
 		log.Printf("Sending invalid packet: %v\n", packet)
         return nil
@@ -588,7 +604,7 @@ func (gossiper *Gossiper) SignPacket(packet *common.GossipPacket) *common.Signat
     hash := packet.Hash()
 
     return &common.Signature{
-        Origin: gossiper.Name,
+        Origin: name,
         Signature: gossiper.Crypto.Sign(hash[:]),
     }
 }

@@ -178,7 +178,7 @@ func (gossiper *Gossiper) sendToNeighbor(peerAddress string, packet *common.Goss
 			panic(err)
 		}
 	}
-
+	
 	bytes, err := protobuf.Encode(packet)
 	if err != nil {
 		panic(err)
@@ -226,6 +226,10 @@ func (gossiper *Gossiper) sendRouteRumors() {
 
 		time.Sleep(gossiper.Router.Rtimer)
 	}
+}
+
+func (gossiper *Gossiper) shouldVerifyPacket(packet *common.GossipPacket) bool {
+	return packet.TxPublish == nil && packet.BlockPublish == nil
 }
 
 func (gossiper *Gossiper) shouldSignPacket(packet *common.GossipPacket) bool {
