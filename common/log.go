@@ -67,7 +67,7 @@ func LogUpdateRoutingTable(origin, address string) {
 }
 
 func LogPrivate(private *PrivateMessage) {
-	log.Printf("PRIVATE origin %v hop-limit %v contents %v\n", private.Origin, private.HopLimit, private.Text)
+	fmt.Printf("PRIVATE origin %v hop-limit %v contents %v\n", private.Origin, private.HopLimit, private.Text)
 }
 
 func LogDownloadingMetafile(filename string, seed string) {
